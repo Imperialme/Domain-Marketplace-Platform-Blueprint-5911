@@ -1,20 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useDomains } from '../context/DomainContext';
+import { useAuth } from '../context/AuthContext';
+import LoginModal from '../components/auth/LoginModal';
+import RegisterModal from '../components/auth/RegisterModal';
+import UserMenu from '../components/UserMenu';
 
-const { FiGlobe, FiSearch, FiShield, FiTrendingUp, FiArrowRight, FiStar } = FiIcons;
+const { FiGlobe, FiSearch, FiShield, FiTrendingUp, FiArrowRight, FiStar, FiUser } = FiIcons;
 
 const HomePage = () => {
   const { domains } = useDomains();
+  const { isAuthenticated } = useAuth();
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const activeDomains = domains.filter(domain => domain.status === 'active');
+
+  const handleSwitchToRegister = () => {
+    setIsLoginOpen(false);
+    setIsRegisterOpen(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setIsRegisterOpen(false);
+    setIsLoginOpen(true);
+  };
 
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <motion.header 
+      <motion.header
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50"
@@ -26,12 +43,45 @@ const HomePage = () => {
               <span className="text-2xl font-bold text-gray-900">Netzone</span>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
-              <Link to="#domains" className="text-gray-600 hover:text-primary-600 transition-colors">Domains</Link>
-              <Link to="#about" className="text-gray-600 hover:text-primary-600 transition-colors">About</Link>
-              <Link to="/admin" className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
-                Admin
+              <Link to="#domains" className="text-gray-600 hover:text-primary-600 transition-colors">
+                Domains
               </Link>
+              <Link to="#about" className="text-gray-600 hover:text-primary-600 transition-colors">
+                About
+              </Link>
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => setIsLoginOpen(true)}
+                    className="text-gray-600 hover:text-primary-600 transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setIsRegisterOpen(true)}
+                    className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
             </nav>
+            
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="text-gray-600 hover:text-primary-600 transition-colors"
+                >
+                  <SafeIcon icon={FiUser} className="h-6 w-6" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </motion.header>
@@ -40,7 +90,7 @@ const HomePage = () => {
       <section className="relative overflow-hidden py-20 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <motion.h1 
+            <motion.h1
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -49,30 +99,29 @@ const HomePage = () => {
               Premium Domain
               <span className="text-primary-600 block">Marketplace</span>
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
               className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto"
             >
-              Discover and acquire premium domains for your next venture. 
-              Each domain is carefully curated and verified for authenticity.
+              Discover and acquire premium domains for your next venture. Each domain is carefully curated and verified for authenticity.
             </motion.p>
-            <motion.div 
+            <motion.div
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Link 
-                to="#domains" 
+              <Link
+                to="#domains"
                 className="bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <SafeIcon icon={FiSearch} className="h-5 w-5" />
                 <span>Browse Domains</span>
               </Link>
-              <Link 
-                to="#about" 
+              <Link
+                to="#about"
                 className="border border-gray-300 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Learn More
@@ -89,9 +138,8 @@ const HomePage = () => {
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Netzone?</h2>
             <p className="text-xl text-gray-600">Professional domain marketplace with verified listings</p>
           </div>
-          
           <div className="grid md:grid-cols-3 gap-8">
-            <motion.div 
+            <motion.div
               initial={{ y: 30, opacity: 0 }}
               whileInView={{ y: 0, opacity: 1 }}
               viewport={{ once: true }}
@@ -103,8 +151,7 @@ const HomePage = () => {
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Verified Domains</h3>
               <p className="text-gray-600">All domains are verified and authenticated before listing</p>
             </motion.div>
-
-            <motion.div 
+            <motion.div
               initial={{ y: 30, opacity: 0 }}
               whileInView={{ y: 0, opacity: 1 }}
               viewport={{ once: true }}
@@ -117,8 +164,7 @@ const HomePage = () => {
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Premium Quality</h3>
               <p className="text-gray-600">Curated selection of high-value domain names</p>
             </motion.div>
-
-            <motion.div 
+            <motion.div
               initial={{ y: 30, opacity: 0 }}
               whileInView={{ y: 0, opacity: 1 }}
               viewport={{ once: true }}
@@ -142,7 +188,6 @@ const HomePage = () => {
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Domains</h2>
             <p className="text-xl text-gray-600">Explore our premium domain collection</p>
           </div>
-          
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeDomains.slice(0, 6).map((domain, index) => (
               <motion.div
@@ -165,7 +210,7 @@ const HomePage = () => {
                   <span className="text-2xl font-bold text-primary-600">
                     ${domain.price.toLocaleString()}
                   </span>
-                  <Link 
+                  <Link
                     to={`/domain/${domain.domain_name}`}
                     className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-1"
                   >
@@ -219,6 +264,18 @@ const HomePage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Auth Modals */}
+      <LoginModal 
+        isOpen={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)}
+        onSwitchToRegister={handleSwitchToRegister}
+      />
+      <RegisterModal 
+        isOpen={isRegisterOpen} 
+        onClose={() => setIsRegisterOpen(false)}
+        onSwitchToLogin={handleSwitchToLogin}
+      />
     </div>
   );
 };

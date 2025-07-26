@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX } = FiIcons;
+const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3 } = FiIcons;
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
@@ -14,6 +14,7 @@ const AdminLayout = ({ children }) => {
     { name: 'Dashboard', href: '/admin', icon: FiHome },
     { name: 'Domains', href: '/admin/domains', icon: FiGlobe },
     { name: 'Inquiries', href: '/admin/inquiries', icon: FiMail },
+    { name: 'Analytics', href: '/admin/analytics', icon: FiBarChart3 },
     { name: 'Settings', href: '/admin/settings', icon: FiSettings },
   ];
 
@@ -28,14 +29,14 @@ const AdminLayout = ({ children }) => {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <motion.div 
+      <motion.div
         initial={false}
         animate={{ x: isSidebarOpen ? 0 : '-100%' }}
         className="fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-50 lg:translate-x-0 lg:static lg:inset-0"
@@ -52,7 +53,7 @@ const AdminLayout = ({ children }) => {
             <SafeIcon icon={FiX} className="h-6 w-6" />
           </button>
         </div>
-        
+
         <nav className="mt-8 px-4">
           <div className="space-y-2">
             {navigation.map((item) => (
@@ -84,7 +85,6 @@ const AdminLayout = ({ children }) => {
             >
               <SafeIcon icon={FiMenu} className="h-6 w-6" />
             </button>
-            
             <div className="flex items-center space-x-4">
               <Link
                 to="/"
@@ -100,9 +100,7 @@ const AdminLayout = ({ children }) => {
         </div>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
