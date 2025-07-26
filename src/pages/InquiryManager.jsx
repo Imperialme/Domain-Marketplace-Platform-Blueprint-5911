@@ -6,7 +6,7 @@ import { useInquiries } from '../context/InquiryContext';
 import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 
-const { FiMail, FiUser, FiDollarSign, FiCalendar, FiDownload } = FiIcons;
+const { FiMail, FiUser, FiDollarSign, FiCalendar, FiDownload, FiX } = FiIcons;
 
 const InquiryManager = () => {
   const { inquiries, updateInquiry } = useInquiries();
