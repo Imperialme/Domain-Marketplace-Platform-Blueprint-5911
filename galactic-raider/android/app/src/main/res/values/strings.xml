@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Galactic Raider</string>
+    <string name="title_activity_main">Galactic Raider</string>
+    <string name="package_name">com.domainmarketplace.galacticraider</string>
+    <string name="custom_url_scheme">com.domainmarketplace.galacticraider</string>
+</resources>

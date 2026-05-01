@@ -21,7 +21,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0e1a"
       },
-      "package": "com.domainmarketplace.domainsniper"
+      "package": "com.domainmarketplace.domainsniper",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"

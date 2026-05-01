@@ -1,26 +1,37 @@
 {
   "cli": {
-    "version": ">= 8.0.0"
+    "version": ">= 10.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "ios": { "simulator": true }
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "ios": {
+        "simulator": false
+      }
     },
     "production": {
-      "android": { "buildType": "aab" },
+      "android": {
+        "buildType": "app-bundle"
+      },
       "ios": {}
     }
   },
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "../path/to/api-key.json",
+        "serviceAccountKeyPath": "./google-service-account.json",
         "track": "internal"
       },
       "ios": {
