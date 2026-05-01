@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Raider — Galaxy Selector</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500;600&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#02040A;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+.title{color:white;font-family:'Orbitron',sans-serif;font-size:15px;font-weight:800;margin-bottom:3px;text-align:center}
+.subtitle{color:#334155;font-size:11px;margin-bottom:12px;text-align:center}
+.device{width:390px;background:#02040A;border-radius:36px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.95),0 0 60px rgba(88,28,135,.15),inset 0 0 0 1.5px rgba(255,255,255,.04)}
+.scr{display:flex;flex-direction:column;min-height:780px;padding-bottom:80px;position:relative;overflow:hidden}
+.stars{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;background:white;border-radius:50%;animation:tw 3s infinite}
+@keyframes tw{0%,100%{opacity:.15}50%{opacity:.9}}
+.sbar{background:rgba(2,4,10,.97);padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(88,28,135,.3);flex-shrink:0;position:relative;z-index:10}
+.nav{position:absolute;bottom:0;left:0;right:0;background:rgba(2,4,10,.98);border-top:1px solid rgba(88,28,135,.3);display:flex;padding:8px 0 18px;z-index:50}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.ni .ico{font-size:20px}.ni .lbl{font-size:10px;font-weight:600;color:#1E2D5A}
+.ni.on .lbl{color:#C4B5FD}
+.sb{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:5}
+.sb::-webkit-scrollbar{display:none}
+/* TOTAL NET WORTH CARD */
+.total-card{background:linear-gradient(135deg,#0A0520,#100830,#060D20);border:1px solid rgba(124,58,237,.3);border-radius:18px;padding:20px;position:relative;overflow:hidden}
+.total-card::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(124,58,237,.2),transparent);border-radius:50%}
+.total-lbl{font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(196,181,253,.4);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.total-amt{font-family:'Orbitron',sans-serif;font-size:34px;font-weight:800;color:#DDD6FE;position:relative;z-index:1;text-shadow:0 0 40px rgba(167,139,250,.4)}
+.total-split{display:flex;gap:0;margin-top:14px;padding-top:14px;border-top:1px solid rgba(124,58,237,.2);position:relative;z-index:1}
+.ts{flex:1;text-align:center}
+.ts .tv{font-size:14px;font-weight:700;font-family:'DM Mono',monospace}
+.ts .tl{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-family:'Orbitron',sans-serif}
+/* TIER CARDS */
+.tier{border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .15s}
+.tier:active{transform:scale(.98)}
+.tier-hdr{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.tier-hdr::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.04)}
+.tier-ico{font-size:28px;margin-right:12px;flex-shrink:0}
+.tier-name{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:white;letter-spacing:.5px}
+.tier-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+.t-status{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
+.t-active{background:rgba(105,240,174,.2);color:#69F0AE}
+.t-locked{background:rgba(255,255,255,.08);color:rgba(255,255,255,.4)}
+.t-soon{background:rgba(245,158,11,.15);color:#FCD34D}
+.t-future{background:rgba(255,255,255,.05);color:rgba(255,255,255,.2)}
+.tier-body{background:rgba(8,5,20,.9);padding:14px 18px;border-left:1px solid rgba(88,28,135,.2);border-right:1px solid rgba(88,28,135,.2);border-bottom:1px solid rgba(88,28,135,.2);border-radius:0 0 16px 16px}
+.tier-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.ts2{text-align:center}
+.ts2v{font-size:13px;font-weight:700;color:#DDD6FE;font-family:'DM Mono',monospace}
+.ts2l{font-size:9px;color:#1E2D5A;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-family:'Orbitron',sans-serif}
+.req-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0}
+.req-ico{font-size:12px;flex-shrink:0}
+.req-text{color:#475569;flex:1}
+.req-val{font-size:10px;color:#1E2D5A;font-family:'DM Mono',monospace}
+.prog{margin-top:10px}
+.prog-bg{height:5px;background:#0D1428;border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px}
+.prog-lbl{display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#1E2D5A}
+.act-row{display:flex;gap:8px;margin-top:10px}
+.t-btn{flex:1;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.t-btn:active{transform:scale(.97)}
+.t-btn.primary{background:#7C3AED;color:white;box-shadow:0 3px 12px rgba(124,58,237,.4)}
+.t-btn.secondary{background:rgba(124,58,237,.1);color:#A78BFA;border:1.5px solid #4C1D95}
+.t-btn.locked{background:#0D1428;color:#1E2D5A;cursor:not-allowed}
+.connector{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 0}
+.conn-line{width:2px;height:8px}
+.conn-lbl{font-family:'Orbitron',sans-serif;font-size:9px;color:#1E2D5A;letter-spacing:1px}
+.coming-box{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-top:8px}
+/* NOTIFICATION DEMO */
+.notif{background:linear-gradient(135deg,rgba(8,15,32,.97),rgba(15,5,32,.97));border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;border:1px solid rgba(88,28,135,.3);cursor:pointer;animation:slin .3s ease}
+@keyframes slin{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+<div class="title">🌌 GALAXY SELECTOR</div>
+<p class="subtitle">Unified progression map · All dimensions · Notification demo</p>
+<div class="device">
+<div class="scr">
+  <div class="stars" id="cstars"></div>
+  <div class="sbar">
+    <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#475569">9:41</span>
+    <span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#C4B5FD">🌌 GALAXY SELECTOR</span>
+    <span style="font-family:'DM Mono',monospace;font-size:11px;color:#475569">T-1425</span>
+  </div>
+  <!-- Live notification demo -->
+  <div style="padding:8px 14px 0;position:relative;z-index:10">
+    <div class="notif">
+      <span style="font-size:18px">🔴</span>
+      <div style="flex:1"><div style="font-size:11px;font-weight:700;color:#A78BFA">Mars Alert: LTH +18% · Your space holding +$2.4M</div><div style="font-size:10px;color:#475569;margin-top:1px">Non-intrusive banner · Auto-dismisses 8 seconds · Tap to view</div></div>
+      <span style="color:#475569;font-size:14px">×</span>
+    </div>
+  </div>
+  <div class="sb">
+    <!-- Total net worth -->
+    <div class="total-card">
+      <div class="total-lbl">Total Net Worth — All Dimensions</div>
+      <div class="total-amt">$7.48B</div>
+      <div style="font-size:12px;color:rgba(196,181,253,.5);margin-top:4px;position:relative;z-index:1">📈 +$84.7M (+1.1%) · Combined this turn</div>
+      <div class="total-split">
+        <div class="ts"><div class="tv" style="color:#69F0AE">$6.64B</div><div class="tl">🌍 Earth</div></div>
+        <div style="width:1px;background:rgba(255,255,255,.05)"></div>
+        <div class="ts"><div class="tv" style="color:#A78BFA">$842M</div><div class="tl">☀️ Solar</div></div>
+        <div style="width:1px;background:rgba(255,255,255,.05)"></div>
+        <div class="ts"><div class="tv" style="color:#475569">$0</div><div class="tl">🌌 Galaxy</div></div>
+        <div style="width:1px;background:rgba(255,255,255,.05)"></div>
+        <div class="ts"><div class="tv" style="color:#1E2D5A">$0</div><div class="tl">✨ Universe</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:4px 0"><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#1E2D5A;text-transform:uppercase;letter-spacing:1px">Your Expansion Path</div></div>
+
+    <!-- EARTH — ACTIVE -->
+    <div class="tier">
+      <div class="tier-hdr" style="background:linear-gradient(135deg,#1B5E20,#388E3C)">
+        <div class="tier-ico">🌍</div>
+        <div style="flex:1"><div class="tier-name">EARTH</div><div class="tier-sub">Tier 1 · Your home dimension</div></div>
+        <div class="t-status t-active">● ACTIVE</div>
+      </div>
+      <div class="tier-body">
+        <div class="tier-stats">
+          <div class="ts2"><div class="ts2v">6</div><div class="ts2l">Regions</div></div>
+          <div class="ts2"><div class="ts2v">30+</div><div class="ts2l">Companies</div></div>
+          <div class="ts2"><div class="ts2v" style="color:#69F0AE">$6.64B</div><div class="ts2l">Net Worth</div></div>
+        </div>
+        <div class="act-row">
+          <button class="t-btn primary" style="background:#2E7D32">🌍 Continue on Earth →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="conn-line" style="background:linear-gradient(#388E3C,#7C3AED)"></div><div class="conn-lbl">UNLOCK</div><div class="conn-line" style="background:linear-gradient(#7C3AED,#3B82F6)"></div></div>
+
+    <!-- SOLAR SYSTEM — 72% -->
+    <div class="tier">
+      <div class="tier-hdr" style="background:linear-gradient(135deg,#1E1B4B,#312E81)">
+        <div class="tier-ico">☀️</div>
+        <div style="flex:1"><div class="tier-name">SOLAR SYSTEM</div><div class="tier-sub">Tier 2 · Mars · Venus · Jupiter · MCR · VNU · JVT</div></div>
+        <div class="t-status t-locked">🔒 72%</div>
+      </div>
+      <div class="tier-body">
+        <div class="tier-stats">
+          <div class="ts2"><div class="ts2v">3</div><div class="ts2l">Planets</div></div>
+          <div class="ts2"><div class="ts2v">90+</div><div class="ts2l">Companies</div></div>
+          <div class="ts2"><div class="ts2v">+20%</div><div class="ts2l">Difficulty</div></div>
+        </div>
+        <div class="req-row"><span class="req-ico">✅</span><span class="req-text">$5B net worth on Earth</span><span class="req-val">$6.64B ✓</span></div>
+        <div class="req-row"><span class="req-ico">✅</span><span class="req-text">Legendary Mogul rank</span><span class="req-val">✓</span></div>
+        <div class="req-row"><span class="req-ico">⏳</span><span class="req-text">Play 200 turns</span><span class="req-val">175/200</span></div>
+        <div class="req-row"><span class="req-ico">⏳</span><span class="req-text">Participate in 5 IPOs</span><span class="req-val">3/5</span></div>
+        <div class="req-row"><span class="req-ico">✅</span><span class="req-text">Acquire 2+ companies</span><span class="req-val">✓</span></div>
+        <div class="prog"><div class="prog-bg"><div class="prog-fill" style="width:72%;background:linear-gradient(90deg,#7C3AED,#3B82F6)"></div></div><div class="prog-lbl"><span>Unlock Progress</span><span style="color:#A78BFA">72% — Almost there!</span></div></div>
+        <div class="act-row">
+          <button class="t-btn secondary">Preview Solar →</button>
+          <button class="t-btn locked">🔒 Locked</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="conn-line" style="background:linear-gradient(#3B82F6,#06B6D4)"></div><div class="conn-lbl">UNLOCK</div><div class="conn-line" style="background:linear-gradient(#06B6D4,rgba(88,28,135,.5))"></div></div>
+
+    <!-- GALAXY — COMING SOON -->
+    <div class="tier">
+      <div class="tier-hdr" style="background:linear-gradient(135deg,#0C0A1E,#150F30)">
+        <div class="tier-ico">🌌</div>
+        <div style="flex:1"><div class="tier-name">GALAXY</div><div class="tier-sub">Tier 3 · 5 sectors · Andromeda · Milky Way · Orion</div></div>
+        <div class="t-status t-soon">⚡ COMING SOON</div>
+      </div>
+      <div class="tier-body">
+        <div class="tier-stats">
+          <div class="ts2"><div class="ts2v">5</div><div class="ts2l">Sectors</div></div>
+          <div class="ts2"><div class="ts2v">150+</div><div class="ts2l">Companies</div></div>
+          <div class="ts2"><div class="ts2v">+50%</div><div class="ts2l">Difficulty</div></div>
+        </div>
+        <div class="coming-box"><span style="font-size:16px">⚡</span><span style="font-size:11px;color:#FCD34D;font-weight:600">In development. Complete Solar System to unlock. Antimatter, Quantum Materials, cosmic events await.</span></div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="conn-line" style="background:linear-gradient(rgba(88,28,135,.4),rgba(255,255,255,.05))"></div><div class="conn-lbl" style="color:#0D1428">UNLOCK</div><div class="conn-line" style="background:rgba(255,255,255,.03)"></div></div>
+
+    <!-- UNIVERSE — FUTURE -->
+    <div class="tier" style="opacity:.5">
+      <div class="tier-hdr" style="background:linear-gradient(135deg,#050818,#080D1A)">
+        <div class="tier-ico">✨</div>
+        <div style="flex:1"><div class="tier-name">UNIVERSE</div><div class="tier-sub">Tier 4 · Infinite · Cosmic events · Supernovas</div></div>
+        <div class="t-status t-future">🔮 FUTURE</div>
+      </div>
+      <div class="tier-body" style="border-color:rgba(255,255,255,.03)">
+        <div class="tier-stats">
+          <div class="ts2"><div class="ts2v">∞</div><div class="ts2l">Sectors</div></div>
+          <div class="ts2"><div class="ts2v">300+</div><div class="ts2l">Companies</div></div>
+          <div class="ts2"><div class="ts2v">+100%</div><div class="ts2l">Difficulty</div></div>
+        </div>
+        <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:10px;padding:8px 12px;font-size:11px;color:#0D1428;text-align:center">The final frontier. Coming after Galaxy.</div>
+      </div>
+    </div>
+
+    <!-- Cross-dimension economics summary -->
+    <div style="background:rgba(8,5,20,.8);border:1px solid rgba(88,28,135,.3);border-radius:14px;padding:14px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#A78BFA;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Cross-Dimension Economy</div>
+      <div style="font-size:12px;color:#475569;line-height:1.8">
+        🌍→☀️ Earth recession → Space investment capital tightens<br>
+        ☀️→🌍 Asteroid discovered → Earth platinum prices fall<br>
+        💰 Capital transfer: Earth→Space 2% tax · Space→Earth 5% + 3 turns<br>
+        📅 Same simulation clock — both advance every turn
+      </div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav">
+    <div class="ni on"><div class="ico">🌌</div><div class="lbl" style="color:#C4B5FD">Selector</div></div>
+    <div class="ni"><div class="ico">🌍</div><div class="lbl">Earth</div></div>
+    <div class="ni"><div class="ico">☀️</div><div class="lbl">Solar</div></div>
+    <div class="ni"><div class="ico">💱</div><div class="lbl">FX</div></div>
+    <div class="ni"><div class="ico">📬</div><div class="lbl">Your News</div></div>
+  </div>
+</div>
+</div>
+<script>
+function makeStars(id,n=90){const c=document.getElementById(id);if(!c)return;for(let i=0;i<n;i++){const s=document.createElement('div');const sz=Math.random()*2+.3;s.style.cssText=`position:absolute;width:${sz}px;height:${sz}px;background:white;border-radius:50%;top:${Math.random()*100}%;left:${Math.random()*100}%;animation:tw ${2+Math.random()*4}s infinite;animation-delay:${Math.random()*4}s;opacity:${.1+Math.random()*.7}`;c.appendChild(s);}}
+makeStars('cstars',110);
+</script>
+</body>
+</html>

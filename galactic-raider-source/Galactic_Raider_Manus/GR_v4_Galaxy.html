@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Raider — Galaxy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500;600&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#020408;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+.title{color:white;font-family:'Orbitron',sans-serif;font-size:16px;font-weight:800;margin-bottom:3px;text-align:center}
+.subtitle{color:#334155;font-size:11px;margin-bottom:12px;text-align:center}
+.device{width:390px;background:#020408;border-radius:36px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.95),0 0 80px rgba(88,28,135,.2),inset 0 0 0 1.5px rgba(255,255,255,.04)}
+.scr{display:flex;flex-direction:column;min-height:780px;background:#020408;padding-bottom:72px;position:relative;overflow:hidden}
+.stars{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;pointer-events:none;z-index:0}
+.star{position:absolute;background:white;border-radius:50%;animation:tw 4s infinite}
+@keyframes tw{0%,100%{opacity:.1}50%{opacity:.8}}
+.sbar{background:rgba(2,4,8,.97);padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;border-bottom:1px solid rgba(88,28,135,.3);flex-shrink:0;position:relative;z-index:10}
+.nav{position:absolute;bottom:0;left:0;right:0;background:rgba(2,4,8,.97);border-top:1px solid rgba(88,28,135,.3);display:flex;padding:8px 0 18px;z-index:50}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.ni .ico{font-size:20px}
+.ni .lbl{font-size:10px;font-weight:600;color:#2D1B69}
+.ni.on .lbl{color:#C4B5FD}
+.sb{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:14px;position:relative;z-index:5}
+.sb::-webkit-scrollbar{display:none}
+.hero{background:linear-gradient(135deg,#0F0520,#1A0A3C,#0A0F2E);border-radius:18px;padding:22px;border:1px solid rgba(88,28,135,.4);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-80px;right:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(88,28,135,.25),transparent);border-radius:50%}
+.hero-lbl{font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(196,181,253,.4);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.hero-amt{font-family:'Orbitron',sans-serif;font-size:30px;font-weight:800;color:#DDD6FE;position:relative;z-index:1;text-shadow:0 0 30px rgba(167,139,250,.5)}
+.hero-chg{font-size:12px;color:rgba(196,181,253,.7);margin-top:5px;position:relative;z-index:1}
+.sec-card{background:rgba(15,5,32,.8);border-radius:14px;overflow:hidden;border:1px solid rgba(88,28,135,.3);cursor:pointer;transition:all .2s}
+.sec-card:active{transform:scale(.98);border-color:#7C3AED}
+.sec-hdr{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.sec-hdr::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.04),transparent);border-radius:50%}
+.sec-ico{font-size:28px;margin-right:12px;flex-shrink:0}
+.sec-name{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:white;letter-spacing:.5px}
+.sec-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+.sec-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.5)}
+.sec-body{background:#0A0518;padding:14px 18px;border-top:1px solid rgba(88,28,135,.2)}
+.sec-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.ss{text-align:center}
+.ssv{font-size:14px;font-weight:700;color:#DDD6FE;font-family:'DM Mono',monospace}
+.ssl{font-size:9px;color:#2D1B69;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-family:'Orbitron',sans-serif}
+.eco{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.eg{background:rgba(15,5,32,.8);border-radius:10px;padding:10px;border:1px solid rgba(88,28,135,.3)}
+.el{font-size:9px;color:#2D1B69;text-transform:uppercase;letter-spacing:.5px;font-family:'Orbitron',sans-serif}
+.ev{font-size:13px;font-weight:700;margin-top:3px;font-family:'DM Mono',monospace}
+.ev.up{color:#C4B5FD}.ev.warn{color:#FCD34D}.ev.dn{color:#F87171}.ev.nt{color:#DDD6FE}
+.lock-badge{background:linear-gradient(135deg,rgba(88,28,135,.3),rgba(30,27,75,.5));border:1px solid rgba(88,28,135,.5);border-radius:12px;padding:14px;text-align:center}
+.coming{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.adv-item{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid rgba(88,28,135,.2);gap:12px}
+.adv-item:last-child{border-bottom:none}
+.adv-tag{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;font-family:'Orbitron',sans-serif;flex-shrink:0}
+.cosmic{border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+.cosmic.pos{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2)}
+.cosmic.neg{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.15)}
+.cosmic.nt{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15)}
+</style>
+</head>
+<body>
+<div class="title">🌌 GALAXY TIER</div>
+<p class="subtitle">Andromeda · Milky Way · Orion · Sagittarius · Carina · Coming Soon</p>
+<div class="device">
+<div class="scr">
+  <div class="stars" id="gstars"></div>
+  <div class="sbar">
+    <span style="background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.3);border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#A78BFA;cursor:pointer">← Solar System</span>
+    <span style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:#C4B5FD">🌌 GALAXY</span>
+    <span style="font-size:11px;font-weight:700;background:rgba(245,158,11,.15);color:#FCD34D;padding:3px 10px;border-radius:20px">⚡ SOON</span>
+  </div>
+  <div class="sb">
+    <!-- Hero -->
+    <div class="hero">
+      <div style="position:relative;z-index:1">
+        <div class="hero-lbl">Galaxy Portfolio Preview</div>
+        <div class="hero-amt">$0.00</div>
+        <div class="hero-chg">Unlock requires: $50B across Solar System</div>
+        <div style="margin-top:16px;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
+          <div style="width:1.7%;height:100%;background:linear-gradient(90deg,#7C3AED,#3B82F6);border-radius:3px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:rgba(196,181,253,.4)"><span>$842M / $50B</span><span>1.7% toward unlock</span></div>
+      </div>
+    </div>
+    <!-- Eco indicators for Galaxy -->
+    <div class="eco">
+      <div class="eg"><div class="el">Volatility</div><div class="ev warn">1.5x Earth</div></div>
+      <div class="eg"><div class="el">Companies</div><div class="ev nt">150+</div></div>
+      <div class="eg"><div class="el">Currency</div><div class="ev up">GSC</div></div>
+      <div class="eg"><div class="el">Difficulty</div><div class="ev warn">+50%</div></div>
+    </div>
+    <!-- Sector teasers -->
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#2D1B69;text-transform:uppercase;letter-spacing:.5px">Galaxy Sectors — Preview</div>
+    <div class="sec-card">
+      <div class="sec-hdr" style="background:linear-gradient(135deg,#0A0520,#1a0a3c)">
+        <div class="sec-ico">🌀</div>
+        <div style="flex:1"><div class="sec-name">ANDROMEDA</div><div class="sec-sub">Advanced Tech · Quantum Materials · Exotic Metals</div></div>
+        <div class="sec-badge">🔒 LOCKED</div>
+      </div>
+      <div class="sec-body">
+        <div class="sec-stats">
+          <div class="ss"><div class="ssv">30+</div><div class="ssl">Companies</div></div>
+          <div class="ss"><div class="ssv">Very High</div><div class="ssl">Volatility</div></div>
+          <div class="ss"><div class="ssv">QNT·EXM</div><div class="ssl">Commodities</div></div>
+        </div>
+        <div class="coming"><span style="font-size:16px">⚡</span><span style="font-size:11px;color:#FCD34D;font-weight:600">Coming Soon — Complete Solar System to unlock Galaxy</span></div>
+      </div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-hdr" style="background:linear-gradient(135deg,#050D20,#0F1A35)">
+        <div class="sec-ico">🌟</div>
+        <div style="flex:1"><div class="sec-name">MILKY WAY</div><div class="sec-sub">Trade Hub · Common Minerals · Energy Exchanges</div></div>
+        <div class="sec-badge">🔒 LOCKED</div>
+      </div>
+      <div class="sec-body">
+        <div class="sec-stats">
+          <div class="ss"><div class="ssv">30+</div><div class="ssl">Companies</div></div>
+          <div class="ss"><div class="ssv">Medium</div><div class="ssl">Volatility</div></div>
+          <div class="ss"><div class="ssv">GSC</div><div class="ssl">Currency</div></div>
+        </div>
+        <div class="coming"><span style="font-size:16px">⚡</span><span style="font-size:11px;color:#FCD34D;font-weight:600">Trade Hub — most stable galaxy sector</span></div>
+      </div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-hdr" style="background:linear-gradient(135deg,#0A1520,#152030)">
+        <div class="sec-ico">⭐</div>
+        <div style="flex:1"><div class="sec-name">ORION ARM</div><div class="sec-sub">Exploration · Rare Isotopes · Exotic Gases</div></div>
+        <div class="sec-badge">🔒 LOCKED</div>
+      </div>
+      <div class="sec-body">
+        <div class="sec-stats">
+          <div class="ss"><div class="ssv">30+</div><div class="ssl">Companies</div></div>
+          <div class="ss"><div class="ssv">High</div><div class="ssl">Volatility</div></div>
+          <div class="ss"><div class="ssv">RIS·EXG</div><div class="ssl">Commodities</div></div>
+        </div>
+        <div class="coming"><span style="font-size:16px">⚡</span><span style="font-size:11px;color:#FCD34D;font-weight:600">Exploration sector — discovery events fire frequently</span></div>
+      </div>
+    </div>
+    <!-- Advanced commodities preview -->
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#2D1B69;text-transform:uppercase;letter-spacing:.5px">Advanced Commodities — Galaxy Phase</div>
+    <div style="background:rgba(15,5,32,.8);border-radius:14px;padding:14px 16px;border:1px solid rgba(88,28,135,.3)">
+      <div class="adv-item"><div class="adv-tag" style="background:rgba(124,58,237,.2);border:1px solid #4C1D95;color:#A78BFA">QNT</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:#DDD6FE">Quantum Materials</div><div style="font-size:11px;color:#2D1B69;margin-top:1px">Exotic locations · $5K–$20K · Extreme volatility</div></div><div style="font-size:12px;color:#2D1B69">🔒 $5B req</div></div>
+      <div class="adv-item"><div class="adv-tag" style="background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:#67E8F9">EXM</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:#DDD6FE">Exotic Metals</div><div style="font-size:11px;color:#2D1B69;margin-top:1px">Deep space · $2K–$10K · Aerospace demand</div></div><div style="font-size:12px;color:#2D1B69">🔒 $5B req</div></div>
+      <div class="adv-item" style="border-bottom:none"><div class="adv-tag" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:#FCD34D">ANT</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:#DDD6FE">Antimatter</div><div style="font-size:11px;color:#2D1B69;margin-top:1px">Particle accelerators · $100K–$1M · Ultimate energy</div></div><div style="font-size:12px;color:#2D1B69">🔒 $50B req</div></div>
+    </div>
+    <!-- Cosmic events preview -->
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#2D1B69;text-transform:uppercase;letter-spacing:.5px">Cosmic Events — Galaxy Exclusive</div>
+    <div class="cosmic pos"><div style="font-size:18px;flex-shrink:0">🌀</div><div><div style="font-size:13px;font-weight:700;color:#DDD6FE">Wormhole Discovered — Andromeda ↔ Milky Way</div><div style="font-size:11px;color:#2D1B69;margin-top:3px;line-height:1.5">Trade route established between sectors. Capital flow costs drop 50% for 10 turns. Arbitrage opportunities emerge.</div></div></div>
+    <div class="cosmic neg" style="margin-top:4px"><div style="font-size:18px;flex-shrink:0">💫</div><div><div style="font-size:13px;font-weight:700;color:#DDD6FE">Supernova Event — Orion Arm Sector 7</div><div style="font-size:11px;color:#2D1B69;margin-top:3px;line-height:1.5">Supernova destroys 2 research facilities. Rare isotope prices spike 40%. Affected companies down 25%.</div></div></div>
+    <div style="background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(30,27,75,.4));border:1px solid rgba(124,58,237,.4);border-radius:14px;padding:20px;text-align:center;margin-top:4px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:800;color:#DDD6FE;margin-bottom:8px">UNLOCK GALAXY</div>
+      <div style="font-size:13px;color:rgba(196,181,253,.6);margin-bottom:14px;line-height:1.6">Reach $50B net worth across all Solar System planets. Complete Solar System Trader rank. Build 3+ space infrastructure facilities.</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#A78BFA">Current: $842M · Need: $50B</div>
+      <div style="height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;margin-top:10px"><div style="width:1.7%;height:100%;background:linear-gradient(90deg,#7C3AED,#06B6D4);border-radius:3px"></div></div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav">
+    <div class="ni on"><div class="ico">🌌</div><div class="lbl" style="color:#C4B5FD">Galaxy</div></div>
+    <div class="ni"><div class="ico">🌀</div><div class="lbl">Andromeda</div></div>
+    <div class="ni"><div class="ico">🌟</div><div class="lbl">Milky Way</div></div>
+    <div class="ni"><div class="ico">⭐</div><div class="lbl">Orion</div></div>
+    <div class="ni"><div class="ico">✨</div><div class="lbl">More</div></div>
+  </div>
+</div>
+</div>
+<script>
+function makeStars(id,n=80){const c=document.getElementById(id);if(!c)return;for(let i=0;i<n;i++){const s=document.createElement('div');const sz=Math.random()*2+.3;s.style.cssText=`position:absolute;width:${sz}px;height:${sz}px;background:white;border-radius:50%;top:${Math.random()*100}%;left:${Math.random()*100}%;animation:tw ${3+Math.random()*4}s infinite;animation-delay:${Math.random()*4}s;opacity:${.1+Math.random()*.6}`;c.appendChild(s);}}
+makeStars('gstars',100);
+</script>
+</body>
+</html>

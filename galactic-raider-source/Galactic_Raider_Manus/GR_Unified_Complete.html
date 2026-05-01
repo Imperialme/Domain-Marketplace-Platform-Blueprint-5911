@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Global Raider — Earth + Solar System Connected</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#030810;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px;min-height:100vh}
+.title{color:white;font-size:16px;font-weight:800;text-align:center;margin-bottom:4px}
+.sub{color:#475569;font-size:11px;text-align:center;margin-bottom:14px;line-height:1.6}
+.switcher{display:flex;background:#0d1628;border:1px solid #1e3a5f;border-radius:12px;padding:5px;gap:5px;margin-bottom:16px;max-width:440px;width:100%}
+.sw-btn{flex:1;padding:10px 8px;border-radius:8px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .25s;font-family:'DM Sans',sans-serif}
+.sw-earth{background:transparent;color:rgba(105,240,174,.4)}
+.sw-earth.active{background:linear-gradient(135deg,#1B5E20,#2E7D32);color:white;box-shadow:0 2px 12px rgba(27,94,32,.4)}
+.sw-space{background:transparent;color:rgba(212,175,55,.4)}
+.sw-space.active{background:linear-gradient(135deg,#0A1628,#1A237E);color:#F0D060;box-shadow:0 2px 12px rgba(26,35,126,.4)}
+.sw-locked{background:transparent;color:rgba(255,255,255,.12);font-size:10px;cursor:default}
+.cross-dim-info{max-width:440px;width:100%;background:#0A1628;border:1px solid rgba(212,175,55,.15);border-radius:10px;padding:12px 16px;margin-bottom:14px}
+.cross-dim-info h3{font-size:11px;font-weight:700;color:rgba(212,175,55,.6);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.link-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:12px;color:#8BA0C0;transition:all .15s}
+.link-row:last-child{border-bottom:none}
+.link-row:hover{color:white}
+.frame-wrap{position:relative;width:390px}
+iframe{width:390px;border-radius:36px;overflow:hidden;border:none;box-shadow:0 40px 100px rgba(0,0,0,.8),inset 0 0 0 1.5px rgba(255,255,255,.06);transition:height .3s}
+.dim-label{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dim-dot{width:8px;height:8px;border-radius:50%}
+.dim-name{font-size:11px;font-weight:700;color:#94a3b8}
+.combined-bar{max-width:440px;width:100%;background:#0A1628;border:1px solid rgba(212,175,55,.1);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cb-item{text-align:center}
+.cb-v{font-size:16px;font-weight:800;font-family:'DM Mono',monospace}
+.cb-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;opacity:.5}
+</style>
+</head>
+<body>
+
+<div class="title">🌐 Global Raider</div>
+<div class="sub">Earth + Solar System · Two dimensions · Fully connected<br>Switch between them freely — your portfolio spans both</div>
+
+<!-- Combined empire bar -->
+<div class="combined-bar">
+  <div class="cb-item"><div class="cb-v" style="color:#69F0AE">$2.14B</div><div class="cb-l" style="color:#69F0AE">🌍 Earth</div></div>
+  <div style="color:rgba(255,255,255,.1);font-size:20px">+</div>
+  <div class="cb-item"><div class="cb-v" style="color:#F0D060">$842M</div><div class="cb-l" style="color:#F0D060">☀️ Solar</div></div>
+  <div style="color:rgba(255,255,255,.1);font-size:20px">=</div>
+  <div class="cb-item"><div class="cb-v" style="color:white">$3.00B</div><div class="cb-l">🌐 Total</div></div>
+</div>
+
+<!-- Dimension switcher -->
+<div class="switcher">
+  <button class="sw-btn sw-earth active" id="sw-e" onclick="switchTo('earth')">🌍 Earth</button>
+  <button class="sw-btn sw-space" id="sw-s" onclick="switchTo('space')">☀️ Solar System</button>
+  <button class="sw-btn sw-locked">🌌 Galaxy 🔒</button>
+  <button class="sw-btn sw-locked">✨ Universe 🔒</button>
+</div>
+
+<!-- Cross-dim connections -->
+<div class="cross-dim-info">
+  <h3>Cross-Dimension Effects — This Turn</h3>
+  <div class="link-row" onclick="switchTo('space')">🔴 Mars lithium shortage → <span style="color:#69F0AE;margin-left:4px">Earth EV stocks +18%</span></div>
+  <div class="link-row" onclick="switchTo('space')">🟠 Jupiter fusion breakthrough → <span style="color:#FF5252;margin-left:4px">Earth energy stocks -8%</span></div>
+  <div class="link-row" onclick="switchTo('earth')">🌍 Earth High Tax Era in 23 turns → <span style="color:#F0D060;margin-left:4px">Space capital flows -5%</span></div>
+  <div class="link-row" onclick="switchTo('earth')" style="color:rgba(33,150,243,.6)">🏛️ GSF spans both: $50M deposit earning +$520K from Earth + Space bonds combined</div>
+</div>
+
+<!-- Frame label -->
+<div class="dim-label">
+  <div class="dim-dot" id="dim-dot" style="background:#69F0AE"></div>
+  <div class="dim-name" id="dim-name">🌍 Earth — Active Dimension</div>
+</div>
+
+<!-- The actual prototype frame -->
+<div class="frame-wrap">
+  <iframe id="frame" src="GR_Earth_Complete.html" height="820" scrolling="no"></iframe>
+</div>
+
+<script>
+function switchTo(d) {
+  const btn_e=document.getElementById('sw-e');
+  const btn_s=document.getElementById('sw-s');
+  const frame=document.getElementById('frame');
+  const dot=document.getElementById('dim-dot');
+  const name=document.getElementById('dim-name');
+  
+  if(d==='earth') {
+    btn_e.className='sw-btn sw-earth active';
+    btn_s.className='sw-btn sw-space';
+    frame.src='GR_Earth_Complete.html';
+    dot.style.background='#69F0AE';
+    name.textContent='🌍 Earth — Active Dimension';
+  } else {
+    btn_e.className='sw-btn sw-earth';
+    btn_s.className='sw-btn sw-space active';
+    frame.src='GR_v4_SolarSystem_Complete.html';
+    dot.style.background='#F0D060';
+    name.textContent='☀️ Solar System — Active Dimension';
+  }
+}
+</script>
+</body>
+</html>
