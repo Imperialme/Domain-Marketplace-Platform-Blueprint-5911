@@ -461,13 +461,31 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
   </div>
 </div>
 
-<!-- ROW 2: Help / Theme / Settings -->
+<!-- ROW 2: Event Strip + Language / Theme / Help / Settings -->
 <div id="control-row" style="background:var(--dark2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;padding:4px 10px;flex-shrink:0;">
   <div id="event-strip" style="flex:1;font-size:10px;color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:8px;min-width:0;"></div>
-  <div style="display:flex;gap:5px;flex-shrink:0;">
-    <button id="theme-btn" onclick="toggleTheme()" title="Dark/Light" style="background:var(--panel);border:1px solid var(--border);border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#127769;</button>
-    <button onclick="showContextHelp()" title="Help" style="background:rgba(245,127,23,0.2);border:1px solid var(--gold);border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">?</button>
-    <button onclick="switchScreen('settings',null)" title="Settings" style="background:var(--panel);border:1px solid var(--border);border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#9881;</button>
+  <div style="display:flex;gap:5px;flex-shrink:0;align-items:center;">
+    <!-- Language toggle -->
+    <div style="position:relative;">
+      <button id="lang-btn" onclick="toggleLangMenu()" title="Language" style="background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:0 6px;height:28px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;color:var(--text);white-space:nowrap;">
+        <span id="lang-flag">🌐</span><span id="lang-code" style="font-size:9px;font-weight:700;letter-spacing:.5px;">EN</span>
+      </button>
+      <div id="lang-menu" style="display:none;position:absolute;right:0;top:32px;background:var(--panel);border:1px solid var(--border);border-radius:10px;min-width:140px;z-index:500;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+        <div class="lang-opt" onclick="setLang('en','🇬🇧','EN')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇬🇧 <span>English</span></div>
+        <div class="lang-opt" onclick="setLang('ar','🇦🇪','AR')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇦🇪 <span>العربية</span></div>
+        <div class="lang-opt" onclick="setLang('fr','🇫🇷','FR')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇫🇷 <span>Français</span></div>
+        <div class="lang-opt" onclick="setLang('es','🇪🇸','ES')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇪🇸 <span>Español</span></div>
+        <div class="lang-opt" onclick="setLang('zh','🇨🇳','中文')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇨🇳 <span>中文</span></div>
+        <div class="lang-opt" onclick="setLang('hi','🇮🇳','HI')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);">🇮🇳 <span>हिन्दी</span></div>
+        <div class="lang-opt" onclick="setLang('de','🇩🇪','DE')" style="padding:9px 12px;cursor:pointer;font-size:12px;display:flex;gap:8px;align-items:center;">🇩🇪 <span>Deutsch</span></div>
+      </div>
+    </div>
+    <!-- Theme toggle -->
+    <button id="theme-btn" onclick="toggleTheme()" title="Dark/Light" style="background:var(--panel);border:1px solid var(--border);border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);">&#127769;</button>
+    <!-- Help -->
+    <button onclick="showContextHelp()" title="Help" style="background:rgba(245,127,23,0.15);border:1px solid var(--gold);border-radius:7px;width:28px;height:28px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gold);">?</button>
+    <!-- Settings -->
+    <button onclick="switchScreen('settings',null)" title="Settings" style="background:var(--panel);border:1px solid var(--border);border-radius:7px;width:28px;height:28px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);">&#9881;</button>
   </div>
 </div>
 
@@ -1611,6 +1629,7 @@ let G = {
   selectedPhilan: 'Education',
   tempTransfer: null,
   bankruptcyHandled: false,
+  stats: { tradesTotal:0, tradesWon:0, tradesLost:0, biggestWin:0, biggestLoss:0, peakNetWorth:1000000, totalBorrowed:0, quizCorrect:0, quizAttempted:0 },
 };
 
 function initPrices() {
@@ -1701,7 +1720,13 @@ function switchScreen(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
   if(id==='markets') buildMarkets();
-  if(id==='portfolio') buildPortfolio();
+  if(id==='portfolio') {
+    _portFilter = 'all';
+    document.querySelectorAll('#port-filter-tabs .ftab').forEach(function(t){ t.classList.remove('active'); });
+    var allTab = document.querySelector('#port-filter-tabs .ftab');
+    if (allTab) allTab.classList.add('active');
+    buildPortfolio();
+  }
   if(id==='wallet') buildWallet();
   if(id==='settings') buildSettings();
   if(id==='luck') buildLuck();
@@ -2165,6 +2190,16 @@ function sellAsset(type, ticker, qty) {
   G.tradingAccount += proceeds - tax; // sell proceeds return to Trading Wallet
   h.qty -= qty;
   if(h.qty <= 0) delete store[ticker];
+  // Track trade stats directly where profit is known
+  if (!G.stats) G.stats = {};
+  G.stats.tradesTotal = (G.stats.tradesTotal||0) + 1;
+  if (profit >= 0) {
+    G.stats.tradesWon = (G.stats.tradesWon||0) + 1;
+    if (profit > (G.stats.biggestWin||0)) G.stats.biggestWin = profit;
+  } else {
+    G.stats.tradesLost = (G.stats.tradesLost||0) + 1;
+    if (Math.abs(profit) > Math.abs(G.stats.biggestLoss||0)) G.stats.biggestLoss = profit;
+  }
 
   if(type==='bond') {
     G.totalLoanRepaid += proceeds;
@@ -2919,13 +2954,6 @@ function filterMarket(f, el) {
 // =============================================
 // PORTFOLIO
 // =============================================
-
-function filterPortfolio(type, el) {
-  G.portfolioFilter = type;
-  document.querySelectorAll('#screen-portfolio .wtab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  buildPortfolio();
-}
 
 let _portFilter = 'all';
 
@@ -5181,7 +5209,20 @@ function buildInsights() {
   if (e1) e1.textContent = fmt(G.stats.peakNetWorth||0);
   if (e2) e2.textContent = G.turn||0;
   if (e3) e3.textContent = wr+'%';
-  insTab('profile', document.querySelector('#ins-tabs div'));
+  // Only default to Profile on first open — preserve the active tab on auto-refresh
+  var activeTabEl = document.querySelector('#ins-tabs div[style*="var(--gold)"]');
+  if (!activeTabEl) {
+    insTab('profile', document.querySelector('#ins-tabs div'));
+  } else {
+    // Re-render the current tab body without changing the tab header
+    var activeTabText = activeTabEl.textContent.toLowerCase().trim();
+    var tabKey = activeTabText.includes('trade') ? 'trades'
+               : activeTabText.includes('hold')  ? 'holdings'
+               : activeTabText.includes('planet') ? 'planets'
+               : activeTabText.includes('finance')? 'finance'
+               : 'profile';
+    insTab(tabKey, activeTabEl);
+  }
 }
 
 function insTab(tab, el) {
@@ -5320,29 +5361,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// WIN/LOSS tracking — hook into sellAsset
-document.addEventListener('DOMContentLoaded', function() {
-  if (typeof sellAsset === 'function') {
-    var origSell = window.sellAsset;
-    window.sellAsset = function(type, ticker, qty) {
-      // Capture net worth before and after to determine win/loss
-      var nwBefore = G.netWorth || 0;
-      origSell(type, ticker, qty);
-      var nwAfter = G.netWorth || 0;
-      var profit = nwAfter - nwBefore;
-      if (!G.stats) G.stats = {};
-      G.stats.tradesTotal = (G.stats.tradesTotal||0)+1;
-      if (profit >= 0) {
-        G.stats.tradesWon = (G.stats.tradesWon||0)+1;
-        if (profit > (G.stats.biggestWin||0)) G.stats.biggestWin = profit;
-      } else {
-        G.stats.tradesLost = (G.stats.tradesLost||0)+1;
-        if (Math.abs(profit) > Math.abs(G.stats.biggestLoss||0)) G.stats.biggestLoss = profit;
-      }
-      if ((G.netWorth||0) > (G.stats.peakNetWorth||0)) G.stats.peakNetWorth = G.netWorth;
-    };
-  }
-});
+// Win/loss tracking is now handled directly inside sellAsset (no hook needed)
 
 // ACADEMY RESULTS
 function updateAcademyResults() {
@@ -5378,66 +5397,115 @@ function filterGlossary(query) {
 }
 
 // LANGUAGE SYSTEM
-var COUNTRY_LANG={AE:'ar',SA:'ar',EG:'ar',US:'en',GB:'en',AU:'en',CN:'zh',JP:'ja',KR:'ko',RU:'ru',FR:'fr',BE:'fr',DE:'de',AT:'de',BR:'pt',IN:'en'};
 var LANG_LABELS={
-  en:{Home:'Home',Markets:'Markets',Portfolio:'Portfolio',Wallet:'Wallet',Luck:'Luck',Academy:'Academy',Insights:'Insights',CEO:'CEO'},
-  ar:{Home:'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',Markets:'\u0627\u0644\u0623\u0633\u0648\u0627\u0642',Portfolio:'\u0627\u0644\u0645\u062d\u0641\u0638\u0629',Wallet:'\u0627\u0644\u0645\u062d\u0641\u0638\u0629',Luck:'\u0627\u0644\u062d\u0638',Academy:'\u0627\u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629',Insights:'\u062a\u062d\u0644\u064a\u0644\u0627\u062a',CEO:'\u0627\u0644\u0645\u062f\u064a\u0631'},
-  zh:{Home:'\u4e3b\u9875',Markets:'\u5e02\u573a',Portfolio:'\u6295\u8d44',Wallet:'\u9489\u5305',Luck:'\u5e78\u8fd0',Academy:'\u5b66\u9662',Insights:'\u6d1e\u5bdf',CEO:'\u603b\u88c1'},
-  ja:{Home:'\u30db\u30fc\u30e0',Markets:'\u5e02\u5834',Portfolio:'\u6295\u8cc7',Wallet:'\u8ca1\u5e03',Luck:'\u904b',Academy:'\u5b66\u9662',Insights:'\u5206\u6790',CEO:'CEO'},
-  ko:{Home:'\ud648',Markets:'\uc2dc\uc7a5',Portfolio:'\ud3ec\ud2b8\ud3f4\ub9ac\uc624',Wallet:'\uc9c0\uac11',Luck:'\ud589\uc6b4',Academy:'\uc544\uce74\ub370\ubbf8',Insights:'\uc778\uc0ac\uc774\ud2b8',CEO:'CEO'},
-  ru:{Home:'\u0413\u043b\u0430\u0432\u043d\u0430\u044f',Markets:'\u0420\u044b\u043d\u043a\u0438',Portfolio:'\u041f\u043e\u0440\u0442\u0444\u0435\u043b\u044c',Wallet:'\u041a\u043e\u0448\u0435\u043b\u0451\u043a',Luck:'\u0423\u0434\u0430\u0447\u0430',Academy:'\u0410\u043a\u0430\u0434\u0435\u043c\u0438\u044f',Insights:'\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430',CEO:'CEO'},
-  fr:{Home:'Accueil',Markets:'March\u00e9s',Portfolio:'Portefeuille',Wallet:'Portefeuille',Luck:'Chance',Academy:'Acad\u00e9mie',Insights:'Analyses',CEO:'PDG'},
-  de:{Home:'Start',Markets:'M\u00e4rkte',Portfolio:'Portfolio',Wallet:'Wallet',Luck:'Gl\u00fcck',Academy:'Akademie',Insights:'Einblicke',CEO:'CEO'}
+  en:{Home:'Home',Markets:'Markets',Portfolio:'Portfolio',Wallet:'Wallet',Luck:'Luck',Academy:'Academy',Insights:'Insights',CEO:'CEO',Settings:'Settings'},
+  ar:{Home:'\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',Markets:'\u0627\u0644\u0623\u0633\u0648\u0627\u0642',Portfolio:'\u0627\u0644\u0645\u062d\u0641\u0638\u0629',Wallet:'\u0627\u0644\u0645\u062d\u0641\u0638\u0629',Luck:'\u0627\u0644\u062d\u0638',Academy:'\u0627\u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629',Insights:'\u062a\u062d\u0644\u064a\u0644\u0627\u062a',CEO:'\u0627\u0644\u0645\u062f\u064a\u0631',Settings:'\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'},
+  zh:{Home:'\u4e3b\u9875',Markets:'\u5e02\u573a',Portfolio:'\u6295\u8d44',Wallet:'\u94b1\u5305',Luck:'\u5e78\u8fd0',Academy:'\u5b66\u9662',Insights:'\u6d1e\u5bdf',CEO:'\u603b\u88c1',Settings:'\u8bbe\u7f6e'},
+  fr:{Home:'Accueil',Markets:'March\u00e9s',Portfolio:'Portefeuille',Wallet:'Portefeuille',Luck:'Chance',Academy:'Acad\u00e9mie',Insights:'Analyses',CEO:'PDG',Settings:'R\u00e9glages'},
+  es:{Home:'Inicio',Markets:'Mercados',Portfolio:'Cartera',Wallet:'Billetera',Luck:'Suerte',Academy:'Academia',Insights:'An\u00e1lisis',CEO:'CEO',Settings:'Ajustes'},
+  hi:{Home:'\u0939\u094b\u092e',Markets:'\u092c\u093e\u091c\u093c\u093e\u0930',Portfolio:'\u092a\u094b\u0930\u094d\u091f\u092b\u094b\u0932\u093f\u092f\u094b',Wallet:'\u092c\u091f\u0941\u0906',Luck:'\u092d\u093e\u0917\u094d\u092f',Academy:'\u0905\u0915\u093e\u0926\u092e\u0940',Insights:'\u0905\u0902\u0924\u0930\u094d\u0926\u0943\u0937\u094d\u091f\u093f',CEO:'CEO',Settings:'\u0938\u0947\u091f\u093f\u0902\u0917\u094d\u0938'},
+  de:{Home:'Start',Markets:'M\u00e4rkte',Portfolio:'Portfolio',Wallet:'Wallet',Luck:'Gl\u00fcck',Academy:'Akademie',Insights:'Einblicke',CEO:'CEO',Settings:'Einstellungen'}
 };
 
-function onCountry(country){
-  var lang=COUNTRY_LANG[country]||'en';
-  var sel=document.getElementById('sel-lang');
-  if(sel)sel.value=lang;
+var _langMenuOpen = false;
+function toggleLangMenu() {
+  var menu = document.getElementById('lang-menu');
+  if (!menu) return;
+  _langMenuOpen = !_langMenuOpen;
+  menu.style.display = _langMenuOpen ? 'block' : 'none';
+  if (_langMenuOpen) {
+    setTimeout(function() {
+      document.addEventListener('click', function closeLang(e) {
+        if (!e.target.closest('#lang-btn') && !e.target.closest('#lang-menu')) {
+          _langMenuOpen = false;
+          menu.style.display = 'none';
+          document.removeEventListener('click', closeLang);
+        }
+      });
+    }, 10);
+  }
+}
+
+function setLang(lang, flag, code) {
+  var menu = document.getElementById('lang-menu');
+  if (menu) menu.style.display = 'none';
+  _langMenuOpen = false;
+  var flagEl = document.getElementById('lang-flag');
+  var codeEl = document.getElementById('lang-code');
+  if (flagEl) flagEl.textContent = flag;
+  if (codeEl) codeEl.textContent = code;
   applyLang(lang);
 }
 
-function applyLang(lang){
-  var s=LANG_LABELS[lang]||LANG_LABELS['en'];
-  if(G)G.language=lang;
-  document.documentElement.setAttribute('dir',lang==='ar'?'rtl':'ltr');
-  var MAP={dash:'Home',markets:'Markets',portfolio:'Portfolio',wallet:'Wallet',luck:'Luck',academy:'Academy',insights:'Insights',ceo:'CEO'};
-  document.querySelectorAll('.nav-item').forEach(function(item){
-    var fn=item.getAttribute('onclick')||'';
-    var m=fn.match(/switchScreen\('(\w+)'/);
-    if(m){var key=MAP[m[1]];var lbl=item.querySelector('.nav-label');if(lbl&&key&&s[key])lbl.textContent=s[key];}
-  });
-  showNotif('OK','Language updated');
+function onCountry(country) {
+  var map = {AE:'ar',SA:'ar',EG:'ar',US:'en',GB:'en',AU:'en',CN:'zh',FR:'fr',BE:'fr',DE:'de',AT:'de',ES:'es',MX:'es',IN:'hi'};
+  var lang = map[country] || 'en';
+  applyLang(lang);
 }
 
-// LIGHT MODE CSS injection
+function applyLang(lang) {
+  var s = LANG_LABELS[lang] || LANG_LABELS['en'];
+  if (G) G.language = lang;
+  document.documentElement.setAttribute('dir', lang==='ar' ? 'rtl' : 'ltr');
+  var MAP = {dash:'Home',markets:'Markets',portfolio:'Portfolio',wallet:'Wallet',luck:'Luck',academy:'Academy',insights:'Insights',ceo:'CEO'};
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    var fn = item.getAttribute('onclick') || '';
+    var m = fn.match(/switchScreen\('(\w+)'/);
+    if (m) { var key=MAP[m[1]]; var lbl=item.querySelector('.nav-label'); if(lbl&&key&&s[key]) lbl.textContent=s[key]; }
+  });
+}
+
+// LIGHT MODE \u2014 warmer, higher contrast
 (function(){
   var st=document.createElement('style');
   st.textContent=
-    '.light-mode{background:#F0F4F8!important;color:#1A1A2E!important;}'+
-    '.light-mode body,.light-mode #app{background:#F0F4F8!important;}'+
-    '.light-mode .card,.light-mode .panel,.light-mode .modal-box,.light-mode .overlay .modal{background:#fff!important;border-color:#d8dce4!important;color:#1A1A2E!important;}'+
-    '.light-mode #nav,.light-mode #turn-bar,.light-mode #control-row,.light-mode .screen-head{background:#e4e8f0!important;border-color:#c8ccd4!important;}'+
-    '.light-mode .nav-item{color:#444!important;}'+
-    '.light-mode .nav-item .nav-label,.light-mode .nav-item .nav-icon{color:#555!important;}'+
-    '.light-mode .nav-item.active .nav-label,.light-mode .nav-item.active .nav-icon{color:#E65100!important;}'+
-    '.light-mode .nav-item.active{border-top-color:#E65100!important;background:#fff!important;}'+
-    '.light-mode .screen{background:#F0F4F8!important;}'+
-    '.light-mode .scroll-area{background:#F0F4F8!important;}'+
-    '.light-mode .asset-row,.light-mode .holding-row,.light-mode .loan-item,.light-mode .log-entry,.light-mode .faq-item{background:#fff!important;border-color:#d8dce4!important;color:#1A1A2E!important;}'+
-    '.light-mode .asset-row:hover,.light-mode .holding-row:hover{background:#f0f4ff!important;}'+
-    '.light-mode .ar-name,.light-mode .hr-name,.light-mode .ar-price{color:#1A1A2E!important;}'+
-    '.light-mode .ar-sub,.light-mode .hr-sub,.light-mode .log-desc{color:#555!important;}'+
-    '.light-mode .wtab,.light-mode .ftab{background:#e4e8f0!important;color:#444!important;border-color:#c8ccd4!important;}'+
-    '.light-mode .wtab.active,.light-mode .ftab.active{background:#fff!important;color:#E65100!important;border-bottom-color:#E65100!important;}'+
-    '.light-mode input,.light-mode select,.light-mode textarea{background:#fff!important;color:#1A1A2E!important;border-color:#c8ccd4!important;}'+
-    '.light-mode .wallet-row,.light-mode .total-row{border-color:#e0e4ec!important;color:#1A1A2E!important;}'+
-    '.light-mode .wr-label,.light-mode .tr-label{color:#555!important;}'+
-    '.light-mode .nw-top,.light-mode #nw-top{color:#E65100!important;}'+
-    '.light-mode .badge{background:#f4f6fa!important;border-color:#d0d4dc!important;}'+
-    '.light-mode .badge.earned{background:#fff8e1!important;border-color:#F57F17!important;}'+
-    '.light-mode .settings-section{background:#fff!important;border-color:#d8dce4!important;}'+
-    '.light-mode .ss-title{color:#1A1A2E!important;border-color:#d8dce4!important;}';
+    // Base surfaces \u2014 warm cream background, white cards
+    '.light-mode,.light-mode body,.light-mode #app{background:#F5F1EC!important;color:#18181C!important;}'+
+    '.light-mode .screen,.light-mode .scroll-area{background:#F5F1EC!important;}'+
+    '.light-mode .card{background:#FFFFFF!important;border-color:#DDD8D0!important;color:#18181C!important;}'+
+    '.light-mode .overlay .modal,.light-mode .modal-box{background:#FFFFFF!important;border-color:#DDD8D0!important;color:#18181C!important;}'+
+    // Nav / bars
+    '.light-mode #nav{background:#FFFFFF!important;border-top:1px solid #DDD8D0!important;}'+
+    '.light-mode #turn-bar{background:#FFFFFF!important;border-bottom:1px solid #DDD8D0!important;}'+
+    '.light-mode #control-row{background:#EDE9E3!important;border-bottom:1px solid #DDD8D0!important;}'+
+    '.light-mode .screen-head{background:#FFFFFF!important;border-bottom:1px solid #DDD8D0!important;}'+
+    // Buttons in control row \u2014 must look styled, not dark
+    '.light-mode #control-row button{background:#FFFFFF!important;border-color:#C8C4BC!important;color:#18181C!important;}'+
+    '.light-mode #control-row #lang-btn{background:#FFFFFF!important;border-color:#C8C4BC!important;color:#18181C!important;}'+
+    '.light-mode #control-row #lang-menu{background:#FFFFFF!important;border-color:#C8C4BC!important;}'+
+    '.light-mode #control-row #lang-menu .lang-opt{color:#18181C!important;border-color:#EDE9E3!important;}'+
+    '.light-mode #control-row #lang-menu .lang-opt:hover{background:#F5F1EC!important;}'+
+    // Nav items
+    '.light-mode .nav-item .nav-label,.light-mode .nav-item .nav-icon{color:#666!important;}'+
+    '.light-mode .nav-item.active .nav-label,.light-mode .nav-item.active .nav-icon{color:#C05000!important;}'+
+    '.light-mode .nav-item.active{border-top-color:#C05000!important;background:#FFF8F4!important;}'+
+    // Lists and rows
+    '.light-mode .asset-row,.light-mode .holding-row,.light-mode .loan-item,.light-mode .log-entry,.light-mode .faq-item{background:#FFFFFF!important;border-color:#DDD8D0!important;color:#18181C!important;}'+
+    '.light-mode .asset-row:hover,.light-mode .holding-row:hover{background:#FFF4ED!important;}'+
+    '.light-mode .ar-name,.light-mode .hr-name{color:#18181C!important;}'+
+    '.light-mode .ar-price,.light-mode .hr-price{color:#18181C!important;}'+
+    '.light-mode .ar-sub,.light-mode .hr-sub,.light-mode .log-desc{color:#666!important;}'+
+    // Tabs
+    '.light-mode .wtab,.light-mode .ftab{background:#EDE9E3!important;color:#555!important;border-color:#DDD8D0!important;}'+
+    '.light-mode .wtab.active,.light-mode .ftab.active{background:#FFFFFF!important;color:#C05000!important;border-bottom-color:#C05000!important;}'+
+    // Inputs
+    '.light-mode input,.light-mode select,.light-mode textarea{background:#FFFFFF!important;color:#18181C!important;border-color:#C8C4BC!important;}'+
+    // Wallet rows
+    '.light-mode .wallet-row,.light-mode .total-row{border-color:#DDD8D0!important;color:#18181C!important;}'+
+    '.light-mode .wr-label,.light-mode .tr-label,.light-mode .wr-value,.light-mode .tr-value{color:#18181C!important;}'+
+    // Net worth display \u2014 keep gold-adjacent
+    '.light-mode .nw-value{color:#C05000!important;}'+
+    // Badges
+    '.light-mode .badge{background:#F5F1EC!important;border-color:#C8C4BC!important;}'+
+    '.light-mode .badge.earned{background:#FFF3E0!important;border-color:#C05000!important;}'+
+    // Settings
+    '.light-mode .settings-section{background:#FFFFFF!important;border-color:#DDD8D0!important;}'+
+    '.light-mode .ss-title{color:#18181C!important;border-color:#DDD8D0!important;}'+
+    '.light-mode .ss-label,.light-mode .ss-value,.light-mode .ss-item{color:#18181C!important;}'+
+    // Text colours
+    '.light-mode [style*="color:var(--text2)"]{color:#777!important;}'+
+    '.light-mode [style*="color:var(--text3)"]{color:#999!important;}'+
+    '.light-mode [style*="color:var(--text)"]{color:#18181C!important;}';
   document.head.appendChild(st);
 })();
 
