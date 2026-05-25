@@ -3367,6 +3367,8 @@ function confirmLoan() {
   }
   G.loans.push({id:Date.now(), principal:amt, balance:amt, term:loanTerm, rate:0.08, takenTurn:G.turn});
   G.cash += amt;
+  if (!G.stats) G.stats = {};
+  G.stats.totalBorrowed = (G.stats.totalBorrowed||0) + amt;
   closeModal('modal-loan');
   showNotif('✅',`Loan of ${fmt(amt)} approved`);
   updateAll();
