@@ -1,216 +1,149 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
-import { useDomains } from '../context/DomainContext';
+import { useCars } from '../context/CarContext';
 import { useInquiries } from '../context/InquiryContext';
-import AdminLayout from '../components/AdminLayout';
+import { useAuth } from '../context/AuthContext';
 
-const { FiGlobe, FiMail, FiDollarSign, FiTrendingUp, FiPlus, FiEye } = FiIcons;
+const {
+  FiList, FiClock, FiCheckCircle, FiXCircle, FiMail, FiLogOut,
+  FiArrowRight, FiBarChart2
+} = FiIcons;
 
 const AdminDashboard = () => {
-  const { domains } = useDomains();
+  const { cars, activeCars, pendingCars, updateCar } = useCars();
   const { inquiries } = useInquiries();
+  const { user, logout } = useAuth();
 
-  const stats = {
-    totalDomains: domains.length,
-    activeDomains: domains.filter(d => d.status === 'active').length,
-    soldDomains: domains.filter(d => d.status === 'sold').length,
-    totalInquiries: inquiries.length,
-    newInquiries: inquiries.filter(i => i.status === 'new').length,
-    totalValue: domains.reduce((sum, d) => sum + d.price, 0)
-  };
+  const newInquiries = inquiries.filter(i => i.status === 'new').length;
 
-  const recentInquiries = inquiries.slice(-5).reverse();
+  const approve = (id) => updateCar(id, { status: 'active' });
+  const reject = (id) => updateCar(id, { status: 'rejected' });
+
+  const stats = [
+    { label: 'Active Listings', value: activeCars.length, color: 'text-green-600', bg: 'bg-green-50', icon: FiCheckCircle },
+    { label: 'Pending Review', value: pendingCars.length, color: 'text-amber-600', bg: 'bg-amber-50', icon: FiClock },
+    { label: 'Total Listings', value: cars.length, color: 'text-blue-600', bg: 'bg-blue-50', icon: FiList },
+    { label: 'New Inquiries', value: newInquiries, color: 'text-purple-600', bg: 'bg-purple-50', icon: FiMail },
+  ];
 
   return (
-    <AdminLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Overview of your domain marketplace</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Link to="/" className="flex items-center space-x-1">
+              <span className="text-xl font-black text-primary-600">cars</span>
+              <span className="text-xl font-black text-gray-900">.me</span>
+            </Link>
+            <span className="text-gray-300">|</span>
+            <span className="text-sm font-semibold text-gray-500">Admin Panel</span>
           </div>
-          <Link
-            to="/admin/domains"
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-          >
-            <SafeIcon icon={FiPlus} className="h-5 w-5" />
-            <span>Add Domain</span>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600 hidden sm:block">👋 {user?.name}</span>
+            <button onClick={logout} className="flex items-center space-x-1.5 text-sm text-gray-500 hover:text-red-600 transition-colors">
+              <SafeIcon icon={FiLogOut} className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map(({ label, value, color, bg, icon }) => (
+            <motion.div
+              key={label}
+              initial={{ y: 15, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className={`${bg} rounded-2xl p-5`}
+            >
+              <SafeIcon icon={icon} className={`h-6 w-6 ${color} mb-2`} />
+              <p className={`text-3xl font-black ${color}`}>{value}</p>
+              <p className="text-sm text-gray-600 mt-0.5">{label}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Quick links */}
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <Link to="/admin/listings" className="flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <SafeIcon icon={FiList} className="h-6 w-6 text-primary-600" />
+              <span className="font-semibold text-gray-800">Manage Listings</span>
+            </div>
+            <SafeIcon icon={FiArrowRight} className="h-4 w-4 text-gray-400" />
+          </Link>
+          <Link to="/admin/inquiries" className="flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <SafeIcon icon={FiMail} className="h-6 w-6 text-purple-600" />
+              <span className="font-semibold text-gray-800">
+                Inquiries {newInquiries > 0 && <span className="bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">{newInquiries}</span>}
+              </span>
+            </div>
+            <SafeIcon icon={FiArrowRight} className="h-4 w-4 text-gray-400" />
+          </Link>
+          <Link to="/admin/analytics" className="flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <SafeIcon icon={FiBarChart2} className="h-6 w-6 text-blue-600" />
+              <span className="font-semibold text-gray-800">Analytics</span>
+            </div>
+            <SafeIcon icon={FiArrowRight} className="h-4 w-4 text-gray-400" />
           </Link>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Domains</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalDomains}</p>
+        {/* Pending listings */}
+        {pendingCars.length > 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center space-x-2">
+                <SafeIcon icon={FiClock} className="h-5 w-5 text-amber-600" />
+                <h2 className="font-bold text-gray-900">Pending Review ({pendingCars.length})</h2>
               </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <SafeIcon icon={FiGlobe} className="h-6 w-6 text-blue-600" />
-              </div>
+              <Link to="/admin/listings" className="text-sm text-primary-600 hover:text-primary-700 font-medium">View All</Link>
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Domains</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.activeDomains}</p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-lg">
-                <SafeIcon icon={FiTrendingUp} className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Inquiries</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalInquiries}</p>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <SafeIcon icon={FiMail} className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Portfolio Value</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  ${stats.totalValue.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <SafeIcon icon={FiDollarSign} className="h-6 w-6 text-yellow-600" />
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Recent Inquiries */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-200"
-          >
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Inquiries</h3>
-                <Link
-                  to="/admin/inquiries"
-                  className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                >
-                  View All
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              {recentInquiries.length > 0 ? (
-                <div className="space-y-4">
-                  {recentInquiries.map((inquiry) => (
-                    <div key={inquiry.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{inquiry.name}</p>
-                        <p className="text-sm text-gray-600">{inquiry.domain_name}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(inquiry.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          inquiry.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                          inquiry.status === 'replied' ? 'bg-green-100 text-green-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {inquiry.status}
-                        </span>
-                        <Link
-                          to="/admin/inquiries"
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          <SafeIcon icon={FiEye} className="h-4 w-4" />
-                        </Link>
-                      </div>
+            <div className="divide-y divide-gray-50">
+              {pendingCars.slice(0, 5).map(car => (
+                <div key={car.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 truncate">{car.title}</p>
+                    <div className="flex items-center space-x-3 mt-0.5">
+                      <span className="text-sm text-primary-600 font-medium">AED {car.price.toLocaleString()}</span>
+                      <span className="text-sm text-gray-400">{car.location}</span>
+                      <span className="text-sm text-gray-400">{car.seller_name}</span>
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                    <button onClick={() => approve(car.id)}
+                      className="flex items-center space-x-1 bg-green-100 hover:bg-green-200 text-green-700 text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                      <SafeIcon icon={FiCheckCircle} className="h-4 w-4" />
+                      <span>Approve</span>
+                    </button>
+                    <button onClick={() => reject(car.id)}
+                      className="flex items-center space-x-1 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                      <SafeIcon icon={FiXCircle} className="h-4 w-4" />
+                      <span>Reject</span>
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <SafeIcon icon={FiMail} className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No inquiries yet</p>
-                </div>
-              )}
+              ))}
             </div>
-          </motion.div>
-
-          {/* Domain Status Overview */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-200"
-          >
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Domain Status</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Active</span>
-                  <span className="font-semibold text-green-600">{stats.activeDomains}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Pending Verification</span>
-                  <span className="font-semibold text-yellow-600">
-                    {domains.filter(d => d.status === 'pending_verification').length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Sold</span>
-                  <span className="font-semibold text-blue-600">{stats.soldDomains}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Archived</span>
-                  <span className="font-semibold text-gray-600">
-                    {domains.filter(d => d.status === 'archived').length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm p-8 text-center border border-gray-100">
+            <SafeIcon icon={FiCheckCircle} className="h-10 w-10 text-green-400 mx-auto mb-3" />
+            <p className="font-semibold text-gray-700">All caught up!</p>
+            <p className="text-sm text-gray-400 mt-1">No listings pending review.</p>
+          </div>
+        )}
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

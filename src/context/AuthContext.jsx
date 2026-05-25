@@ -18,19 +18,10 @@ export const AuthProvider = ({ children }) => {
   const mockUsers = [
     {
       id: 1,
-      email: 'admin@netzone.me',
+      email: 'admin@cars.me',
       password: 'admin123',
-      name: 'Admin User',
+      name: 'Admin',
       role: 'admin',
-      avatar: null,
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      email: 'user@example.com',
-      password: 'user123',
-      name: 'Regular User',
-      role: 'user',
       avatar: null,
       created_at: new Date().toISOString()
     }
@@ -38,14 +29,14 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check for existing session
-    const savedUser = localStorage.getItem('netzone_user');
+    const savedUser = localStorage.getItem('carsme_user');
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
       } catch (error) {
         console.error('Error parsing saved user:', error);
-        localStorage.removeItem('netzone_user');
+        localStorage.removeItem('carsme_user');
       }
     }
     setLoading(false);
@@ -68,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       const { password: _, ...userWithoutPassword } = foundUser;
       
       setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
+      localStorage.setItem('carsme_user', JSON.stringify(userWithoutPassword));
       
       return { success: true };
     } catch (error) {
@@ -106,7 +97,7 @@ export const AuthProvider = ({ children }) => {
       const { password: _, ...userWithoutPassword } = newUser;
       
       setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
+      localStorage.setItem('carsme_user', JSON.stringify(userWithoutPassword));
       
       return { success: true };
     } catch (error) {
@@ -118,7 +109,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('netzone_user');
+    localStorage.removeItem('carsme_user');
   };
 
   const updateProfile = async (updates) => {
@@ -130,7 +121,7 @@ export const AuthProvider = ({ children }) => {
       
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      localStorage.setItem('netzone_user', JSON.stringify(updatedUser));
+      localStorage.setItem('carsme_user', JSON.stringify(updatedUser));
       
       return { success: true };
     } catch (error) {

@@ -1,17 +1,20 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { QuestProvider } from '@questlabs/react-sdk';
 import '@questlabs/react-sdk/dist/style.css';
 
 import HomePage from './pages/HomePage';
-import DomainLanding from './pages/DomainLanding';
+import BrowseCarsPage from './pages/BrowseCarsPage';
+import CarListingPage from './pages/CarListingPage';
+import PostCarPage from './pages/PostCarPage';
 import AdminDashboard from './pages/AdminDashboard';
-import DomainManager from './pages/DomainManager';
+import CarListingsManager from './pages/CarListingsManager';
 import InquiryManager from './pages/InquiryManager';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
-import { DomainProvider } from './context/DomainContext';
+
+import { CarProvider } from './context/CarContext';
 import { InquiryProvider } from './context/InquiryContext';
 import { AnalyticsProvider } from './context/AnalyticsContext';
 import { AuthProvider } from './context/AuthContext';
@@ -27,55 +30,22 @@ function App() {
       apiType="PRODUCTION"
     >
       <AuthProvider>
-        <DomainProvider>
+        <CarProvider>
           <InquiryProvider>
             <AnalyticsProvider>
               <Router>
-                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+                <div className="min-h-screen bg-gray-50">
                   <AnimatePresence mode="wait">
                     <Routes>
                       <Route path="/" element={<HomePage />} />
-                      <Route path="/domain/:domainName" element={<DomainLanding />} />
-                      <Route 
-                        path="/profile" 
-                        element={
-                          <ProtectedRoute>
-                            <Profile />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route 
-                        path="/admin" 
-                        element={
-                          <ProtectedRoute requireAdmin>
-                            <AdminDashboard />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route 
-                        path="/admin/domains" 
-                        element={
-                          <ProtectedRoute requireAdmin>
-                            <DomainManager />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route 
-                        path="/admin/inquiries" 
-                        element={
-                          <ProtectedRoute requireAdmin>
-                            <InquiryManager />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route 
-                        path="/admin/analytics" 
-                        element={
-                          <ProtectedRoute requireAdmin>
-                            <Analytics />
-                          </ProtectedRoute>
-                        } 
-                      />
+                      <Route path="/browse" element={<BrowseCarsPage />} />
+                      <Route path="/car/:id" element={<CarListingPage />} />
+                      <Route path="/post" element={<PostCarPage />} />
+                      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                      <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+                      <Route path="/admin/listings" element={<ProtectedRoute requireAdmin><CarListingsManager /></ProtectedRoute>} />
+                      <Route path="/admin/inquiries" element={<ProtectedRoute requireAdmin><InquiryManager /></ProtectedRoute>} />
+                      <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><Analytics /></ProtectedRoute>} />
                     </Routes>
                   </AnimatePresence>
                   <HelpHub />
@@ -83,7 +53,7 @@ function App() {
               </Router>
             </AnalyticsProvider>
           </InquiryProvider>
-        </DomainProvider>
+        </CarProvider>
       </AuthProvider>
     </QuestProvider>
   );
