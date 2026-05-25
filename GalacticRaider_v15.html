@@ -907,35 +907,15 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
     <div class="screen-sub">Learn · Practice · Master</div>
   </div>
   <div style="display:flex;gap:0;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;">
-    <div class="wtab active" onclick="switchAcademyTab('learn',this)" style="flex:1;">📖 Learn</div>
-    <div class="wtab" onclick="switchAcademyTab('glossary',this)" style="flex:1;">📚 Glossary</div>
-    <div class="wtab" onclick="switchAcademyTab('quiz',this)" style="flex:1;">🎯 Quiz</div>
-    <div class="wtab" onclick="switchAcademyTab('results',this)" style="flex:1;">&#127942; Results</div>
+    <div class="wtab active" onclick="switchAcademyTab('learn',this)" style="flex:1;font-size:10px;">📖 Learn</div>
+    <div class="wtab" onclick="switchAcademyTab('glossary',this)" style="flex:1;font-size:10px;">📚 Glossary</div>
+    <div class="wtab" onclick="switchAcademyTab('quiz',this)" style="flex:1;font-size:10px;">🎯 Quiz</div>
+    <div class="wtab" onclick="switchAcademyTab('faq',this)" style="flex:1;font-size:10px;">❓ FAQ</div>
+    <div class="wtab" onclick="switchAcademyTab('results',this)" style="flex:1;font-size:10px;">🏆 Results</div>
   </div>
   <div class="scroll-area" style="padding:12px;">
     <!-- Learn tab -->
-    <div id="academy-learn" class="academy-tab">
-      <div class="card" style="margin-bottom:10px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">Chapter 1: How to Start</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;">You start with <span style="color:var(--gold);">$1,000,000</span> split across three wallets: Cash ($100K), Savings ($100K), and Trading ($800K). Your Trading Wallet is where you buy all assets. Move money from Cash to Trading before investing.</div>
-      </div>
-      <div class="card" style="margin-bottom:10px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">Chapter 2: The Three Wallets</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;"><span style="color:var(--text);">💵 Cash</span> — receives passive income (dividends, GSF, coupons). Use for loans and philanthropy.<br><br><span style="color:var(--text);">🏦 Savings</span> — earns 2% annual interest. Safe storage but can't buy assets directly.<br><br><span style="color:var(--text);">📈 Trading</span> — the only wallet that can buy stocks, crypto, bonds and all other assets. Sell proceeds return here.</div>
-      </div>
-      <div class="card" style="margin-bottom:10px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">Chapter 3: Passive Income</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;">Three sources of passive income paid every turn:<br><br>🌐 <span style="color:var(--text);">GSF (12.48% APR)</span> — Deposit Cash to the Global Sovereign Fund. Guaranteed returns every turn.<br><br>📊 <span style="color:var(--text);">Dividends (varies)</span> — High-dividend stocks pay 2–5% annually. Taxed at 15%.<br><br>📜 <span style="color:var(--text);">Bond Coupons (3–18%)</span> — Fixed income paid on bond holdings. Taxed at 10%.</div>
-      </div>
-      <div class="card" style="margin-bottom:10px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">Chapter 4: Taxes & Philanthropy</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;">Taxes are charged quarterly (every 90 turns):<br><br>• Capital Gains: 20% on profit when you sell<br>• Dividends: 15% (deducted each turn)<br>• Bond Coupons: 10% (deducted each turn)<br>• Wealth Tax: 0.1%/turn above $10B<br><br>❤️ <span style="color:var(--text);">Philanthropy reduces your tax bill</span> — donate to reduce the quarterly tax charge by up to 30%.</div>
-      </div>
-      <div class="card">
-        <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;">Chapter 5: The Road to Trillionaire</div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;">Ranks: Rookie → Trader → Investor → Mogul → Tycoon → Millionaire → Multi-Millionaire → Billionaire → Mega Billionaire → 👑 Trillionaire<br><br>Reach $5B to unlock Solar System markets. Reach $50B for the Galaxy tier. The universe awaits at $500B.</div>
-      </div>
-    </div>
+        <div id="academy-learn" class="academy-tab"></div>
     <!-- Glossary tab -->
     <div id="academy-glossary" class="academy-tab" style="display:none;"><div style="padding:8px 0 4px;"><input oninput="filterGlossary(this.value)" placeholder="Search..." style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12px;box-sizing:border-box;"></div>
       <div id="glossary-list"></div>
@@ -945,6 +925,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
       <div id="quiz-content"></div>
     </div>
     <!-- Results tab -->
+    <div id="academy-faq" class="academy-tab" style="display:none;"><div id="faq-list-academy"></div></div>
     <div id="academy-results" class="academy-tab" style="display:none;">
       <div style="padding:12px;">
         <div class="card" style="margin-bottom:10px;text-align:center;padding:16px;">
@@ -1069,6 +1050,34 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
         <div class="ss-title">Export / Import Save</div>
         <div class="ss-item" onclick="exportSave()"><span class="ss-label">📤 Export Save Code</span><span class="ss-arrow">›</span></div>
         <div class="ss-item" onclick="importSave()"><span class="ss-label">📥 Import Save Code</span><span class="ss-arrow">›</span></div>
+      </div>
+      <div class="settings-section">
+        <div class="ss-title">Terms of Use</div>
+        <div id="tos-toggle" onclick="toggleLegal('tos')" class="ss-item" style="cursor:pointer;">
+          <span class="ss-label">📄 Read Terms of Use</span><span class="ss-arrow">›</span>
+        </div>
+        <div id="tos-content" style="display:none;padding:0 14px 14px;font-size:11px;color:var(--text2);line-height:1.7;">
+          <p><b>Educational Simulation Only.</b> Galactic Raider: Capital Exchange is a financial education game for entertainment and learning purposes only. Nothing constitutes financial advice, investment advice, or a recommendation to buy or sell any real financial instrument.</p>
+          <p><b>No Real Money.</b> All currency, assets, and transactions use fictional in-game currency only. No real money is involved, wagered, or exchangeable. In-game wealth has no real-world monetary value.</p>
+          <p><b>Age Rating: 13+.</b> By playing you confirm that you are 13 or older.</p>
+          <p><b>No Warranties.</b> The game is provided "as is" without any warranties, express or implied. Financial concepts are simplified for gameplay purposes.</p>
+          <p><b>Limitation of Liability.</b> The developer is not liable for any real-world financial decisions made based on strategies or information encountered in this game. The developer is not responsible for loss of game data due to device issues, browser cache clearing, or software updates.</p>
+          <p><b>Acceptable Use.</b> Personal, non-commercial use only. Do not attempt to hack, reverse engineer, or exploit the game.</p>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="ss-title">Privacy Policy</div>
+        <div id="pp-toggle" onclick="toggleLegal('pp')" class="ss-item" style="cursor:pointer;">
+          <span class="ss-label">🔒 Read Privacy Policy (GDPR)</span><span class="ss-arrow">›</span>
+        </div>
+        <div id="pp-content" style="display:none;padding:0 14px 14px;font-size:11px;color:var(--text2);line-height:1.7;">
+          <p><b>No Personal Data Collected.</b> Galactic Raider does not collect any personal data. We do not ask for your name, email address, location, or any identifying information.</p>
+          <p><b>Local Storage Only.</b> Your game progress — wallet balances, asset positions, planet progress, and settings — is saved exclusively to your device's local storage. This data never leaves your device and is never transmitted to any server.</p>
+          <p><b>No Tracking or Analytics.</b> We do not use cookies, tracking pixels, analytics SDKs, or any third-party monitoring services.</p>
+          <p><b>No Third-Party Sharing.</b> Because we collect no data, there is nothing to share with third parties. No data is sold, rented, or disclosed.</p>
+          <p><b>GDPR Compliance.</b> All data is stored locally on your device. No personal information is collected or transmitted, making this game fully compliant with the General Data Protection Regulation (GDPR). You can delete all game data at any time by clearing your browser's local storage or using the in-game reset option.</p>
+          <p style="color:var(--text3);">Contact: privacy@galacticraider.game</p>
+        </div>
       </div>
       <div class="settings-section">
         <div class="ss-title">Danger Zone</div>
@@ -1498,16 +1507,86 @@ const FAQ_DATA = [
 ];
 
 const GLOSSARY = [
-  {term:'P/E Ratio',def:'Price-to-Earnings ratio. The stock price divided by annual earnings per share. Low P/E = value stock, high P/E = growth stock. Range 5-70 typical.'},
-  {term:'Dividend Yield',def:'Annual dividend paid as % of stock price. A 3% yield on a $100 stock pays $3/year. Higher yield = more income but sometimes signals risk.'},
-  {term:'Market Cap',def:'Total value of all shares outstanding. Small-cap: <$2B, Mid-cap: $2B-$10B, Large-cap: $10B+, Mega-cap: $200B+.'},
-  {term:'Bond Duration',def:'Sensitivity of a bond\'s price to interest rate changes. A 10-year duration bond loses ~10% market value when rates rise 1%.'},
-  {term:'Coupon Rate',def:'Fixed annual interest paid by a bond as % of face value. A 6% coupon on $1000 face pays $60/year = $0.164 per game turn.'},
-  {term:'Volatility',def:'How much an asset\'s price fluctuates. High volatility = bigger gains AND bigger losses. Crypto highest, bonds lowest.'},
-  {term:'Diversification',def:'Spreading investments across different asset classes, sectors, and regions to reduce risk. Don\'t put all eggs in one basket.'},
-  {term:'Capital Gains',def:'Profit made when you sell an asset for more than you paid. Subject to 20% tax in Galactic Raider.'},
-  {term:'Bid-Ask Spread',def:'The difference between the highest price a buyer will pay (bid) and the lowest a seller will accept (ask). The spread is the broker\'s profit.'},
-  {term:'GSF',def:'Global Sovereign Fund — a guaranteed 12.48% annual return fund. The ultimate safe haven. Your deposits earn daily (per-turn) returns paid directly to cash.'},
+  {term:'Asset',def:'Anything you own with economic value — stocks, bonds, crypto, commodities, ETFs, or forex positions. Assets held in your Trading Wallet contribute to your Real Net Worth.'},
+  {term:'Portfolio',def:'The complete collection of assets you hold. A well-diversified portfolio across multiple asset classes reduces exposure to any single market crash or sector event.'},
+  {term:'Net Worth',def:'Total value of everything you own minus everything you owe. Real Net Worth = Cash + Savings + Trading portfolio + GSF balance − outstanding loan principal.'},
+  {term:'Market Cap',def:'Short for market capitalisation: share price × total shares outstanding. Determines company size and the cost of acquiring a majority stake for CEO mode.'},
+  {term:'Share',def:'A single unit of ownership in a company. Buying shares gives you a proportional claim on profits through dividends and on price appreciation when you sell.'},
+  {term:'Dividend',def:'A portion of a company\'s profits distributed to shareholders each period. Credited to your Cash Wallet automatically, subject to 15% withholding tax.'},
+  {term:'Coupon',def:'The fixed periodic interest payment a bond issuer makes to bondholders. Unlike dividends, coupons are contractually guaranteed regardless of company profitability.'},
+  {term:'Yield',def:'Annual income generated by an investment as a percentage of its current price. A bond bought below face value has a higher effective yield than its stated coupon rate.'},
+  {term:'P/E Ratio',def:'Price-to-Earnings ratio — share price divided by annual earnings per share. A high P/E signals expected growth; a low P/E may indicate undervaluation or a mature industry.'},
+  {term:'Capital Gain',def:'Profit made when you sell an asset for more than you paid. Capital gains are taxed at 20% in Galactic Raider and are distinct from dividend or interest income.'},
+  {term:'Cash Wallet',def:'Your primary account. Dividends, bond coupons, and sell proceeds flow here. You must transfer funds from Cash to Trading Wallet before buying any asset.'},
+  {term:'Savings Wallet',def:'Earns 2% APR automatically each turn. Ideal for funds you want to keep liquid but earning interest while you wait for the right investment opportunity.'},
+  {term:'Trading Wallet',def:'The wallet from which all asset purchases are made. Does not earn interest — funds here are actively deployed. Transfer from Cash Wallet to fund it.'},
+  {term:'GSF',def:'Global Sovereign Fund — a government-backed fund paying 12.48% APR. Deposits earn interest every turn and are completely protected from market volatility.'},
+  {term:'APR',def:'Annual Percentage Rate — the yearly interest rate before compounding. The GSF at 12.48% APR means each turn\'s interest equals 12.48% ÷ 365.'},
+  {term:'Compound Interest',def:'Interest calculated on both the original principal and previously accumulated interest. GSF compounds every turn, causing wealth to grow exponentially over many turns.'},
+  {term:'Liquidity',def:'How quickly an asset can be converted to cash. Your Cash Wallet is perfectly liquid. Trading assets vary — stocks are more liquid than a locked bond position.'},
+  {term:'Balance',def:'The current monetary amount held in a specific wallet. Monitoring your Cash balance prevents missed opportunities and avoids triggering bankruptcy conditions.'},
+  {term:'Stock',def:'An equity security representing partial ownership in a company. Stocks pay dividends and can appreciate in value, but prices fluctuate based on market events.'},
+  {term:'Bond',def:'A fixed-income security where you lend money to an issuer for regular coupon payments plus face value at maturity. Lower risk and lower reward than stocks.'},
+  {term:'Crypto',def:'Digital currencies like BTC and ETH. Crypto is the most volatile asset class — capable of 50%+ swings from a single market event.'},
+  {term:'Commodity',def:'Physical goods traded as investments: OIL, GOLD, and LITH (lithium). Prices are driven by sector events and macroeconomic conditions.'},
+  {term:'ETF',def:'Exchange-Traded Fund — a basket of multiple assets in one security. ETFs provide instant diversification and are less volatile than individual stocks or crypto.'},
+  {term:'IPO',def:'Initial Public Offering — when a private company first lists its shares. You can book IPO allocations at the fixed pre-IPO price and sell on listing day for potential profit.'},
+  {term:'Forex',def:'Foreign exchange — trading one currency against another. You profit if your chosen direction is correct. Positions can be long (buy base) or short (sell base).'},
+  {term:'Futures',def:'Contracts to buy/sell an asset at a predetermined price on a future date. A planned feature for outer planets in Galactic Raider — advanced hedging and leverage.'},
+  {term:'Volatility',def:'How much an asset\'s price fluctuates. Crypto has the highest volatility; bonds the lowest. Higher volatility means greater potential gain and greater potential loss.'},
+  {term:'Bull Market',def:'A market characterised by rising prices and positive investor sentiment. During bull events most assets appreciate and dividends may increase.'},
+  {term:'Bear Market',def:'A prolonged period of falling asset prices (typically 20%+ decline). Bear events can trigger rapid portfolio losses if you are heavily concentrated in stocks or crypto.'},
+  {term:'Diversification',def:'Distributing capital across multiple unrelated asset classes to reduce overall risk. Owning stocks, bonds, gold, and GSF simultaneously limits damage from any single downturn.'},
+  {term:'Risk-Reward Ratio',def:'The relationship between potential profit and potential loss. A 3:1 ratio means you expect to gain three dollars for every dollar you risk.'},
+  {term:'Hedge',def:'An investment made to offset potential losses elsewhere. Holding GOLD or bonds while holding stocks is a basic hedge against equity market crashes.'},
+  {term:'Short Selling',def:'Borrowing and selling an asset you don\'t own, expecting to buy it back cheaper later. Available in forex and advanced game mechanics on outer planets.'},
+  {term:'Long Position',def:'Buying and holding an asset expecting its price to rise. The default way to invest in stocks, bonds, crypto, and commodities in Galactic Raider.'},
+  {term:'Market Event',def:'A random event that moves asset prices — a sector boom, crash, or announcement. Events occur roughly every 75 turns and can be positive or negative.'},
+  {term:'Quarterly Tax',def:'A tax assessed every 90 turns based on income for that period — dividends, coupons, realised capital gains, and CEO salary. Philanthropy donations reduce taxable income.'},
+  {term:'CEO Mode',def:'Unlocked when you own 51% or more of a company\'s shares. You earn a salary of 0.1% of market cap per quarter and can make strategic A/B decisions.'},
+  {term:'Planet Threshold',def:'The Real Net Worth milestone required to travel to the next planet. Mars requires $5B, Venus $50B, and each subsequent planet unlocks new assets and mechanics.'},
+  {term:'Real Net Worth',def:'Your true financial score: Cash + Savings + Trading portfolio + GSF balance − total outstanding loans. Planet unlock checks use Real Net Worth, not just cash.'},
+  {term:'Unrealised P&L',def:'Profit or loss on assets you hold but haven\'t sold yet. Unrealised gains are not taxed until you sell — a key timing strategy for minimising quarterly tax bills.'},
+  {term:'Turn',def:'The basic unit of time in the game. Each turn, interest accrues on savings and GSF, loan interest is charged, dividends may be paid, and market conditions can shift.'},
+  {term:'Sector',def:'A category of related assets — Technology, Energy, Finance, Healthcare, etc. Sector events affect all assets within the same group simultaneously.'},
+  {term:'Loan',def:'Borrowed capital credited to your Cash Wallet immediately. Must be repaid with interest. Outstanding principal reduces your Real Net Worth for planet threshold calculations.'},
+  {term:'Principal',def:'The original amount borrowed on a loan, before interest. As you repay, principal decreases and so does the interest charged each turn.'},
+  {term:'Interest',def:'The cost of borrowing money as a percentage of outstanding principal per period. Unpaid interest compounds, making loans increasingly expensive over time.'},
+  {term:'Leverage',def:'Using borrowed capital to amplify an investment. Leverage magnifies both profits and losses — a 10% market drop on a 5× leveraged position wipes out 50% of your equity.'},
+  {term:'Bankruptcy',def:'A game-over condition triggered when Real Net Worth falls below zero and you cannot service your debts. Avoid by keeping loans below 30% of Real Net Worth.'},
+  {term:'Collateral',def:'Assets pledged as security for a loan. If you default, collateral may be auto-liquidated at unfavourable prices to cover outstanding debt.'},
+  {term:'Debt-to-Equity',def:'Total outstanding loan balance divided by net worth. A D/E ratio above 1.0 means you owe more than you own — a warning sign of financial fragility.'},
+  {term:'Credit Limit',def:'The maximum you can borrow, calculated as a multiple of your current Real Net Worth. Growing your net worth expands borrowing capacity.'},
+  {term:'Market Capitalisation',def:'Total market value of all shares: share price × shares outstanding. Tracking market cap helps you assess the cost of acquiring a majority stake for CEO mode.'},
+  {term:'Majority Shareholder',def:'An entity holding more than 51% of a company\'s issued shares. Majority shareholders unlock CEO mode and receive the quarterly CEO salary.'},
+  {term:'Controlling Shareholder',def:'A shareholder whose stake is large enough to influence board decisions. In the game, certain strategic decisions unlock at specific ownership milestones.'},
+  {term:'Board Decision',def:'A strategic choice available to CEO-mode players: expand operations, issue shares, pay special dividends, or execute a buyback — each affects future price.'},
+  {term:'M&A Offer',def:'Merger & Acquisition offer — a takeover bid for your company at a premium. Accepting converts your stake to cash; rejecting preserves long-term CEO income.'},
+  {term:'Salary',def:'In CEO mode, you receive a quarterly salary equal to 0.1% of the company\'s market cap, paid to your Cash Wallet every 90 turns.'},
+  {term:'A/B Decision',def:'A binary strategic choice for CEO players: two divergent paths with different risk-reward profiles affecting future stock price and dividends.'},
+  {term:'Profit Margin',def:'A company\'s net profit as a percentage of revenue. High-margin companies sustain dividends even in weak markets; low-margin companies are vulnerable to cost shocks.'},
+  {term:'Capital Gains Tax',def:'A 20% tax charged on profit made from selling an asset above its cost basis. Timing your sales to stay in lower brackets reduces total tax paid.'},
+  {term:'Withholding Tax',def:'A 15% tax automatically deducted from dividend and bond coupon payments before they reach your Cash Wallet. You receive the net-of-tax amount automatically.'},
+  {term:'Tax Deduction',def:'An amount reducing your taxable income before the quarterly tax rate is applied. Philanthropy donations are the primary source of legal tax deductions.'},
+  {term:'Philanthropy',def:'Voluntary charitable donations from your Cash Wallet. Donations are not recovered, but they reduce taxable income dollar-for-dollar, lowering your quarterly assessment.'},
+  {term:'Tax Bracket',def:'The income range determining your quarterly tax rate. Higher quarterly income means steeper rates, making income smoothing and philanthropy deductions valuable.'},
+  {term:'Quarterly Assessment',def:'The tax calculation every 90 turns. Totals dividends, coupons, realised gains, and CEO salary, subtracts philanthropy deductions, then applies the bracket rate.'},
+  {term:'Net of Tax',def:'The amount you receive after applicable taxes are deducted. For example, a 6% bond coupon is 5.1% net after the 15% withholding tax (6% × 0.85 = 5.1%).'},
+  {term:'Tax Optimisation',def:'Legal strategies to reduce total tax. In the game: philanthropic giving, holding unrealised gains, and smoothing income across multiple quarters.'},
+  {term:'Return on Investment',def:'Percentage gain or loss relative to cost: (Current Value − Cost) ÷ Cost × 100. Tracking ROI across all positions shows which asset classes are working hardest.'},
+  {term:'Opportunity Cost',def:'Value of the next-best option you gave up. Leaving $1M idle in Cash has an opportunity cost equal to what it could have earned in the Savings Wallet or GSF instead.'},
+  {term:'Transfer',def:'Moving funds between your own wallets — e.g. Cash to Trading. Transfers are instant and free. You must transfer into Trading before you can purchase any asset.'},
+  {term:'Interest Income',def:'Earnings from interest-bearing accounts: Savings (2% APR) and GSF (12.48% APR). Both accrue automatically every turn without any trading action.'},
+  {term:'Net Income',def:'Total income received after all taxes and costs. Equals gross dividends + coupons − withholding tax + realised gains − capital gains tax + CEO salary.'},
+  {term:'Position Size',def:'Total dollar value of a single asset relative to your portfolio. Keeping any single position below 20% of total portfolio is a common risk management rule.'},
+  {term:'IPO Booking',def:'Reserving an allocation of shares before an IPO lists publicly. Booked shares are purchased at the fixed IPO price; if the stock lists higher, you profit immediately.'},
+  {term:'Pre-IPO',def:'The period before an IPO listing during which you can book your allocation. Pre-IPO prices are fixed while the listing price is set by market demand on launch day.'},
+  {term:'Short Squeeze',def:'A rapid price spike caused when many short sellers are forced to buy back an asset simultaneously. Can appear as a sudden extreme market event in the game.'},
+  {term:'Sector Rotation',def:'Shifting investments between sectors (e.g. tech to energy) as different parts of the economy cycle through market events.'},
+  {term:'GSF Strategy',def:'A play-style prioritising large deposits into the Global Sovereign Fund for guaranteed 12.48% APR, trading market risk for slower but highly predictable compounding.'},
+  {term:'Passive Income',def:'Income earned without active trading — GSF interest, savings interest, stock dividends, bond coupons, and CEO salary are all forms of passive income.'},
+  {term:'Compounding Effect',def:'The exponential growth from reinvesting earnings so each period\'s returns generate their own future returns. $100M in the GSF at 12.48% APR doubles in under 6 years.'},
+  {term:'Market Depth',def:'The volume of buy and sell orders at various price levels. Assets with greater market depth can be bought or sold in larger quantities without significantly moving the price.'},
 ];
 
 const RANKS = [
@@ -1730,7 +1809,7 @@ function switchScreen(id, el) {
   if(id==='wallet') buildWallet();
   if(id==='settings') buildSettings();
   if(id==='luck') buildLuck();
-  if(id==='academy') { buildGlossary(); }
+  if(id==='academy') { buildLearn(); buildGlossary(); }
   if(id==='ceo') { buildCEOScreen(); }
 }
 
@@ -4143,32 +4222,55 @@ function openAcademy() {
 }
 
 // =============================================
-// FAQ
-// =============================================
-
-function buildFAQ() {
-  document.getElementById('faq-list').innerHTML = FAQ_DATA.map(f => `
-    <div class="faq-item" onclick="toggleFAQ(this)">
-      <div class="faq-q">${f.q}<span class="faq-arrow">›</span></div>
-      <div class="faq-a">${f.a}</div>
-    </div>`).join('');
-}
-
-function toggleFAQ(el) { el.classList.toggle('open'); }
-
-// =============================================
 // ACADEMY
 // =============================================
 
 const QUIZ_QUESTIONS = [
-  {q:'Which wallet do you use to buy stocks?', opts:['Cash Wallet','Savings Wallet','Trading Wallet','GSF'], ans:2},
-  {q:'What annual return does the GSF pay?', opts:['5%','8%','12.48%','20%'], ans:2},
-  {q:'What tax rate applies to stock dividends?', opts:['5%','10%','15%','20%'], ans:2},
-  {q:'What happens to sell proceeds?', opts:['Go to Cash','Go to Savings','Go to Trading','Lost to tax'], ans:2},
-  {q:'How often is the quarterly tax bill charged?', opts:['Every 10 turns','Every 30 turns','Every 90 turns','Every 365 turns'], ans:2},
+  // EASY
+  {q:'Which wallet do you use to purchase stocks, bonds, and other assets?',opts:['Cash Wallet','Savings Wallet','Trading Wallet','GSF Account'],ans:2,diff:'easy'},
+  {q:'What does "GSF" stand for in Galactic Raider?',opts:['Global Sovereign Fund','Galactic Savings Formula','General Stock Fund','Growth & Security Feature'],ans:0,diff:'easy'},
+  {q:'What annual interest rate (APR) does the Global Sovereign Fund pay?',opts:['12.48%','8.00%','15.00%','10.50%'],ans:0,diff:'easy'},
+  {q:'Which tax applies to income earned from stock dividends?',opts:['Withholding tax at 15%','Capital gains tax at 20%','Income tax at 25%','Dividend tax at 30%'],ans:0,diff:'easy'},
+  {q:'What annual percentage rate (APR) does the Savings Wallet pay?',opts:['2% APR','4.5% APR','8% APR','12.48% APR'],ans:0,diff:'easy'},
+  {q:'How frequently is quarterly tax charged, measured in game turns?',opts:['Every 90 turns','Every 52 turns','Every 365 turns','Every 180 turns'],ans:0,diff:'easy'},
+  {q:'When you sell an asset in Galactic Raider, where do the proceeds go?',opts:['Cash Wallet','Trading Wallet','Savings Wallet','GSF Account'],ans:0,diff:'easy'},
+  {q:'What minimum ownership percentage of a company unlocks CEO mode?',opts:['51% or more','25% or more','75% or more','33% or more'],ans:0,diff:'easy'},
+  {q:'What is the minimum loan amount a player can take?',opts:['$1,000','$10,000','$50,000','$100,000'],ans:0,diff:'easy'},
+  {q:'What is the capital gains tax rate when you sell an asset at a profit?',opts:['20%','10%','15%','25%'],ans:0,diff:'easy'},
+  // MEDIUM
+  {q:'What does a P/E ratio measure?',opts:['How many years of current earnings it would take to pay back the share price','The profit earned per employee','The percentage growth of a stock over one year','The ratio of debt to total equity'],ans:0,diff:'medium'},
+  {q:'How are bond coupons different from stock dividends?',opts:['Coupons are fixed contractual payments; dividends depend on company profits','Coupons are paid monthly; dividends are always annual','Coupons are taxed higher in all situations','Coupons represent ownership; dividends represent debt'],ans:0,diff:'medium'},
+  {q:'What is market capitalisation?',opts:['Share price multiplied by total shares outstanding','Total cash held in a company's treasury','Annual revenue minus operating expenses','Maximum amount a company can borrow'],ans:0,diff:'medium'},
+  {q:'What does taking a "long position" in a forex pair mean?',opts:['Buying the base currency expecting it to rise against the quote currency','Holding a currency position for more than one year','Borrowing a currency and selling it expecting the price to fall','Converting all profits into a stablecoin'],ans:0,diff:'medium'},
+  {q:'What does "ETF" stand for?',opts:['Exchange-Traded Fund','Equity Transfer Formula','Extended Trading Feature','Emerging Technology Finance'],ans:0,diff:'medium'},
+  {q:'What is an IPO?',opts:['When a private company first offers its shares to the public','An interest payment on government bonds','An algorithm that predicts price movements','A special account earning higher interest than the GSF'],ans:0,diff:'medium'},
+  {q:'What is compound interest?',opts:['Interest on both the initial principal and accumulated prior interest','A fixed rate that never changes regardless of balance','Interest paid only on the original deposit each year','A penalty charged when you withdraw savings early'],ans:0,diff:'medium'},
+  {q:'What is diversification in investing?',opts:['Spreading investments across different assets to reduce the impact of any single loss','Putting all capital into the highest-performing asset class','Rapid buy-sell of the same asset to capture small price movements','Depositing all funds in savings to avoid market risk'],ans:0,diff:'medium'},
+  {q:'What does APR stand for?',opts:['Annual Percentage Rate','Asset Performance Ratio','Accumulated Profit Rate','Authorised Portfolio Return'],ans:0,diff:'medium'},
+  {q:'What characterises a bull market?',opts:['Prices are rising broadly and investor confidence is high','Prices are falling sharply across most asset classes','Market trading is suspended due to volatility','Only commodities gain in value'],ans:0,diff:'medium'},
+  // HARD
+  {q:'In Galactic Raider, how is the CEO salary calculated when you hold majority ownership?',opts:['0.1% of the company's current market cap per quarter','A flat $1M payment regardless of company size','10% of annual dividends paid by the company','5% of your total trading wallet balance per turn'],ans:0,diff:'hard'},
+  {q:'If a bond has a 6% coupon and withholding tax is 15%, what is the net effective yield after tax?',opts:['5.1%','4.8%','5.5%','4.5%'],ans:0,diff:'hard'},
+  {q:'If you take out a loan, how does it affect your Real Net Worth calculation?',opts:['The loan principal is subtracted from total assets when computing Real Net Worth','Loans are excluded from the calculation entirely','Loan interest is added as deferred income','The loan doubles the value of whatever asset you purchase'],ans:0,diff:'hard'},
+  {q:'A stock pays a 4% annual dividend. After 15% withholding tax, what is the net rate?',opts:['3.4%','3.6%','3.2%','2.8%'],ans:0,diff:'hard'},
+  {q:'In the GSF panel, what does "Total Paid" specifically track?',opts:['Cumulative interest paid out from the GSF since first deposit','Total amount deposited into the GSF over all time','Combined value of GSF balance plus outstanding loans','Net GSF return after quarterly taxes'],ans:0,diff:'hard'},
+  {q:'How is loan interest calculated each turn in Galactic Raider?',opts:['Outstanding balance × (annual rate ÷ 365) applied each turn','A flat fee of 1% of the original loan regardless of current balance','Interest compounds daily and is charged as a lump sum at quarter-end','Interest is only charged if Cash Wallet drops below $10,000'],ans:0,diff:'hard'},
+  {q:'What primarily determines which quarterly tax bracket a player falls into?',opts:['Total taxable income for the quarter including realised gains and dividend income','Total number of assets held in the Trading Wallet','Cash Wallet balance at the moment tax is calculated','The planet the player is currently operating on'],ans:0,diff:'hard'},
+  {q:'What is the capital gains formula applied when selling an asset at a profit?',opts:['Tax = (Sell Price − Cost Basis) × 0.20','Tax = (Sell Price × 0.20) − Cost Basis','Tax = Sell Price × 0.20 regardless of cost','Tax = (Sell Price − Cost Basis) × 0.15'],ans:0,diff:'hard'},
+  {q:'How often do major market events typically occur in Galactic Raider?',opts:['Every 75 turns approximately','Every 8–12 turns','Every 5 turns exactly','Market events are fully random with no interval'],ans:0,diff:'hard'},
+  {q:'Which strategy most effectively minimises quarterly tax within the game's legal mechanics?',opts:['Maximising philanthropy before quarter-end and holding unrealised gains rather than selling','Withdrawing all funds into the GSF before the tax calculation turn','Taking out the maximum loan to reduce reported net assets','Holding all assets in crypto which is exempt from quarterly tax'],ans:0,diff:'hard'},
 ];
 
-let quizState = {idx:0, score:0, answered:false};
+let quizState = {idx:0, score:0, answered:false, diff:'easy'};
+let _quizPool = [];
+function getQuizPool(d) { return QUIZ_QUESTIONS.filter(function(q){ return q.diff===d; }); }
+
+
+function setQuizDiff(d) {
+  quizState = {idx:0, score:0, answered:false, diff:d};
+  _quizPool = [];
+  buildQuiz();
+}
 
 // =============================================
 // MANAGE COMPANY SYSTEM
@@ -4602,9 +4704,199 @@ function switchAcademyTab(tab, el) {
   var tabEl=document.getElementById('academy-'+tab);
   if(tabEl) tabEl.style.display = 'block';
   if(el) el.classList.add('active');
+  if(tab==='learn') buildLearn();
   if(tab==='glossary') buildGlossary();
   if(tab==='quiz') buildQuiz();
+  if(tab==='faq') buildFAQ();
   if(tab==='results') updateAcademyResults();
+}
+
+const CHAPTERS = [
+  {id:'ch1',title:'Welcome to Galactic Raider',emoji:'🚀',content:`
+<h3>What Is Galactic Raider: Capital Exchange?</h3>
+<p>Galactic Raider is a financial simulation where you start with $1,000,000 on Earth and grow your wealth through real investing strategies. Every planet you unlock represents a new wealth milestone — Mars at $5 billion, all the way to Neptune at $500 trillion.</p>
+<p>Nothing here is real money. But the concepts are completely real. P/E ratios, compound interest, capital gains tax, diversification — these are the tools actual investors use every day.</p>
+<h3>How Wealth Is Measured</h3>
+<p>Your score is your <b>Real Net Worth</b>: Cash Wallet + Savings Wallet + Trading Portfolio + GSF Balance − Outstanding Loans. The planet threshold check uses Real Net Worth — buying assets with borrowed money does not create artificial progress.</p>
+<h3>The Three Wallets</h3>
+<ul>
+<li><b>Cash Wallet:</b> Your main account. Dividends, sell proceeds, and loans arrive here.</li>
+<li><b>Savings Wallet:</b> Earns 2% APR automatically. Park cash here while waiting for opportunities.</li>
+<li><b>Trading Wallet:</b> The only wallet markets pull from when you buy. Fund it by transferring from Cash.</li>
+</ul>
+<p>Understanding the flow between these three wallets is the foundation of everything.</p>`},
+  {id:'ch2',title:'Mastering the Three Wallets',emoji:'💼',content:`
+<h3>Cash: Your Financial Hub</h3>
+<p>Every dollar you earn flows to Cash first — dividends, coupons, sell proceeds, CEO salary, and any loans. Think of it as your checking account. Keep a buffer for emergencies; move the surplus to Savings or GSF every turn.</p>
+<h3>Savings: Effortless 2% APR</h3>
+<p>The Savings Wallet requires zero effort — transfer money in, and every turn the game credits 2% APR compounded automatically. At $10M in savings that is approximately $548 per turn, purely passive, zero risk.</p>
+<h3>Trading: Where Assets Live</h3>
+<p>The Trading Wallet is depleted when you buy and replenished only by manual transfer from Cash. Funds here do not earn interest — they are deployed the moment you purchase. Always fund Trading before trying to buy.</p>
+<h3>Optimal Flow Pattern</h3>
+<ul>
+<li>Income (dividends, proceeds) → Cash Wallet</li>
+<li>Surplus idle capital → Savings Wallet (2% APR)</li>
+<li>Large long-term reserves → GSF (12.48% APR)</li>
+<li>Active investment capital → Transfer from Cash to Trading → Buy</li>
+</ul>`},
+  {id:'ch3',title:'Stocks: Your First Investment',emoji:'📈',content:`
+<h3>What Is a Stock?</h3>
+<p>A stock represents fractional ownership in a company. When you buy 1,000 shares of a 1,000,000-share company, you own 0.1%. If the company doubles in value, your shares double too. You share both upside and downside.</p>
+<h3>Reading the P/E Ratio</h3>
+<p>The P/E ratio tells you how many years of current earnings you pay for at the current share price. A P/E of 20 means you are paying 20 years of current profits upfront. Growth stocks often sit above P/E 40; value stocks at 8–15.</p>
+<h3>Dividends: Getting Paid to Hold</h3>
+<p>Stocks pay dividends to your Cash Wallet every turn, net of 15% withholding tax. A 4% annual yield on $1,000,000 means approximately $271 per turn after tax at game speed — without selling a single share.</p>
+<h3>CEO Mode: The Ownership Endgame</h3>
+<p>Accumulate 51%+ of a company's shares and CEO mode activates. You earn a quarterly salary of 0.1% of market cap paid to Cash every 90 turns. On a $10B company that is $10M per quarter. Acquiring CEO mode across multiple companies creates a powerful passive income engine.</p>`},
+  {id:'ch4',title:'Bonds: Safe & Steady Returns',emoji:'🏛️',content:`
+<h3>What Is a Bond?</h3>
+<p>A bond is a loan you give to a government or corporation. They pay you a fixed interest rate (the coupon) at regular intervals and return your original investment (face value) at maturity. Unlike stocks, bonds give you no ownership — you are a creditor.</p>
+<h3>Net Coupon After Withholding Tax</h3>
+<p>Bond coupon payments are subject to 15% withholding tax, identical to stock dividends:</p>
+<ul>
+<li>6% coupon − 15% withholding = 5.1% net effective yield</li>
+<li>8% coupon − 15% withholding = 6.8% net effective yield</li>
+<li>GSF at 12.48% APR has no withholding, making it superior to most bonds on yield alone</li>
+</ul>
+<h3>When to Use Bonds</h3>
+<p>Bonds shine in three scenarios: when you expect a market downturn and want to protect capital, when you need predictable income with minimal volatility, and when you want to diversify away from high-risk stocks and crypto. During equity crashes, bond prices often hold steady.</p>`},
+  {id:'ch5',title:'Crypto & Commodities',emoji:'⚡',content:`
+<h3>Crypto: The Volatile Frontier</h3>
+<p>Crypto — BTC, ETH, SOL, ADA — is the most volatile asset class in the game. A single market event can move prices 40–80% in either direction. The key is position sizing: never allocate more than 10–15% of your total portfolio to crypto unless you have a clear exit strategy.</p>
+<h3>When to Hold vs. Sell</h3>
+<ul>
+<li>Enter crypto positions after a crash event, not after a rally</li>
+<li>Set a mental target price and stick to it — emotional holding is expensive</li>
+<li>If crypto has rallied 200%+ since your entry and a bear event is on the horizon, taking profits is rational</li>
+<li>Tax timing matters: selling into a quarter with already high dividend income stacks your tax bill</li>
+</ul>
+<h3>Commodities: OIL, GOLD, LITH</h3>
+<p>Each commodity has a different profile. GOLD rises during market uncertainty — the classic safe haven. OIL is tied to energy sector events. LITH (lithium) is linked to tech and clean energy, showing the highest volatility of the three. Commodities pay no dividends — returns come from price appreciation only.</p>`},
+  {id:'ch6',title:'ETFs, IPOs, and Forex',emoji:'🌐',content:`
+<h3>ETFs: Diversification Made Simple</h3>
+<p>Exchange-Traded Funds package multiple assets into a single tradeable unit. A Technology ETF gives you proportional exposure to all tech stocks in one purchase. ETFs smooth extreme volatility — one company crashing 60% might only move the ETF down 3–5%.</p>
+<h3>IPOs: The Booking Strategy</h3>
+<p>When a company announces an upcoming IPO, you can book an allocation at the fixed pre-IPO price. On listing day, the stock begins trading at the market price — often higher if demand is strong.</p>
+<ul>
+<li>Book during the pre-IPO window to secure the fixed price</li>
+<li>High-profile IPOs in booming sectors tend to "pop" on listing day</li>
+<li>IPOs in weak sectors during bear markets often list below booking price</li>
+<li>Booked capital is locked until listing day — plan liquidity accordingly</li>
+</ul>
+<h3>Forex: Trading Currency Pairs</h3>
+<p>Forex involves speculating on the relative strength of two currencies. A long position on USD/EUR means you believe USD will strengthen against EUR. A short position means you believe it will weaken. Start with one or two major pairs and avoid over-leveraging positions.</p>`},
+  {id:'ch7',title:'The Global Sovereign Fund (GSF)',emoji:'🏦',content:`
+<h3>What Is the GSF?</h3>
+<p>The GSF is a government-backed fund paying 12.48% APR — the highest guaranteed, risk-free return in the game. There is no volatility. There are no market events that can reduce your balance. Every single turn, your deposit grows at a fixed rate.</p>
+<h3>Calculating GSF Returns</h3>
+<ul>
+<li>$1,000,000 deposited → approximately $342 per turn in interest</li>
+<li>$100,000,000 deposited → approximately $34,200 per turn</li>
+<li>$1,000,000,000 (1 billion) deposited → approximately $34.2M per turn</li>
+<li>At $1B in the GSF, interest alone exceeds most mid-game quarterly tax bills</li>
+</ul>
+<h3>The GSF Strategy</h3>
+<p>Maintain a "GSF floor" — a large enough deposit that GSF interest alone covers your quarterly tax bill each cycle. Early game aim for $5–10M; mid game scale to $100M+. As you progress toward outer planets, aim to have enough in the GSF that interest covers taxes. At that point, all trading profits become net positive.</p>`},
+  {id:'ch8',title:'Tax Strategy & Philanthropy',emoji:'⚖️',content:`
+<h3>How Quarterly Tax Works</h3>
+<p>Every 90 turns, the game conducts a Quarterly Assessment. It totals every dollar of taxable income: stock dividends, bond coupons, realised capital gains, and CEO salary. Note that withholding taxes (15% on dividends/coupons) have already been deducted at source — quarterly tax is a separate additional assessment on total income.</p>
+<h3>Key Tax Timing Strategies</h3>
+<ul>
+<li><b>Don't stack large sales in one quarter:</b> Spread big asset sales across multiple quarters to avoid hitting the highest tax bracket in a single assessment.</li>
+<li><b>Hold unrealised gains:</b> Gains are only taxed when you sell. A stock that doubled in value costs you nothing in tax until you click Sell.</li>
+<li><b>Philanthropy before quarter-end:</b> Donations reduce taxable income dollar-for-dollar. A $5M donation before the tax turn saves you the bracket rate on that $5M.</li>
+<li><b>Time large sales in low-income quarters:</b> If dividends were unusually low that quarter, it is the optimal time to realise a large capital gain.</li>
+</ul>
+<h3>Philanthropy: Giving That Pays Back</h3>
+<p>Every dollar donated reduces your taxable income. If you are in the 30% bracket and donate $10M, your tax saving is $3M. The net cost of the donation is $7M — not $10M. For wealthy players in the highest brackets, philanthropy delivers one of the best effective returns in the entire game.</p>`},
+  {id:'ch9',title:'Loans, Leverage & Risk Management',emoji:'⚠️',content:`
+<h3>When Loans Help</h3>
+<p>Taking a loan is not inherently dangerous — it is a tool. If you borrow at the game's 8% annual loan rate and invest in an asset returning significantly more, you generate positive carry. The minimum loan is $1,000 and your credit limit scales with Real Net Worth. Critically, loan principal is subtracted from Real Net Worth — using loans to buy assets does not create artificial progress toward planet thresholds.</p>
+<h3>How Interest Compounds</h3>
+<p>Loan interest is charged each turn on the outstanding balance: annual rate ÷ 365 × balance = interest this turn. On a $1M loan at 8% APR, you owe approximately $219 per turn in interest. This is debited from your Cash Wallet automatically.</p>
+<ul>
+<li>Interest is charged every turn without exception — even when assets are falling</li>
+<li>Paying down principal reduces future interest charges</li>
+<li>Never borrow to invest in crypto unless you can absorb a total loss</li>
+<li>Keep enough in Cash or Savings to service loan interest for at least 20 turns as a buffer</li>
+</ul>
+<h3>The Path to Bankruptcy</h3>
+<p>Bankruptcy is triggered when Real Net Worth falls below zero and you cannot service debts. This can happen faster than you expect. Keep total loans below 30% of Real Net Worth. If loan-to-NW creeps above 50%, start reducing exposure. The planets will wait. Bankruptcy ends your current run.</p>`},
+  {id:'ch10',title:'Planet Progression & the Trillion-Dollar Challenge',emoji:'🪐',content:`
+<h3>The Planet Roadmap</h3>
+<ul>
+<li><b>Earth → Mars ($5B):</b> Master the basics — stocks, bonds, GSF, tax timing, and building reliable passive income.</li>
+<li><b>Mars → Venus ($50B):</b> CEO mode becomes essential. Large company stakes, M&A events, and sector rotation at scale.</li>
+<li><b>Venus → Jupiter ($200B):</b> ETF and forex mechanics deepen. IPO strategies with larger allocations.</li>
+<li><b>Jupiter → Saturn ($1T):</b> The first trillion-dollar milestone. Loan leverage at this scale requires extreme risk discipline.</li>
+<li><b>Saturn → Mercury ($10T):</b> Market events begin to be influenced by your portfolio size.</li>
+<li><b>Mercury → Uranus ($100T) and Neptune ($500T):</b> The endgame. Maximum passive income optimisation, futures market, and cross-planet M&A.</li>
+</ul>
+<h3>The Trillion-Dollar Strategy</h3>
+<p>Players who reach Neptune ($500T) consistently do so through: a large GSF base providing compounding passive income, 3–5 CEO mode positions providing quarterly salary, a diversified trading portfolio with tight risk management, and aggressive tax optimisation through philanthropy.</p>
+<p>The real lesson: wealth at scale is built through diversified passive income, disciplined risk management, and the patience to let compounding do its work. The excitement is in the journey. Neptune is proof that you understood the game.</p>`},
+];
+
+const FAQ_ENTRIES = [
+  {q:'I have money in my Cash Wallet but I cannot buy any assets — why?',a:'Purchases are made from your Trading Wallet, not Cash. Open the Wallet screen, select Cash → Trading, enter the amount, and confirm. Once funds appear in Trading you can buy. This mirrors how real brokerage accounts work: you must fund your investment account before trading.'},
+  {q:'What exactly happens if I go bankrupt?',a:'Bankruptcy triggers when Real Net Worth falls below zero and loan interest cannot be serviced. The game attempts to auto-liquidate your lowest-performing assets at unfavourable prices. If liquidation fails to cover the debt, your current run ends and you restart from Earth with $1M. Avoid this by keeping loans below 30% of Real Net Worth.'},
+  {q:'How does CEO mode work and is it worth pursuing?',a:'CEO mode activates automatically when you hold 51% or more of any company's outstanding shares. You immediately begin earning a quarterly salary of 0.1% of that company's market cap every 90 turns — on a $5B company that is $5M per quarter. You also gain A/B decision prompts. Start with smaller-cap companies to enter CEO mode affordably, then reinvest salary to accumulate larger positions.'},
+  {q:'What do planet thresholds mean and how are they calculated?',a:'Each planet requires Real Net Worth to reach a specific figure: Mars $5B, Venus $50B, Jupiter $200B, Saturn $1T, Mercury $10T, Uranus $100T, Neptune $500T. Real Net Worth = Cash + Savings + Trading portfolio at current prices + GSF Balance − outstanding loan principal.'},
+  {q:'If I take a loan and use it to buy assets, does it count toward my planet threshold?',a:'No. The loan principal is subtracted from Real Net Worth. Borrowing $1B and buying stocks barely moves Real Net Worth — you have $1B more in assets but $1B more in liabilities. To advance toward thresholds, you need assets to appreciate above the loan balance, or generate enough income to repay the loan organically.'},
+  {q:'How do market events work and can I predict them?',a:'Market events occur approximately every 75 turns. They affect an entire sector or sometimes the whole market and can be positive or negative. You cannot predict individual events, but diversifying across uncorrelated sectors ensures that a single event never devastates your entire portfolio.'},
+  {q:'How do I save my game progress?',a:'Galactic Raider saves automatically to your device's local storage after every completed turn. If you close the app, your game state — wallets, positions, loans, planet progress — will be exactly as you left it when you return. Clearing your browser's cache will erase your save.'},
+  {q:'What is the best strategy for using the GSF?',a:'Maintain a "GSF floor" large enough that interest covers your quarterly tax bill each cycle. Early game aim for $5–10M in the GSF. At $1B deposited, you earn roughly $34.2M per turn in pure interest. When GSF income covers taxes, all trading profits become net positive.'},
+  {q:'How do dividends work — when do I receive them and are they taxed?',a:'Dividend-paying stocks credit payments to your Cash Wallet automatically each turn. The 15% withholding tax is deducted before the payment is credited. A 4% annual dividend yield on $1M delivers approximately $271 per turn net (4% ÷ 365 × $1M × 0.85). Dividends also count toward quarterly taxable income.'},
+  {q:'What does quarterly tax cover and what is excluded?',a:'Quarterly assessment (every 90 turns) taxes: stock dividends, bond coupons, realised capital gains, and CEO salary. It does NOT directly tax: unrealised gains on assets you are still holding, GSF interest handled separately, or face value of loans. Philanthropy before the tax turn reduces your taxable income.'},
+  {q:'How does IPO booking work and what are the risks?',a:'When an IPO is announced a booking window opens. You commit capital at the fixed pre-IPO price — funds are reserved but not fully spent. On listing day the stock trades at the open market price. If demand was strong, the price exceeds your booking price and you profit immediately. If demand was weak or the market deteriorated, you can list at a loss.'},
+  {q:'What is the realistic path to trillionaire status?',a:'Reaching Neptune ($500T) requires scaling CEO income, GSF compounding, active trading, and tax optimisation simultaneously. Players typically take 500–1,000+ turns. The key inflection point is when passive income exceeds your quarterly tax bill — from then, every trade is pure upside and net worth compounds exponentially.'},
+  {q:'Why does my net worth sometimes differ from what my wallet balances add up to?',a:'Your Real Net Worth includes the current market value of all positions in your Trading Wallet, which fluctuates every turn. If a stock drops 10%, your net worth falls by 10% of that position even though Cash and Savings balances are unchanged. Outstanding loan principal is also subtracted. The Portfolio screen shows each position's current value and unrealised P&L.'},
+  {q:'Can I reset the game if I want to start fresh?',a:'Yes. Go to Settings and scroll to Danger Zone, then select New Game (Reset). This clears your save from local storage and returns you to the opening screen with $1M on Earth. The reset requires confirmation and is permanent — there is no way to recover a deleted save.'},
+  {q:'What is the maximum loan amount I can take?',a:'Your credit limit scales with Real Net Worth — the maximum is set at 2× your current Real Net Worth or $500,000, whichever is higher. As your wealth grows, your borrowing capacity grows with it. The minimum single loan is $1,000.'},
+];
+
+
+
+function buildLearn() {
+  var el = document.getElementById('academy-learn');
+  if (!el) return;
+  el.innerHTML = CHAPTERS.map(function(ch) {
+    return '<div class="card" style="margin-bottom:10px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+        '<span style="font-size:22px;">' + ch.emoji + '</span>' +
+        '<div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--gold);">' + ch.title + '</div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text2);line-height:1.7;">' + ch.content + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function buildFAQ() {
+  var html = FAQ_ENTRIES.map(function(f, i) {
+    return '<div style="border-bottom:1px solid var(--border);">' +
+      '<div onclick="toggleFAQ(' + i + ')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--text);flex:1;padding-right:8px;">' + f.q + '</div>' +
+        '<span id="faq-arrow-' + i + '" style="color:var(--gold);font-size:16px;flex-shrink:0;transition:transform 0.2s;">›</span>' +
+      '</div>' +
+      '<div id="faq-ans-' + i + '" style="display:none;padding:0 14px 12px;">' +
+        '<div style="font-size:12px;color:var(--text2);line-height:1.6;">' + f.a + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  var el = document.getElementById('faq-list-academy');
+  if (el) el.innerHTML = '<div class="card">' + html + '</div>';
+  // Also populate settings FAQ if present
+  var sel = document.getElementById('faq-list');
+  if (sel) sel.innerHTML = '';
+}
+
+function toggleFAQ(idx) {
+  var ans = document.getElementById('faq-ans-' + idx);
+  var arrow = document.getElementById('faq-arrow-' + idx);
+  if (!ans) return;
+  var open = ans.style.display !== 'none';
+  ans.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(90deg)';
 }
 
 function buildGlossary() {
@@ -4630,20 +4922,34 @@ function toggleGlossaryItem(idx) {
 }
 
 function buildQuiz() {
-  const q = QUIZ_QUESTIONS[quizState.idx];
+  // Build difficulty tabs header
+  var diffTabs = ['easy','medium','hard'].map(function(d) {
+    var active = quizState.diff === d;
+    var label = d === 'easy' ? '🟢 Easy' : d === 'medium' ? '🟡 Medium' : '🔴 Hard';
+    return '<button onclick="setQuizDiff(\''+d+'\')" style="flex:1;padding:7px 4px;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;background:'+(active?'var(--gold)':'var(--panel2)')+';color:'+(active?'var(--dark)':'var(--text2)')+';">'+label+'</button>';
+  }).join('');
+  var header = '<div style="display:flex;gap:6px;margin-bottom:10px;">' + diffTabs + '</div>';
+  if (!_quizPool.length || _quizPool[0] && _quizPool[0].diff !== quizState.diff) {
+    _quizPool = getQuizPool(quizState.diff);
+    // Shuffle
+    for (var i=_quizPool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=_quizPool[i];_quizPool[i]=_quizPool[j];_quizPool[j]=tmp;}
+  }
+  var pool = _quizPool;
+  var q = pool[quizState.idx];
   if(!q) {
-    document.getElementById('quiz-content').innerHTML = `
+    var poolLen = _quizPool.length;
+    document.getElementById('quiz-content').innerHTML = header + `
       <div class="card" style="text-align:center;padding:30px 20px;">
         <div style="font-size:48px;margin-bottom:12px;">🎯</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:16px;color:var(--gold);margin-bottom:8px;">QUIZ COMPLETE</div>
-        <div style="font-size:14px;color:var(--text);margin-bottom:16px;">Score: ${quizState.score}/${QUIZ_QUESTIONS.length}</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:20px;">${quizState.score>=4?'Excellent! You know your finances.':quizState.score>=3?'Good work! Review the glossary for more.':'Read the Learn tab and try again!'}</div>
-        <button onclick="quizState={idx:0,score:0,answered:false};buildQuiz();" style="background:var(--gold);border:none;border-radius:10px;padding:12px 24px;font-weight:700;color:var(--dark);cursor:pointer;">Try Again</button>
+        <div style="font-size:14px;color:var(--text);margin-bottom:16px;">Score: ${quizState.score}/${poolLen}</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:20px;">${quizState.score>=Math.floor(poolLen*0.8)?'Excellent! You know your finances.':quizState.score>=Math.floor(poolLen*0.6)?'Good work! Review the glossary for more.':'Read the Learn tab and try again!'}</div>
+        <button onclick="quizState={idx:0,score:0,answered:false,diff:quizState.diff};_quizPool=[];buildQuiz();" style="background:var(--gold);border:none;border-radius:10px;padding:12px 24px;font-weight:700;color:var(--dark);cursor:pointer;">Try Again</button>
       </div>`;
     return;
   }
-  document.getElementById('quiz-content').innerHTML = `
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Question ${quizState.idx+1} of ${QUIZ_QUESTIONS.length} · Score: ${quizState.score}</div>
+  document.getElementById('quiz-content').innerHTML = header + `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Question ${quizState.idx+1} of ${_quizPool.length} · Score: ${quizState.score}</div>
     <div class="card" style="margin-bottom:12px;">
       <div style="font-size:14px;color:var(--text);line-height:1.5;">${q.q}</div>
     </div>
@@ -4656,9 +4962,11 @@ function buildQuiz() {
 function answerQuiz(idx) {
   if(quizState.answered) return;
   quizState.answered = true;
-  const q = QUIZ_QUESTIONS[quizState.idx];
+  const q = _quizPool[quizState.idx];
   const correct = idx === q.ans;
   if(correct) quizState.score++;
+  G.stats.quizAttempted = (G.stats.quizAttempted||0) + 1;
+  if(correct) G.stats.quizCorrect = (G.stats.quizCorrect||0) + 1;
   const btns = document.querySelectorAll('#quiz-content button');
   btns.forEach((b,i)=>{
     if(i===q.ans) { b.style.background='rgba(46,125,50,0.3)'; b.style.borderColor='var(--green3)'; }
@@ -5074,6 +5382,19 @@ document.querySelectorAll('.overlay').forEach(o => {
 // ================================================================
 
 // THEME TOGGLE — new function, doesn't exist in v13
+
+function toggleLegal(key) {
+  var el = document.getElementById(key === 'tos' ? 'tos-content' : 'pp-content');
+  var arrow = document.getElementById(key === 'tos' ? 'tos-toggle' : 'pp-toggle');
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arrow) {
+    var a = arrow.querySelector('.ss-arrow');
+    if (a) a.textContent = open ? '›' : '↑';
+  }
+}
+
 function toggleTheme() {
   var isLight = document.body.classList.toggle('light-mode');
   var btn = document.getElementById('theme-btn');
