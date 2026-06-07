@@ -1,6 +1,6 @@
 {
-  "appId": "com.domainmarketplace.galacticraider",
-  "appName": "Galactic Raider",
+  "appId": "com.domainmarketplace.cosmoscapital",
+  "appName": "Cosmos Capital",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
