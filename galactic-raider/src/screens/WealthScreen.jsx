@@ -9,9 +9,24 @@ const CS = {
   label: { fontSize:10, color:'#4B5563', textTransform:'uppercase', letterSpacing:1.5, marginBottom:8 },
 };
 
-function FundItem({ fund, d, onDeposit, onWithdraw }) {
+const PctRow = ({onSelect,opts=['25%','50%','75%','100%']}) => (
+  <div style={{display:'flex',gap:5,marginBottom:8}}>
+    {opts.map((l,i)=>(
+      <button key={l} onClick={()=>onSelect(i)} style={{flex:1,padding:'6px 0',background:'#060B14',border:'1px solid #1A2744',color:'#94A3B8',borderRadius:8,fontSize:10,fontWeight:700,cursor:'pointer'}}>{l}</button>
+    ))}
+  </div>
+);
+
+function FundItem({ fund, d, walletBalance, onDeposit, onWithdraw }) {
   const [amt, setAmt] = useState('');
   const fd = d.fundDeposits?.[fund.id]||{deposit:0,earned:0};
+  const maxDeposit = walletBalance || 0;
+
+  const setByPct = (idx) => {
+    const pcts=[0.10,0.25,0.50,1.00];
+    setAmt(String(Math.floor(maxDeposit*pcts[idx])));
+  };
+
   return (
     <div style={{...CS.card, border:fd.deposit>0?`1px solid ${fund.color}`:'1px solid #1A2744'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -33,11 +48,19 @@ function FundItem({ fund, d, onDeposit, onWithdraw }) {
           </div>
         ))}
       </div>
+      <div style={{fontSize:9,color:'#4B5563',marginBottom:5}}>Trading Wallet: {fm(maxDeposit)} · 2% entry fee</div>
+      <PctRow onSelect={setByPct} opts={['10%','25%','50%','Max']}/>
       <div style={{display:'flex',gap:8}}>
         <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Deposit amount" style={{flex:1,background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:12,outline:'none'}}/>
         <button onClick={()=>{onDeposit(fund.id,amt);setAmt('');}} style={{background:'#059669',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>In</button>
         {fd.deposit>0&&<button onClick={()=>onWithdraw(fund.id)} style={{background:'#DC2626',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Out</button>}
       </div>
+      {parseFloat(amt)>0&&(
+        <div style={{marginTop:8,background:'rgba(5,150,105,0.08)',border:'1px solid rgba(5,150,105,0.2)',borderRadius:8,padding:'6px 10px',display:'flex',justifyContent:'space-between'}}>
+          <span style={{fontSize:10,color:'#6B7280'}}>Net after 2% fee</span>
+          <span style={{fontSize:11,fontWeight:700,color:'#34D399',fontFamily:'monospace'}}>{fm(parseFloat(amt)*0.98)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -47,13 +70,14 @@ export default function WealthScreen() {
   const d = D;
   const [tab, setTab] = useState('wallets');
   const [repayAmt, setRepayAmt] = useState('');
+  const [transferPct, setTransferPct] = useState(50);
   const [msg, setMsg] = useState('');
   const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
 
   const doTransfer = (dir) => {
-    transfer(dir, 50);
+    transfer(dir, transferPct);
     const labels={C2T:'Cash→Trading',T2C:'Trading→Cash',C2S:'Cash→Savings',S2C:'Savings→Cash',T2S:'Trading→Savings',S2T:'Savings→Trading'};
-    showMsg(labels[dir]+' (50%)');
+    showMsg(labels[dir]+' ('+transferPct+'%)');
   };
 
   const tabs=[{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'log',l:'📋 Log'}];
@@ -82,9 +106,17 @@ export default function WealthScreen() {
         </div>
 
         <div style={CS.card}>
-          <div style={CS.label}>Transfers (50% of source)</div>
+          <div style={CS.label}>Transfer Amount</div>
+          {/* Transfer % selector */}
+          <div style={{display:'flex',gap:5,marginBottom:12}}>
+            {[10,25,50,75,100].map(p=>(
+              <button key={p} onClick={()=>setTransferPct(p)} style={{flex:1,padding:'8px 0',background:transferPct===p?'#1D4ED8':'#060B14',border:'1px solid '+(transferPct===p?'#3B82F6':'#1A2744'),color:transferPct===p?'#fff':'#6B7280',borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                {p}%
+              </button>
+            ))}
+          </div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
-            {[['C2T','Cash → Trading'],['T2C','Trading → Cash'],['C2S','Cash → Savings'],['S2C','Savings → Cash'],['T2S','Trading → Savings'],['S2T','Savings → Trading']].map(([dir,lbl])=>(
+            {[['C2T','💵 Cash → ⚡ Trading'],['T2C','⚡ Trading → 💵 Cash'],['C2S','💵 Cash → 🏦 Savings'],['S2C','🏦 Savings → 💵 Cash'],['T2S','⚡ Trading → 🏦 Savings'],['S2T','🏦 Savings → ⚡ Trading']].map(([dir,lbl])=>(
               <button key={dir} onClick={()=>doTransfer(dir)} style={{background:'#060B14',border:'1px solid #1A2744',color:'#93C5FD',borderRadius:10,padding:'11px 14px',fontSize:12,fontWeight:600,cursor:'pointer',textAlign:'left'}}>
                 ⇄ {lbl}
               </button>
@@ -147,6 +179,15 @@ export default function WealthScreen() {
                 </div>
               ))}
             </div>
+            {/* Quick repay presets */}
+            <div style={{fontSize:9,color:'#4B5563',marginBottom:5}}>Quick repay</div>
+            <PctRow
+              onSelect={(i)=>{
+                const pcts=[0.25,0.50,0.75,1.00];
+                setRepayAmt(String(Math.floor(d.activeLoan.outstanding*pcts[i])));
+              }}
+              opts={['25%','50%','75%','All']}
+            />
             <div style={{display:'flex',gap:8,marginBottom:8}}>
               <input value={repayAmt} onChange={e=>setRepayAmt(e.target.value)} placeholder="Amount to repay" style={{flex:1,background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:12,outline:'none'}}/>
               <button onClick={()=>{repayLoan(parseFloat(repayAmt)||0);setRepayAmt('');showMsg('Repaid');}} style={{background:'#DC2626',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Repay</button>
@@ -194,7 +235,7 @@ export default function WealthScreen() {
           Planet Sovereign Funds compound daily. 2% entry fee. Interest goes to Trading Wallet every turn.
         </div>
         {SOVEREIGN_FUNDS.map(fund=>(
-          <FundItem key={fund.id} fund={fund} d={d}
+          <FundItem key={fund.id} fund={fund} d={d} walletBalance={d.tradingWallet}
             onDeposit={(id,amtStr)=>{const a=parseFloat(amtStr);if(!a||a<=0)return showMsg('Invalid');const e=depositFund(id,a);if(e)showMsg(e);else showMsg('Deposited '+fm(a));}}
             onWithdraw={(id)=>{withdrawFund(id);showMsg('Withdrawn');}}
           />

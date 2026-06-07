@@ -5,24 +5,29 @@ import HomeScreen from './screens/HomeScreen';
 import UniverseScreen from './screens/UniverseScreen';
 import WealthScreen from './screens/WealthScreen';
 import CommandScreen from './screens/CommandScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
 const TABS = [
-  { id: 'home',     label: 'Home',     ico: '🏠' },
-  { id: 'universe', label: 'Universe', ico: '🌌' },
-  { id: 'wealth',   label: 'Wealth',   ico: '💰' },
-  { id: 'command',  label: 'Command',  ico: '🎯' },
+  { id: 'home',     label: 'Home',    ico: '🏠' },
+  { id: 'universe', label: 'Markets', ico: '🌌' },
+  { id: 'wealth',   label: 'Wealth',  ico: '💰' },
+  { id: 'command',  label: 'Command', ico: '🎯' },
+  { id: 'settings', label: 'Settings',ico: '⚙️' },
 ];
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState('home');
   const { D } = useGame();
   const pendingCEO = (D.pendingDecisions || []).length;
+  const hasBoardAccess = Object.values(D.companyOwnership || {}).some(pct => pct >= 10);
+  const showBadge = pendingCEO > 0 && hasBoardAccess;
 
   const screens = {
     home:     <HomeScreen onNavigate={setActiveTab} />,
     universe: <UniverseScreen />,
     wealth:   <WealthScreen />,
     command:  <CommandScreen />,
+    settings: <SettingsScreen />,
   };
 
   return (
@@ -36,15 +41,15 @@ function AppShell() {
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px 2px', position: 'relative' }}>
             {activeTab === tab.id && (
-              <div style={{ position: 'absolute', top: 0, left: '20%', right: '20%', height: 2, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)', borderRadius: '0 0 3px 3px' }} />
+              <div style={{ position: 'absolute', top: 0, left: '15%', right: '15%', height: 2, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)', borderRadius: '0 0 3px 3px' }} />
             )}
             <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{tab.ico}</span>
-              {tab.id === 'command' && pendingCEO > 0 && (
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.ico}</span>
+              {tab.id === 'command' && showBadge && (
                 <div style={{ position: 'absolute', top: -4, right: -6, background: '#EF4444', borderRadius: 10, minWidth: 14, height: 14, fontSize: 8, color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{pendingCEO}</div>
               )}
             </div>
-            <span style={{ fontSize: 10, color: activeTab === tab.id ? '#93C5FD' : '#4B5563', fontWeight: activeTab === tab.id ? 700 : 400, letterSpacing: 0.4 }}>{tab.label}</span>
+            <span style={{ fontSize: 9, color: activeTab === tab.id ? '#93C5FD' : '#4B5563', fontWeight: activeTab === tab.id ? 700 : 400, letterSpacing: 0.3 }}>{tab.label}</span>
           </button>
         ))}
       </div>

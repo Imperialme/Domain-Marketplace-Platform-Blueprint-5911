@@ -26,11 +26,15 @@ function buildInitialState() {
     stockHoldings: {},
     avgCostBasis: {},
     companyOwnership: {},
-    // CEO
-    pendingDecisions: CEO_DECISIONS.map(d => ({ ...d })),
+    // CEO — decisions trigger at their designated turns, not pre-loaded
+    pendingDecisions: [],
     resolvedDecisions: [],
     ceoLog: [
       { turn:1, ticker:'SYSTEM', msg:'CEO Decision System online. Buy 10%+ in any company to unlock board access.', good:true },
+    ],
+    // Geopolitical events feed
+    geoEvents: [
+      { id:1, t:1, ico:'🌐', ti:'Capital Exchange Era Begins', bo:'Global markets open. Earth economy stable at 2.5% GDP growth. 8 planetary economies available for investment.', region:'Global', impact:'neutral' },
     ],
     // Planets
     planetWallets: { Earth:0, Mars:0, Venus:0, Jupiter:0, Saturn:0, Mercury:0, Uranus:0, Neptune:0 },
@@ -103,6 +107,40 @@ export function GameProvider({ children }) {
 
     // GDP drift
     s.gdp = Math.round(cl(s.gdp + (Math.random() - 0.48) * 0.5, -3, 7) * 10) / 10;
+
+    // Trigger CEO decisions at their designated turns
+    CEO_DECISIONS.forEach(dec => {
+      const alreadyPending = s.pendingDecisions.some(d => d.id === dec.id);
+      const alreadyResolved = s.resolvedDecisions.some(d => d.id === dec.id);
+      if (s.turn >= dec.turn && !alreadyPending && !alreadyResolved) {
+        s.pendingDecisions = [...s.pendingDecisions, { ...dec }];
+        addNews('👔', 'Board Decision: ' + dec.company, dec.headline + ' — visit Command Center to vote.', true);
+      }
+    });
+
+    // Geopolitical events (~13% chance per turn)
+    const GEO_EVENTS = [
+      { ico:'⚔️', ti:'Military Conflict: Eastern Front', bo:'Escalating tensions reduce tech sector confidence. Defense stocks rally on increased government spend.', region:'Eastern Europe', impact:'negative' },
+      { ico:'🤝', ti:'Pacific Trade Alliance Signed', bo:'New 14-nation trade pact opens a $2T combined market. Logistics and agriculture sectors to benefit.', region:'Asia-Pacific', impact:'positive' },
+      { ico:'🛢️', ti:'OPEC Supply Reduction', bo:'Oil cartel cuts production by 2M barrels/day. Energy stocks surge. Inflation risk elevated.', region:'Middle East', impact:'positive' },
+      { ico:'🗳️', ti:'G7 Leadership Transition', bo:'Simultaneous elections across 4 major economies. Markets pricing in policy uncertainty.', region:'G7 Nations', impact:'neutral' },
+      { ico:'🌪️', ti:'Extreme Weather: Supply Chain Hit', bo:'Flooding disrupts Southeast Asian manufacturing hubs. Tech component shortages expected 3-6 weeks.', region:'South Asia', impact:'negative' },
+      { ico:'💊', ti:'WHO Pandemic Alert Level 3', bo:'Novel pathogen detected. Healthcare and biotech stocks rally. Aviation and hospitality fall sharply.', region:'Southeast Asia', impact:'mixed' },
+      { ico:'🚀', ti:'Mars Colonization Program Announced', bo:'Interplanetary agency unveils $800B Mars program. Space tech, mining and logistics sectors surge.', region:'Global', impact:'positive' },
+      { ico:'💱', ti:'Emerging Market Currency Crisis', bo:'Sovereign debt fears trigger capital flight from EM currencies. Safe-haven assets see record inflows.', region:'South America', impact:'negative' },
+      { ico:'🏭', ti:'Nearshoring Manufacturing Boom', bo:'Geopolitical risk drives factory investment surge in North America. Manufacturing and logistics benefit.', region:'North America', impact:'positive' },
+      { ico:'🧬', ti:'Gene Therapy Breakthrough', bo:'Universal cancer treatment shows 94% remission in trials. Healthcare and biotech stocks rally hard.', region:'Global', impact:'positive' },
+      { ico:'⚡', ti:'Global Power Grid Cyberattack', bo:'State-sponsored attack disrupts power grids in 7 nations. Cybersecurity and utilities see mixed reaction.', region:'Multiple', impact:'mixed' },
+      { ico:'🌊', ti:'Pacific Rim Natural Disaster', bo:'Magnitude 8.2 earthquake disrupts Asian supply chains. Insurance losses estimated at $120B.', region:'Pacific Rim', impact:'negative' },
+      { ico:'🏦', ti:'Central Bank Rate Decision', bo:'Major central banks signal coordinated rate cuts. Bond yields fall, equities rally across all sectors.', region:'Global', impact:'positive' },
+      { ico:'🛡️', ti:'New Sanctions Regime', bo:'Western bloc imposes financial sanctions on two major economies. Energy and banking sectors face disruption.', region:'Global', impact:'negative' },
+      { ico:'🌿', ti:'Carbon Tax Treaty Ratified', bo:'147 nations sign binding carbon treaty. Clean energy and ESG funds surge. Fossil fuel majors fall.', region:'Global', impact:'mixed' },
+    ];
+    if (Math.random() < 0.13) {
+      const ev = GEO_EVENTS[Math.floor(Math.random() * GEO_EVENTS.length)];
+      const newEv = { id: Math.random(), t: s.turn, ...ev };
+      s.geoEvents = [newEv, ...(s.geoEvents || [])].slice(0, 15);
+    }
 
     // Update Earth company prices with Governor enforcement
     s.companies = s.companies.map(c => {

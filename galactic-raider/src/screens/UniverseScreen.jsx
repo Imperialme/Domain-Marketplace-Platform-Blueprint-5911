@@ -34,10 +34,30 @@ function Sparkline({hist,ch,h=32}) {
   );
 }
 
-function TradeModal({title,price,priceSub,held,isBuyOnly,onBuy,onSell,onClose}) {
+function QuickPcts({onSelect,labels=['25%','50%','75%','Max']}) {
+  return (
+    <div style={{display:'flex',gap:5,marginBottom:10}}>
+      {labels.map((l,i)=>(
+        <button key={l} onClick={()=>onSelect(i)} style={{flex:1,padding:'7px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TradeModal({title,price,priceSub,held,walletBalance,isBuyOnly,onBuy,onSell,onClose}) {
   const [mode,setMode]=useState('buy');
   const [qty,setQty]=useState('');
   const q=parseInt(qty)||0;
+  const maxAffordable=(walletBalance&&price)?Math.floor(walletBalance/price):0;
+
+  const setByPct=(idx)=>{
+    const pcts=[0.25,0.50,0.75,1.00];
+    if(mode==='buy') setQty(String(Math.floor(maxAffordable*pcts[idx])));
+    else setQty(String(Math.floor((held||0)*pcts[idx])));
+  };
+
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400,backdropFilter:'blur(4px)'}}>
       <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 -20px 60px rgba(0,0,0,0.5)'}}>
@@ -51,10 +71,17 @@ function TradeModal({title,price,priceSub,held,isBuyOnly,onBuy,onSell,onClose}) 
             ))}
           </div>
         )}
+
+        {/* Quick % presets */}
+        <div style={{marginBottom:6,fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1}}>
+          {mode==='buy'?`Quick buy — wallet: ${fm(walletBalance||0)} · max ${maxAffordable.toLocaleString()} shares`:`Quick sell — holding: ${(held||0).toLocaleString()} shares`}
+        </div>
+        <QuickPcts onSelect={setByPct} labels={['25%','50%','75%','Max']}/>
+
         <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Enter quantity" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
         {q>0&&price&&(
           <div style={{background:mode==='buy'?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(mode==='buy'?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between'}}>
-            <span style={{fontSize:12,color:T.sub}}>Total cost</span>
+            <span style={{fontSize:12,color:T.sub}}>Total {mode==='buy'?'cost':'proceeds'}</span>
             <span style={{fontSize:14,fontWeight:800,color:mode==='buy'?T.green:T.red,fontFamily:'monospace'}}>{fm(q*price)}</span>
           </div>
         )}
@@ -84,8 +111,6 @@ function EarthTab() {
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
 
   const co=selected?d.companies?.find(c=>c.t===selected):null;
-  const consensus=co?co.analysts?.reduce((a,x)=>({STRONG_BUY:(a.STRONG_BUY||0)+(x.rating?.includes('STRONG')?1:0),BUY:(a.BUY||0)+(x.rating==='BUY'?1:0),HOLD:(a.HOLD||0)+(x.rating==='HOLD'?1:0),SELL:(a.SELL||0)+(x.rating==='SELL'?1:0)},{}),{}):null;
-  const topRating=co&&co.analysts?.length?co.analysts.sort((a,b)=>['STRONG BUY','BUY','SPECULATIVE BUY','HOLD','SELL'].indexOf(a.rating)-['STRONG BUY','BUY','SPECULATIVE BUY','HOLD','SELL'].indexOf(b.rating))[0].rating:'';
 
   if(co) return (
     <div style={{paddingBottom:8}}>
@@ -93,7 +118,6 @@ function EarthTab() {
         ← Back to Markets
       </button>
 
-      {/* Company hero */}
       <div style={{background:`linear-gradient(135deg,${SECTOR_COLOR[co.s]||T.blue}15,${SECTOR_COLOR[co.s]||T.blue}05)`,borderRadius:18,padding:16,border:`1px solid ${SECTOR_COLOR[co.s]||T.blue}30`,marginBottom:10}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
           <div>
@@ -117,7 +141,6 @@ function EarthTab() {
         </div>
       </div>
 
-      {/* Holding */}
       {(d.stockHoldings?.[co.t]||0)>0&&(
         <div style={{background:T.card,borderRadius:12,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
@@ -133,33 +156,31 @@ function EarthTab() {
         </div>
       )}
 
-      {/* Analyst consensus */}
       <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:10}}>
         <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Analyst Views</div>
         {co.analysts?.map((a,i)=>(
           <div key={i} style={{padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
               <div style={{fontSize:12,fontWeight:700,color:T.text}}>{a.firm}</div>
-              <div style={{...({display:'inline-block',background:(ANALYST_COLOR[a.rating]||T.muted)+'22',color:ANALYST_COLOR[a.rating]||T.muted,padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:700,border:'1px solid '+(ANALYST_COLOR[a.rating]||T.muted)+'44'})}}>{a.rating} · ${a.target}</div>
+              <div style={{display:'inline-block',background:(ANALYST_COLOR[a.rating]||T.muted)+'22',color:ANALYST_COLOR[a.rating]||T.muted,padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:700,border:'1px solid '+(ANALYST_COLOR[a.rating]||T.muted)+'44'}}>{a.rating} · ${a.target}</div>
             </div>
             <div style={{fontSize:11,color:T.sub,lineHeight:1.5}}>{a.note}</div>
           </div>
         ))}
       </div>
 
-      {/* Origin story */}
       <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:12}}>
         <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Company Story</div>
         <div style={{fontSize:12,color:T.sub,lineHeight:1.6}}>{co.origin}</div>
         <div style={{marginTop:8,fontSize:12,color:T.text,fontWeight:600}}>{co.ops}</div>
       </div>
 
-      {/* Trade button */}
       <button onClick={()=>setModal(true)} style={{width:'100%',background:'linear-gradient(135deg,#059669,#065F46)',color:'#fff',border:'none',borderRadius:14,padding:'15px 0',fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 20px rgba(16,185,129,0.25)'}}>
         Trade {co.t}
       </button>
       {modal&&(
         <TradeModal title={co.n} price={co.price} held={d.stockHoldings?.[co.t]||0}
+          walletBalance={d.tradingWallet}
           onBuy={q=>{const e=buyStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q.toLocaleString()+' '+co.t);setModal(false);}}}
           onSell={q=>{const e=sellStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Sold '+q.toLocaleString()+' '+co.t);setModal(false);}}}
           onClose={()=>setModal(false)}
@@ -287,6 +308,7 @@ function PlanetsTab() {
             price={modal.co.price*modal.pd.rate}
             priceSub={`${modal.pd.currency} ${modal.co.price.toFixed(2)} · ≈ $${(modal.co.price*modal.pd.rate).toFixed(2)} USD`}
             held={modal.held}
+            walletBalance={d.tradingWallet}
             onBuy={q=>{const e=buyPlanetStock(modal.planet,modal.co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' '+modal.co.t);setModal(null);}}}
             onSell={q=>{sellPlanetStock(modal.planet,modal.co.t,q);showMsg('✅ Sold '+q+' '+modal.co.t);setModal(null);}}
             onClose={()=>setModal(null)}
@@ -387,6 +409,7 @@ function ETFTab() {
           title={modal.n} price={modal.price}
           priceSub={`$${modal.price.toFixed(2)}/unit · ${modal.expense}% expense ratio`}
           held={modal.units||0}
+          walletBalance={d.tradingWallet}
           onBuy={q=>{const e=buyETF(modal.id,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' units');setModal(null);}}}
           onSell={q=>{sellETF(modal.id,q);showMsg('✅ Sold '+q+' units');setModal(null);}}
           onClose={()=>setModal(null)}
@@ -397,12 +420,20 @@ function ETFTab() {
 }
 
 // ── IPO TAB ────────────────────────────────────────────────────
-function IPOItem({ipo,d,onBook}) {
+function IPOItem({ipo,d,onBook,walletBalance}) {
   const [qty,setQty]=useState('');
   const booked=d.ipoBookings?.[ipo.id]||0;
   const listed=d.ipoListed?.[ipo.id];
   const opensIn=ipo.opens-d.turn;
   const mid=(ipo.priceRange[0]+ipo.priceRange[1])/2;
+  const maxShares=walletBalance?Math.floor(walletBalance/mid):0;
+  const cost=parseInt(qty)*mid||0;
+
+  const setByPct=(idx)=>{
+    const pcts=[0.25,0.50,0.75,1.00];
+    setQty(String(Math.floor(maxShares*pcts[idx])));
+  };
+
   return (
     <div style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+(listed?T.green:T.border),marginBottom:8}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
@@ -434,9 +465,21 @@ function IPOItem({ipo,d,onBook}) {
         </div>
       ))}
       {!listed&&opensIn>0&&(
-        <div style={{display:'flex',gap:8,marginTop:4}}>
-          <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Shares to book" style={{flex:1,background:T.bg,border:'1px solid '+T.border,borderRadius:10,padding:'11px 12px',color:T.text,fontSize:14,outline:'none',fontFamily:'monospace'}}/>
-          <button onClick={()=>{onBook(ipo,qty);setQty('');}} style={{background:T.purple,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontWeight:700,fontSize:14,cursor:'pointer'}}>Book</button>
+        <div style={{marginTop:4}}>
+          <div style={{fontSize:10,color:T.muted,marginBottom:6}}>
+            Wallet: {fm(walletBalance||0)} · Max: {maxShares.toLocaleString()} shares @ ${mid.toFixed(2)}/share
+          </div>
+          <QuickPcts onSelect={setByPct}/>
+          <div style={{display:'flex',gap:8}}>
+            <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Shares to book" style={{flex:1,background:T.bg,border:'1px solid '+T.border,borderRadius:10,padding:'11px 12px',color:T.text,fontSize:14,outline:'none',fontFamily:'monospace'}}/>
+            <button onClick={()=>{onBook(ipo,qty);setQty('');}} style={{background:T.purple,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontWeight:700,fontSize:14,cursor:'pointer'}}>Book</button>
+          </div>
+          {cost>0&&(
+            <div style={{marginTop:8,background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:8,padding:'7px 12px',display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:11,color:T.sub}}>Total cost (midpoint)</span>
+              <span style={{fontSize:12,fontWeight:700,color:T.purple,fontFamily:'monospace'}}>{fm(cost)}</span>
+            </div>
+          )}
         </div>
       )}
       {listed&&<div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:10,padding:'10px 12px',fontSize:12,color:T.green}}>Listed @ ${listed.listPrice?.toFixed(2)} · {booked>0?'Your '+booked.toLocaleString()+' shares allocated.':'No booking — missed this one.'}</div>}
@@ -456,7 +499,7 @@ function IPOTab() {
       <div style={{background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#C4B5FD',lineHeight:1.5}}>
         🚀 Book shares before listing at the midpoint price. Oversubscribed IPOs reduce your allocation. Listing day profit/loss credited instantly.
       </div>
-      {IPOS.map(ipo=><IPOItem key={ipo.id} ipo={ipo} d={d} onBook={doBook}/>)}
+      {IPOS.map(ipo=><IPOItem key={ipo.id} ipo={ipo} d={d} onBook={doBook} walletBalance={d.tradingWallet}/>)}
     </div>
   );
 }

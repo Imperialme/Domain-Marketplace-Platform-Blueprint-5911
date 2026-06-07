@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { TAX_ERAS } from '../constants';
@@ -16,10 +17,24 @@ const pill = (c,bg,txt) => ({
   border:'1px solid '+c+'44',
 });
 
+const GEO_IMPACT_COLOR = { positive:T.green, negative:T.red, mixed:T.amber, neutral:T.muted };
+
 export default function HomeScreen({ onNavigate }) {
   const { D, advanceTurn } = useGame();
   const d = D;
   const era = TAX_ERAS[d.eraIdx];
+
+  const [autoAdv, setAutoAdv] = useState(false);
+  const [autoSpeed, setAutoSpeed] = useState(3);
+  const autoRef = useRef(null);
+
+  useEffect(() => {
+    if (autoAdv) {
+      autoRef.current = setInterval(() => advanceTurn(), autoSpeed * 1000);
+    }
+    return () => clearInterval(autoRef.current);
+  }, [autoAdv, autoSpeed, advanceTurn]);
+
   const nw = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
   const stockVal = Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{
     const co=d.companies?.find(c=>c.t===t); return x+(co?co.price*n:0);},0);
@@ -27,6 +42,10 @@ export default function HomeScreen({ onNavigate }) {
   const fundVal = Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
   const totalPortfolio = nw + stockVal + etfVal + fundVal;
   const pending = (d.pendingDecisions||[]).length;
+
+  // Board access check — CEO decisions are relevant once you own 10%+ in any company
+  const hasBoardAccess = Object.values(d.companyOwnership||{}).some(pct=>pct>=10);
+
   const stockRegions = new Set(Object.keys(d.stockHoldings||{}).map(t=>{
     const co=d.companies?.find(c=>c.t===t);return co?.hq;}).filter(Boolean));
   const unlockDone = [nw>=5e9,d.turn>=300,stockRegions.size>=3,(d.donCount||0)>=2].filter(Boolean).length;
@@ -68,19 +87,47 @@ export default function HomeScreen({ onNavigate }) {
 
       <div style={{padding:'14px 16px'}}>
 
-        {/* ADVANCE TURN */}
-        <button onClick={advanceTurn} style={{width:'100%',background:'linear-gradient(135deg,#1D4ED8,#7C3AED)',color:'#fff',border:'none',borderRadius:16,padding:'18px 0',fontWeight:900,fontSize:18,cursor:'pointer',letterSpacing:1,marginBottom:12,boxShadow:'0 8px 32px rgba(124,58,237,0.35)'}}>
-          ▶ &nbsp;ADVANCE TURN
-        </button>
+        {/* ADVANCE TURN + AUTO */}
+        <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'stretch'}}>
+          <button onClick={advanceTurn} style={{flex:1,background:'linear-gradient(135deg,#1D4ED8,#7C3AED)',color:'#fff',border:'none',borderRadius:16,padding:'16px 0',fontWeight:900,fontSize:17,cursor:'pointer',letterSpacing:1,boxShadow:'0 8px 32px rgba(124,58,237,0.35)'}}>
+            ▶ &nbsp;ADVANCE TURN
+          </button>
+          <button onClick={()=>setAutoAdv(a=>!a)} style={{background:autoAdv?T.amber+'22':'#0A1628',border:'1px solid '+(autoAdv?T.amber:T.border),color:autoAdv?T.amber:T.muted,borderRadius:16,padding:'0 14px',fontWeight:800,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+            {autoAdv?'⏸ Auto':'⏩ Auto'}
+          </button>
+        </div>
 
-        {/* CEO Alert */}
-        {pending>0&&(
+        {/* Auto-advance speed selector */}
+        {autoAdv&&(
+          <div style={{background:T.amber+'11',border:'1px solid '+T.amber+'33',borderRadius:12,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:11,color:T.amber,fontWeight:700,flexShrink:0}}>Speed:</span>
+            {[1,3,5,10].map(s=>(
+              <button key={s} onClick={()=>setAutoSpeed(s)} style={{flex:1,padding:'6px 0',background:autoSpeed===s?T.amber:'transparent',color:autoSpeed===s?'#000':T.amber,border:'1px solid '+T.amber+'44',borderRadius:8,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                {s}s
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* CEO Alert — only shown when you have board access AND pending decisions */}
+        {pending>0&&hasBoardAccess&&(
           <div onClick={()=>onNavigate?.('command')} style={{background:'rgba(239,68,68,0.1)',borderRadius:14,padding:'14px 16px',border:'1px solid rgba(239,68,68,0.4)',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,cursor:'pointer',boxShadow:'0 0 20px rgba(239,68,68,0.1)'}}>
             <div>
-              <div style={{fontSize:14,color:'#FCA5A5',fontWeight:800}}>⚠️ {pending} CEO Decision{pending>1?'s':''} Pending</div>
-              <div style={{fontSize:11,color:T.red,marginTop:3}}>Ignored decisions auto-resolve to worst outcome</div>
+              <div style={{fontSize:14,color:'#FCA5A5',fontWeight:800}}>⚠️ {pending} Board Decision{pending>1?'s':''} Pending</div>
+              <div style={{fontSize:11,color:T.red,marginTop:3}}>You own 10%+ in a company — your vote matters</div>
             </div>
             <div style={{background:'rgba(239,68,68,0.2)',borderRadius:10,padding:'8px 12px',fontSize:13,fontWeight:800,color:'#FCA5A5'}}>Resolve →</div>
+          </div>
+        )}
+
+        {/* Board access hint (no ownership yet, but decisions exist) */}
+        {pending>0&&!hasBoardAccess&&(
+          <div onClick={()=>onNavigate?.('command')} style={{background:'rgba(71,85,105,0.15)',borderRadius:14,padding:'12px 16px',border:'1px solid rgba(71,85,105,0.3)',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,cursor:'pointer'}}>
+            <div>
+              <div style={{fontSize:13,color:T.sub,fontWeight:700}}>🏛️ {pending} Board Decision{pending>1?'s':''} Available</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>Own 10%+ of a company to vote</div>
+            </div>
+            <div style={{fontSize:12,color:T.muted}}>View →</div>
           </div>
         )}
 
@@ -144,6 +191,26 @@ export default function HomeScreen({ onNavigate }) {
             ))}
           </div>
         </div>
+
+        {/* Geopolitical Events */}
+        {(d.geoEvents||[]).length>0&&(
+          <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border,marginBottom:12}}>
+            <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:12}}>🌐 World Intelligence</div>
+            {(d.geoEvents||[]).slice(0,4).map(ev=>(
+              <div key={ev.id} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                <div style={{width:3,borderRadius:2,flexShrink:0,background:GEO_IMPACT_COLOR[ev.impact]||T.muted,alignSelf:'stretch'}}/>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                    <div style={{fontSize:10,color:T.muted}}>T{ev.t} · {ev.ico} {ev.region}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:GEO_IMPACT_COLOR[ev.impact]||T.muted,background:(GEO_IMPACT_COLOR[ev.impact]||T.muted)+'18',padding:'2px 7px',borderRadius:6,textTransform:'uppercase'}}>{ev.impact}</div>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:2}}>{ev.ti}</div>
+                  <div style={{fontSize:11,color:T.sub,lineHeight:1.5}}>{ev.bo}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* News Feed */}
         <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border}}>
