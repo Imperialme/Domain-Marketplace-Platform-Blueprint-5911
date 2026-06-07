@@ -86,7 +86,12 @@ function PortfolioTab({ d }) {
     return x+(co&&pd?co.price*pd.rate*n:0);
   },0);
 
-  const totalPortfolio = totalWallets + stockVal + etfVal + fundVal + planetVal + bondVal;
+  const cryptoEntries = Object.entries(d.cryptoHoldings||{}).filter(([,qty])=>qty>0);
+  const cryptoVal = cryptoEntries.reduce((x,[id,qty])=>{
+    return x + qty * (d.cryptoPrices?.[id]||0);
+  }, 0);
+
+  const totalPortfolio = totalWallets + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal;
 
   const SectionHeader = ({label,value,color='#F8FAFC'}) => (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 6px',borderBottom:'1px solid #1A2744',marginBottom:6}}>
@@ -102,7 +107,7 @@ function PortfolioTab({ d }) {
         <div style={{fontSize:11,color:'#4B5563',textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Total Portfolio</div>
         <div style={{fontSize:38,fontWeight:900,color:'#34D399',fontFamily:'monospace'}}>{fm(totalPortfolio)}</div>
         <div style={{display:'flex',justifyContent:'center',gap:12,marginTop:8}}>
-          {[['Wallets',totalWallets,'#60A5FA'],['Stocks',stockVal+planetVal,'#A78BFA'],['ETFs',etfVal,'#06B6D4'],['Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24']].map(([l,v,c])=>v>0&&(
+          {[['Wallets',totalWallets,'#60A5FA'],['Stocks',stockVal+planetVal,'#A78BFA'],['ETFs',etfVal,'#06B6D4'],['Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24'],['Crypto',cryptoVal,'#F59E0B']].map(([l,v,c])=>v>0&&(
             <div key={l} style={{textAlign:'center'}}>
               <div style={{fontSize:9,color:'#4B5563'}}>{l}</div>
               <div style={{fontSize:11,fontWeight:700,color:c,fontFamily:'monospace'}}>{fm(v)}</div>
@@ -242,7 +247,32 @@ function PortfolioTab({ d }) {
         </div>
       )}
 
-      {stockEntries.length===0&&planetEntries.length===0&&etfEntries.length===0&&fundEntries.length===0&&bondEntries.length===0&&(
+      {/* Crypto */}
+      {cryptoEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="Crypto" value={cryptoVal} color="#F59E0B"/>
+          {cryptoEntries.map(([id,qty])=>{
+            const price=d.cryptoPrices?.[id]||0;
+            const val=qty*price;
+            const avgCost=d.cryptoAvgCost?.[id]||price;
+            const pnl=avgCost>0?(price-avgCost)/avgCost*100:0;
+            return (
+              <div key={id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{id}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{qty.toFixed(6)} coins · avg ${avgCost.toFixed(4)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {stockEntries.length===0&&planetEntries.length===0&&etfEntries.length===0&&fundEntries.length===0&&bondEntries.length===0&&cryptoEntries.length===0&&(
         <div style={{...CS.card,textAlign:'center',padding:'32px 16px',color:'#4B5563'}}>
           <div style={{fontSize:36,marginBottom:10}}>📊</div>
           <div style={{fontSize:14,fontWeight:700,color:'#6B7280'}}>No positions yet</div>
@@ -253,10 +283,144 @@ function PortfolioTab({ d }) {
   );
 }
 
+// ── PLANET FX TAB ─────────────────────────────────────────────
+function PlanetFXTab({ d, showMsg }) {
+  const { exchangeToLocal, exchangeToUSD } = useGame();
+  const [buyModal, setBuyModal] = useState(null); // {planet, pd}
+  const [sellModal, setSellModal] = useState(null); // {planet, pd}
+  const [buyAmt, setBuyAmt] = useState('');
+  const [sellAmt, setSellAmt] = useState('');
+
+  const PLANET_FX = [
+    {planet:'Mars',    currency:'MCR', rate:.85},
+    {planet:'Venus',   currency:'VCR', rate:.75},
+    {planet:'Jupiter', currency:'JCR', rate:.90},
+    {planet:'Saturn',  currency:'STC', rate:.70},
+    {planet:'Mercury', currency:'MRC', rate:.60},
+    {planet:'Uranus',  currency:'URU', rate:.55},
+    {planet:'Neptune', currency:'NPT', rate:.50},
+  ];
+
+  const handleBuy = () => {
+    const amt = parseFloat(buyAmt);
+    if (!amt || amt <= 0) return showMsg('Enter a USD amount');
+    const err = exchangeToLocal(buyModal.planet, amt);
+    if (err) showMsg('❌ '+err);
+    else { showMsg('✅ Exchanged $'+amt.toFixed(2)+' → '+buyModal.pd.currency); setBuyModal(null); setBuyAmt(''); }
+  };
+
+  const handleSell = () => {
+    const amt = parseFloat(sellAmt);
+    if (!amt || amt <= 0) return showMsg('Enter a '+sellModal.pd.currency+' amount');
+    const err = exchangeToUSD(sellModal.planet, amt);
+    if (err) showMsg('❌ '+err);
+    else { showMsg('✅ Exchanged '+sellModal.pd.currency+' '+amt.toFixed(4)+' → USD'); setSellModal(null); setSellAmt(''); }
+  };
+
+  return (
+    <div>
+      <div style={{background:'rgba(6,182,212,0.08)',border:'1px solid rgba(6,182,212,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#67E8F9',lineHeight:1.5}}>
+        🌐 Planet FX — Exchange USD for planet currencies. Holding local currency before buying stocks gives a 5% fee discount. Rates fluctuate each turn.
+      </div>
+      {PLANET_FX.map(({planet, currency, rate}) => {
+        const pd = PLANETS_DATA[planet];
+        if (!pd) return null;
+        const isUnlocked = d.planetUnlocks?.[planet] !== false;
+        const pState = d.planetCompanies?.[planet];
+        const fxRate = pState?.fxRate || rate;
+        const balance = d.planetWallets?.[planet] || 0;
+        const usdEquiv = Math.round(balance * fxRate * 100) / 100;
+        const pc = pd.color || '#3B82F6';
+        return (
+          <div key={planet} style={{background:'#0D1B2E',borderRadius:14,padding:14,border:'1px solid #1A2744',marginBottom:8,position:'relative',overflow:'hidden'}}>
+            {!isUnlocked && (
+              <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.7)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                <div style={{fontSize:24,marginBottom:4}}>🔒</div>
+                <div style={{fontSize:11,color:'#94A3B8',fontWeight:700}}>Unlock {planet} first</div>
+              </div>
+            )}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:24}}>{pd.ico}</span>
+                <div>
+                  <div style={{fontSize:14,fontWeight:800,color:'#F8FAFC'}}>{planet}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{currency}</div>
+                </div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:14,fontWeight:800,color:pc,fontFamily:'monospace'}}>1 USD = {(1/fxRate).toFixed(4)} {currency}</div>
+                <div style={{fontSize:10,color:'#4B5563'}}>Rate: {fxRate.toFixed(4)}</div>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
+              {[['Your Balance',balance.toFixed(4)+' '+currency,'#F8FAFC'],['USD Equiv','$'+usdEquiv.toFixed(2),'#34D399']].map(([l,v,c])=>(
+                <div key={l} style={{background:'#060B14',borderRadius:8,padding:'7px 0',textAlign:'center'}}>
+                  <div style={{fontSize:8,color:'#4B5563',textTransform:'uppercase'}}>{l}</div>
+                  <div style={{fontSize:12,fontWeight:700,color:c,fontFamily:'monospace',marginTop:2}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            {isUnlocked && (
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <button onClick={()=>{setBuyModal({planet,pd});setBuyAmt('');}} style={{padding:'10px 0',background:'#059669',color:'#fff',border:'none',borderRadius:10,fontWeight:700,fontSize:12,cursor:'pointer'}}>Buy {currency}</button>
+                <button onClick={()=>{setSellModal({planet,pd});setSellAmt('');}} disabled={balance<=0} style={{padding:'10px 0',background:balance>0?'#DC2626':'rgba(0,0,0,0.3)',color:balance>0?'#fff':'#374151',border:'none',borderRadius:10,fontWeight:700,fontSize:12,cursor:balance>0?'pointer':'default'}}>Sell {currency}</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {buyModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{fontSize:16,fontWeight:800,color:'#F8FAFC',marginBottom:4}}>{buyModal.pd.ico} Buy {buyModal.pd.currency}</div>
+            <div style={{fontSize:12,color:'#4B5563',marginBottom:12}}>
+              Rate: 1 USD = {(1/((d.planetCompanies?.[buyModal.planet]?.fxRate)||buyModal.pd.rate)).toFixed(4)} {buyModal.pd.currency} · 2% fee · Wallet: {fm(d.tradingWallet||0)}
+            </div>
+            {parseFloat(buyAmt)>0&&(
+              <div style={{background:'rgba(5,150,105,0.08)',border:'1px solid rgba(5,150,105,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:10,fontSize:12,color:'#34D399'}}>
+                You get ≈ {(parseFloat(buyAmt)/(d.planetCompanies?.[buyModal.planet]?.fxRate||buyModal.pd.rate)*0.98).toFixed(4)} {buyModal.pd.currency} after fee
+              </div>
+            )}
+            <input type="number" value={buyAmt} onChange={e=>setBuyAmt(e.target.value)} placeholder="USD to exchange" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:12,padding:'14px 16px',color:'#F8FAFC',fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+              <button onClick={()=>setBuyModal(null)} style={{padding:'14px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={handleBuy} style={{padding:'14px 0',background:'#059669',color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Buy {buyModal.pd.currency}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sellModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{fontSize:16,fontWeight:800,color:'#F8FAFC',marginBottom:4}}>{sellModal.pd.ico} Sell {sellModal.pd.currency}</div>
+            <div style={{fontSize:12,color:'#4B5563',marginBottom:12}}>
+              Balance: {(d.planetWallets?.[sellModal.planet]||0).toFixed(4)} {sellModal.pd.currency} · 2% fee
+            </div>
+            {parseFloat(sellAmt)>0&&(
+              <div style={{background:'rgba(220,38,38,0.08)',border:'1px solid rgba(220,38,38,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:10,fontSize:12,color:'#FCA5A5'}}>
+                You get ≈ ${(parseFloat(sellAmt)*(d.planetCompanies?.[sellModal.planet]?.fxRate||sellModal.pd.rate)*0.98).toFixed(2)} USD after fee
+              </div>
+            )}
+            <input type="number" value={sellAmt} onChange={e=>setSellAmt(e.target.value)} placeholder={sellModal.pd.currency+' to sell'} style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:12,padding:'14px 16px',color:'#F8FAFC',fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+              <button onClick={()=>setSellModal(null)} style={{padding:'14px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={handleSell} style={{padding:'14px 0',background:'#DC2626',color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Sell {sellModal.pd.currency}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function r2(n){return Math.round(n*100)/100;}
 
 export default function WealthScreen() {
-  const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund } = useGame();
+  const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
   const d = D;
   const [tab, setTab] = useState('portfolio');
   const [repayAmt, setRepayAmt] = useState('');
@@ -280,7 +444,7 @@ export default function WealthScreen() {
     setActivePct(pct);
   };
 
-  const tabs=[{id:'portfolio',l:'📊 Portfolio'},{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'log',l:'📋 Log'}];
+  const tabs=[{id:'portfolio',l:'📊 Portfolio'},{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'planetfx',l:'🌐 FX'},{id:'log',l:'📋 Log'}];
 
   return (
     <div style={{padding:'14px 14px 80px',background:'#060B14',minHeight:'100%'}}>
@@ -453,6 +617,9 @@ export default function WealthScreen() {
           />
         ))}
       </>}
+
+      {/* PLANET FX */}
+      {tab==='planetfx'&&<PlanetFXTab d={d} showMsg={showMsg}/>}
 
       {/* LOG */}
       {tab==='log'&&(

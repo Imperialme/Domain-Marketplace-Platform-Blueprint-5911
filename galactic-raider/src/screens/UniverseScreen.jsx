@@ -4,6 +4,15 @@ import { fm } from '../utils';
 import { PLANETS_DATA, IPOS } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
 
+const CRYPTO_COINS = [
+  {id:'BTC', n:'Bitcoin', sym:'BTC', ico:'🟡', ip:65000, vol:.12, desc:'The original store of value. Earth-based. Institutional backing.', theme:'Digital Gold · Earth Network', unlock:null},
+  {id:'ETH', n:'Ethereum', sym:'ETH', ico:'🔷', ip:3200, vol:.16, desc:'Smart contract platform. Foundation for DeFi and NFTs across the solar system.', theme:'Universal Smart Contracts', unlock:null},
+  {id:'DOGE', n:'Dogecoin', sym:'DOGE', ico:'🐕', ip:0.35, vol:.28, desc:'"The Mars Currency." Backed by the Mars Colonisation Society. Elon declared it official Mars tender.', theme:'Mars Official Currency 🔴', unlock:null},
+  {id:'SOL', n:'SolCoin', sym:'SOL', ico:'☀️', ip:180, vol:.20, desc:'Solar-native cryptocurrency. Powers all interplanetary payment rails.', theme:'Solar Payment Network', unlock:null},
+  {id:'MRC', n:'MarsCoin', sym:'MRC', ico:'🔴', ip:12.50, vol:.35, desc:'Mars-native governance token. Used to vote on Martian infrastructure projects.', theme:'Mars Governance Token', unlock:'Mars'},
+  {id:'NTX', n:'NeptuniumX', sym:'NTX', ico:'💜', ip:8888, vol:.42, desc:'The most volatile asset in the solar system. Neptune deep research fund token.', theme:'Neptune Research Token', unlock:'Neptune'},
+];
+
 const T = {
   bg:'#030810', card:'#0A1628', raised:'#0F1E35',
   border:'rgba(255,255,255,0.08)', borderHi:'rgba(255,255,255,0.14)',
@@ -169,6 +178,15 @@ function EarthTab() {
         ))}
       </div>
 
+      {co.ceoProfile&&(
+        <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:10}}>
+          <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:8}}>CEO & Board</div>
+          <div style={{fontSize:12,color:T.text,lineHeight:1.7}}>
+            <span style={{fontWeight:700}}>CEO:</span> {co.ceo} · <span style={{fontWeight:700}}>Reputation:</span> <span style={{color:co.ceoProfile.rep>=70?T.green:co.ceoProfile.rep>=50?T.amber:T.red}}>{co.ceoProfile.rep}/100</span> · <span style={{fontWeight:700}}>Style:</span> {co.ceoProfile.style} · <span style={{fontWeight:700}}>Track:</span> {co.ceoProfile.track}
+          </div>
+        </div>
+      )}
+
       <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:12}}>
         <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Company Story</div>
         <div style={{fontSize:12,color:T.sub,lineHeight:1.6}}>{co.origin}</div>
@@ -209,6 +227,7 @@ function EarthTab() {
                   <div style={{fontSize:14,fontWeight:800,color:T.text}}>{co.n}</div>
                 </div>
                 <div style={{fontSize:10,color:T.muted}}>{co.t} · {co.s}</div>
+                <div style={{fontSize:10,color:T.muted,marginTop:3}}>Founded by {co.founder} · {co.hq} · Est. {co.yr}</div>
               </div>
               <div style={{textAlign:'right',flexShrink:0}}>
                 <div style={{fontSize:18,fontWeight:900,color:T.text,fontFamily:'monospace'}}>${co.price.toFixed(2)}</div>
@@ -678,8 +697,164 @@ function BondsTab() {
   );
 }
 
+// ── CRYPTO TAB ─────────────────────────────────────────────────
+function CryptoTab() {
+  const {D,buyCrypto,sellCrypto}=useGame();
+  const d=D;
+  const [modal,setModal]=useState(null); // {coin, mode:'buy'|'sell'}
+  const [buyAmt,setBuyAmt]=useState('');
+  const [sellQty,setSellQty]=useState('');
+  const [sellPct,setSellPct]=useState('');
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  const openBuy=(coin)=>{setModal({coin,mode:'buy'});setBuyAmt('');};
+  const openSell=(coin)=>{setModal({coin,mode:'sell'});setSellQty('');setSellPct('');};
+
+  const doClose=()=>setModal(null);
+
+  const handleBuy=()=>{
+    const amt=parseFloat(buyAmt);
+    if(!amt||amt<=0) return showMsg('Enter a USD amount');
+    const err=buyCrypto(modal.coin.id,amt);
+    if(err) showMsg('❌ '+err);
+    else{showMsg('✅ Bought '+modal.coin.sym);doClose();}
+  };
+
+  const handleSell=()=>{
+    const qty=parseFloat(sellQty);
+    if(!qty||qty<=0) return showMsg('Enter a quantity');
+    const err=sellCrypto(modal.coin.id,qty);
+    if(err) showMsg('❌ '+err);
+    else{showMsg('✅ Sold '+modal.coin.sym);doClose();}
+  };
+
+  const setSellByPct=(pct)=>{
+    const held=d.cryptoHoldings?.[modal?.coin?.id]||0;
+    setSellQty(String(r2(held*pct)));
+  };
+
+  const prev24=(coin)=>{
+    const hist=d.cryptoHist?.[coin.id]||[];
+    if(hist.length<2) return 0;
+    const prev=hist[hist.length-2];
+    const cur=d.cryptoPrices?.[coin.id]||coin.ip;
+    return (cur-prev)/(prev||1);
+  };
+
+  return (
+    <div>
+      <Toast msg={msg}/>
+      <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#FCD34D',lineHeight:1.5}}>
+        ⚡ Crypto is highly volatile — prices can swing ±40% per turn. Flat 30% tax on profits.
+      </div>
+      {CRYPTO_COINS.map(coin=>{
+        const price=d.cryptoPrices?.[coin.id]||coin.ip;
+        const held=d.cryptoHoldings?.[coin.id]||0;
+        const avgCost=d.cryptoAvgCost?.[coin.id]||price;
+        const heldVal=r2(held*price);
+        const pnlPct=held>0?(price-avgCost)/avgCost*100:0;
+        const ch=prev24(coin);
+        const hist=d.cryptoHist?.[coin.id]||[price];
+        const isLocked=coin.unlock&&!d.planetUnlocks?.[coin.unlock];
+        return (
+          <div key={coin.id} style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+T.border,marginBottom:8,position:'relative',overflow:'hidden'}}>
+            {isLocked&&(
+              <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.75)',borderRadius:16,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                <div style={{fontSize:28,marginBottom:6}}>🔒</div>
+                <div style={{fontSize:12,fontWeight:700,color:'#94A3B8'}}>Unlock {coin.unlock}</div>
+              </div>
+            )}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:3}}>
+                  <span style={{fontSize:20}}>{coin.ico}</span>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:800,color:T.text}}>{coin.n}</div>
+                    <div style={{fontSize:10,color:T.muted}}>{coin.sym} · {coin.theme}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontSize:18,fontWeight:900,color:T.text,fontFamily:'monospace'}}>${price<1?price.toFixed(4):price.toFixed(2)}</div>
+                <div style={{fontSize:12,fontWeight:700,color:ch>=0?T.green:T.red}}>{ch>=0?'▲':'▼'}{Math.abs(ch*100).toFixed(2)}%</div>
+              </div>
+            </div>
+            <div style={{height:32,marginBottom:8}}><Sparkline hist={hist} ch={ch} h={32}/></div>
+            <div style={{fontSize:11,color:T.sub,lineHeight:1.4,marginBottom:8}}>{coin.desc}</div>
+            {held>0&&(
+              <div style={{background:pnlPct>=0?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(pnlPct>=0?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'8px 10px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+                <div style={{fontSize:11,color:T.sub}}>{held.toFixed(6)} {coin.sym} · {fm(heldVal)}</div>
+                <div style={{fontSize:11,fontWeight:700,color:pnlPct>=0?T.green:T.red}}>{pnlPct>=0?'+':''}{pnlPct.toFixed(1)}% P&L</div>
+              </div>
+            )}
+            {!isLocked&&(
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <button onClick={()=>openBuy(coin)} style={{padding:'11px 0',background:'linear-gradient(135deg,#059669,#065F46)',color:'#fff',border:'none',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>Buy</button>
+                <button onClick={()=>openSell(coin)} disabled={held<=0} style={{padding:'11px 0',background:held>0?'linear-gradient(135deg,#DC2626,#7F1D1D)':'rgba(0,0,0,0.3)',color:held>0?'#fff':'#374151',border:'none',borderRadius:10,fontWeight:700,fontSize:13,cursor:held>0?'pointer':'default'}}>Sell</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {modal&&modal.mode==='buy'&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400,backdropFilter:'blur(4px)'}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 -20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{fontSize:17,fontWeight:800,color:T.text,marginBottom:4}}>{modal.coin.ico} Buy {modal.coin.n}</div>
+            <div style={{fontSize:12,color:T.muted,marginBottom:12}}>Current price: ${(d.cryptoPrices?.[modal.coin.id]||modal.coin.ip).toFixed(4)} · Wallet: {fm(d.tradingWallet||0)}</div>
+            <div style={{background:'rgba(16,185,129,0.06)',border:'1px solid rgba(16,185,129,0.15)',borderRadius:10,padding:'10px 12px',marginBottom:12,fontSize:11,color:'#6EE7B7'}}>
+              Enter USD amount. You will receive {parseFloat(buyAmt)>0?r2(parseFloat(buyAmt)/(d.cryptoPrices?.[modal.coin.id]||modal.coin.ip)).toFixed(6):'?'} {modal.coin.sym}
+            </div>
+            <QuickPcts onSelect={(i)=>{const pcts=[0.25,0.50,0.75,1.00];setBuyAmt(String(r2((d.tradingWallet||0)*pcts[i])));}} labels={['25%','50%','75%','Max']}/>
+            <input type="number" value={buyAmt} onChange={e=>setBuyAmt(e.target.value)} placeholder="USD amount to spend" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+              <button onClick={doClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={handleBuy} style={{padding:'14px 0',background:T.green,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Buy {modal.coin.sym}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal&&modal.mode==='sell'&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400,backdropFilter:'blur(4px)'}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 -20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{fontSize:17,fontWeight:800,color:T.text,marginBottom:4}}>{modal.coin.ico} Sell {modal.coin.n}</div>
+            <div style={{fontSize:12,color:T.muted,marginBottom:12}}>
+              Held: {(d.cryptoHoldings?.[modal.coin.id]||0).toFixed(6)} {modal.coin.sym} · Price: ${(d.cryptoPrices?.[modal.coin.id]||modal.coin.ip).toFixed(4)}
+            </div>
+            <div style={{background:'rgba(244,63,94,0.06)',border:'1px solid rgba(244,63,94,0.15)',borderRadius:10,padding:'10px 12px',marginBottom:12,fontSize:11,color:'#FDA4AF'}}>
+              30% flat CGT on profits. Proceeds go to Trading Wallet.
+            </div>
+            <div style={{display:'flex',gap:5,marginBottom:10}}>
+              {[['25%',.25],['50%',.5],['75%',.75],['All',1]].map(([l,p])=>(
+                <button key={l} onClick={()=>setSellByPct(p)} style={{flex:1,padding:'7px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>{l}</button>
+              ))}
+            </div>
+            <input type="number" value={sellQty} onChange={e=>setSellQty(e.target.value)} placeholder="Quantity to sell" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            {parseFloat(sellQty)>0&&(
+              <div style={{background:'rgba(244,63,94,0.08)',border:'1px solid rgba(244,63,94,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:10,display:'flex',justifyContent:'space-between'}}>
+                <span style={{fontSize:12,color:T.sub}}>Proceeds (before CGT)</span>
+                <span style={{fontSize:13,fontWeight:800,color:T.red,fontFamily:'monospace'}}>{fm(parseFloat(sellQty)*(d.cryptoPrices?.[modal.coin.id]||0))}</span>
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+              <button onClick={doClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={handleSell} style={{padding:'14px 0',background:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Sell {modal.coin.sym}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function r2(n){return Math.round(n*100)/100;}
+
 // ── MAIN SCREEN ────────────────────────────────────────────────
-const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'}];
+const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'},{id:'crypto',ico:'₿',l:'Crypto'}];
 
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
@@ -703,6 +878,7 @@ export default function UniverseScreen() {
         {tab==='etf'&&<ETFTab/>}
         {tab==='ipo'&&<IPOTab/>}
         {tab==='bonds'&&<BondsTab/>}
+        {tab==='crypto'&&<CryptoTab/>}
       </div>
     </div>
   );

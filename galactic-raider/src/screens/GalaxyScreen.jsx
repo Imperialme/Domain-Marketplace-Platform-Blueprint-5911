@@ -508,18 +508,32 @@ function BadgesPanel({onBack}) {
 }
 
 // ── SETTINGS PANEL ─────────────────────────────────────────────
+const SPACE_AVATARS = [
+  {id:'🚀', label:'Pioneer'},
+  {id:'👨‍🚀', label:'Astronaut'},
+  {id:'🛸', label:'Commander'},
+  {id:'⚡', label:'Flash Trader'},
+  {id:'🌌', label:'Galaxy Chief'},
+  {id:'💫', label:'Starborn'},
+  {id:'🤖', label:'CosmoBot'},
+  {id:'👑', label:'Space Baron'},
+  {id:'🔭', label:'The Watcher'},
+  {id:'☄️', label:'Meteor'},
+  {id:'🌠', label:'Star Chaser'},
+  {id:'🪐', label:'Planet Maker'},
+];
+
 function SettingsPanelGalaxy({onBack}) {
   const {D,S,saveGame,loadGame}=useGame();
   const d=D;
   const [name,setName]=useState(d.playerName||'Raider');
   const [confirmReset,setConfirmReset]=useState(false);
   const [msg,setMsg]=useState('');
+  const [currentAvatar,setCurrentAvatar]=useState(d.playerAvatar||'🚀');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
 
-  const AVATARS=['🚀','👑','💎','🌌','⭐','🏆','🔥','💰','🎯','🌟'];
-
   const saveName=()=>{S.current.playerName=name;showMsg('Name saved!');};
-  const setAvatar=(av)=>{S.current.playerAvatar=av;showMsg('Avatar set!');};
+  const setAvatar=(avatar)=>{S.current.playerAvatar=avatar.id;setCurrentAvatar(avatar.id);showMsg('Avatar set: '+avatar.label+'!');};
 
   const nw=(d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
   const stockVal=Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0);
@@ -534,15 +548,21 @@ function SettingsPanelGalaxy({onBack}) {
         {/* Profile */}
         <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+T.border,marginBottom:12}}>
           <div style={{fontSize:11,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Profile</div>
-          <div style={{display:'flex',gap:8,marginBottom:10}}>
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
             <input type="text" value={name} onChange={e=>setName(e.target.value)} style={{flex:1,background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:T.text,fontSize:14,outline:'none'}}/>
             <button onClick={saveName} style={{background:T.blue,color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Save</button>
           </div>
-          <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Choose Avatar</div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-            {AVATARS.map(av=>(
-              <button key={av} onClick={()=>setAvatar(av)} style={{fontSize:22,background:(d.playerAvatar||'🚀')===av?'rgba(59,130,246,0.2)':'rgba(0,0,0,0.3)',border:'1px solid '+((d.playerAvatar||'🚀')===av?T.blue:T.border),borderRadius:10,padding:'8px',cursor:'pointer'}}>{av}</button>
-            ))}
+          <div style={{fontSize:11,color:T.muted,marginBottom:10}}>Choose Avatar</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+            {SPACE_AVATARS.map(avatar=>{
+              const selected=currentAvatar===avatar.id;
+              return (
+                <button key={avatar.id} onClick={()=>setAvatar(avatar)} style={{background:selected?'rgba(59,130,246,0.15)':'rgba(0,0,0,0.3)',border:'2px solid '+(selected?T.blue:T.border),borderRadius:12,padding:'10px 4px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
+                  <div style={{fontSize:24,marginBottom:4}}>{avatar.id}</div>
+                  <div style={{fontSize:9,color:selected?T.blue:T.muted,fontWeight:700,lineHeight:1.2}}>{avatar.label}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 

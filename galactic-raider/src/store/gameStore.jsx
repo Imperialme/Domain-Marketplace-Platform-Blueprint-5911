@@ -101,6 +101,11 @@ function buildInitialState() {
       Neptune: false,
     },
     transferLog: [],
+    // Crypto
+    cryptoHoldings: {},
+    cryptoPrices: {BTC:65000,ETH:3200,DOGE:.35,SOL:180,MRC:12.5,NTX:8888},
+    cryptoAvgCost: {},
+    cryptoHist: {BTC:[65000],ETH:[3200],DOGE:[.35],SOL:[180],MRC:[12.5],NTX:[8888]},
     // ETFs / IPOs / Funds
     etfs: ETFS.map(e => ({ ...e, price: e.ip, units: 0, avgCost: e.ip, hist: [e.ip, e.ip], ch: 0 })),
     ipoBookings: {},
@@ -284,6 +289,31 @@ export function GameProvider({ children }) {
       pState.gdp = Math.round(cl(pState.gdp + (Math.random() - 0.48) * 0.3, -5, 10) * 10) / 10;
     });
 
+    // Crypto price update
+    const CRYPTO_COINS_STORE = [
+      {id:'BTC',vol:.12,ip:65000},{id:'ETH',vol:.16,ip:3200},{id:'DOGE',vol:.28,ip:.35},
+      {id:'SOL',vol:.20,ip:180},{id:'MRC',vol:.35,ip:12.5},{id:'NTX',vol:.42,ip:8888}
+    ];
+    if (!s.cryptoPrices) s.cryptoPrices = Object.fromEntries(CRYPTO_COINS_STORE.map(c=>[c.id,c.ip]));
+    if (!s.cryptoHist) s.cryptoHist = Object.fromEntries(CRYPTO_COINS_STORE.map(c=>[c.id,[c.ip]]));
+    CRYPTO_COINS_STORE.forEach(coin => {
+      const move = 1 + (Math.random()-0.48)*coin.vol*2;
+      const prev = s.cryptoPrices[coin.id] || coin.ip;
+      const next = Math.max(0.001, r2(prev * move));
+      s.cryptoPrices[coin.id] = next;
+      s.cryptoHist[coin.id] = [...(s.cryptoHist[coin.id]||[prev]).slice(-48), next];
+    });
+
+    // Planet currency rate fluctuation — small ±2% shift each turn
+    Object.entries(PLANETS_DATA).forEach(([pName, pd]) => {
+      const pState = s.planetCompanies[pName];
+      if (pState) {
+        const shift = 1 + (Math.random()-0.5)*0.04;
+        pState.fxRate = r2((pState.fxRate || pd.rate) * shift);
+        pState.fxRate = r2(Math.max(pd.rate*0.5, Math.min(pd.rate*1.5, pState.fxRate)));
+      }
+    });
+
     // Planet sovereign fund interest (daily compounding)
     Object.entries(s.fundDeposits).forEach(([fid, fd]) => {
       if (fd.deposit > 0) {
@@ -401,7 +431,10 @@ export function GameProvider({ children }) {
       return x + (co && pd ? co.price * pd.rate * n : 0);
     }, 0);
     const bondVal = (s.bondHoldings||[]).reduce((x,b) => x + b.principal, 0);
-    const totalPortfolio = walletVal + stockVal + etfVal + fundVal + planetVal + bondVal;
+    const cryptoVal = Object.entries(s.cryptoHoldings||{}).reduce((x,[id,qty]) => {
+      return x + qty * (s.cryptoPrices?.[id]||0);
+    }, 0);
+    const totalPortfolio = walletVal + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal;
 
     // Update peak NW
     if (totalPortfolio > (s.stats.peakNetWorth||0)) {
@@ -936,6 +969,96 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, logTx]);
 
+  // ── CRYPTO TRADING ───────────────────────────────────────────
+  const buyCrypto = useCallback((coinId, usdAmount) => {
+    const s = S.current;
+    if (usdAmount > s.tradingWallet) return 'Insufficient Trading Wallet funds';
+    if (usdAmount <= 0) return 'Enter a valid amount';
+    const price = s.cryptoPrices?.[coinId];
+    if (!price) return 'Coin not found';
+    const qty = usdAmount / price;
+    const prev = s.cryptoHoldings[coinId] || 0;
+    const prevAvg = s.cryptoAvgCost[coinId] || price;
+    s.tradingWallet = r2(s.tradingWallet - usdAmount);
+    s.cryptoHoldings[coinId] = r2(prev + qty);
+    s.cryptoAvgCost[coinId] = r2((prevAvg * prev + usdAmount) / s.cryptoHoldings[coinId]);
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    if (s.stats.tradesTotal === 1) earnBadge('first_trade');
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+    logTx('BUY_CRYPTO', 'Trading', -usdAmount, 'Bought '+qty.toFixed(6)+' '+coinId+' @ $'+price.toFixed(2)+' · Total: $'+usdAmount.toFixed(2));
+    refresh();
+    return null;
+  }, [refresh, logTx, earnBadge]);
+
+  const sellCrypto = useCallback((coinId, qty) => {
+    const s = S.current;
+    const held = s.cryptoHoldings[coinId] || 0;
+    if (qty > held) return 'Insufficient holdings';
+    if (qty <= 0) return 'Enter a valid quantity';
+    const price = s.cryptoPrices?.[coinId] || 0;
+    const proceeds = r2(qty * price);
+    const avgCost = s.cryptoAvgCost[coinId] || price;
+    const profit = Math.max(0, (price - avgCost) * qty);
+    const cgt = r2(profit * 0.30); // flat 30% CGT for crypto
+    s.tradingWallet = r2(s.tradingWallet + proceeds - cgt);
+    s.cryptoHoldings[coinId] = r2(held - qty);
+    if (s.cryptoHoldings[coinId] <= 0) delete s.cryptoHoldings[coinId];
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    s.stats.totalTaxPaid = r2((s.stats.totalTaxPaid||0) + cgt);
+    const costBasis = r2(avgCost * qty);
+    const net = r2(proceeds - cgt - costBasis);
+    if (net > 0) {
+      s.stats.tradesWon = (s.stats.tradesWon||0) + 1;
+      if (net > (s.stats.biggestWin||0)) {
+        s.stats.biggestWin = net;
+        s.stats.biggestWinDesc = 'Sold '+coinId+' crypto for +$'+net.toFixed(2);
+      }
+    } else {
+      s.stats.tradesLost = (s.stats.tradesLost||0) + 1;
+      if (Math.abs(net) > (s.stats.biggestLoss||0)) {
+        s.stats.biggestLoss = Math.abs(net);
+        s.stats.biggestLossDesc = 'Sold '+coinId+' crypto for -$'+Math.abs(net).toFixed(2);
+      }
+    }
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+    logTx('SELL_CRYPTO', 'Trading', proceeds-cgt, 'Sold '+qty.toFixed(6)+' '+coinId+' · CGT 30%: $'+cgt.toFixed(2)+' · Net: $'+(proceeds-cgt).toFixed(2));
+    refresh();
+    return null;
+  }, [refresh, logTx, earnBadge]);
+
+  // ── PLANET FX ────────────────────────────────────────────────
+  const exchangeToLocal = useCallback((planet, usdAmount) => {
+    const s = S.current;
+    const pd = PLANETS_DATA[planet];
+    if (!pd) return 'Planet not found';
+    if (usdAmount > s.tradingWallet) return 'Insufficient Trading Wallet funds';
+    if (usdAmount <= 0) return 'Enter a valid amount';
+    const fxRate = s.planetCompanies[planet]?.fxRate || pd.rate;
+    const localAmt = r2((usdAmount / fxRate) * 0.98); // 2% fee
+    s.tradingWallet = r2(s.tradingWallet - usdAmount);
+    s.planetWallets[planet] = r2((s.planetWallets[planet]||0) + localAmt);
+    logTx('FX_BUY', 'Trading', -usdAmount, 'Exchanged $'+usdAmount.toFixed(2)+' → '+pd.currency+' '+localAmt.toFixed(4)+' on '+planet+' (2% fee)');
+    refresh();
+    return null;
+  }, [refresh, logTx]);
+
+  const exchangeToUSD = useCallback((planet, localAmount) => {
+    const s = S.current;
+    const pd = PLANETS_DATA[planet];
+    if (!pd) return 'Planet not found';
+    if (localAmount > (s.planetWallets[planet]||0)) return 'Insufficient '+pd.currency+' balance';
+    if (localAmount <= 0) return 'Enter a valid amount';
+    const fxRate = s.planetCompanies[planet]?.fxRate || pd.rate;
+    const usdAmt = r2(localAmount * fxRate * 0.98); // 2% fee
+    s.planetWallets[planet] = r2(s.planetWallets[planet] - localAmount);
+    s.tradingWallet = r2(s.tradingWallet + usdAmt);
+    logTx('FX_SELL', 'Trading', usdAmt, 'Exchanged '+pd.currency+' '+localAmount.toFixed(4)+' → $'+usdAmt.toFixed(2)+' (2% fee)');
+    refresh();
+    return null;
+  }, [refresh, logTx]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -962,6 +1085,8 @@ export function GameProvider({ children }) {
     buyETF, sellETF, depositFund, withdrawFund, bookIPO, donate, spinWheel,
     spinFortune, FORTUNE_SEGS,
     buyBond,
+    buyCrypto, sellCrypto,
+    exchangeToLocal, exchangeToUSD,
     saveGame, loadGame,
     addNews, earnBadge,
     BADGE_DEFS,
