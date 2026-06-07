@@ -1,47 +1,67 @@
 import { useState } from 'react';
 import { useGame } from '../store/gameStore';
-import { fm, C } from '../utils';
-import { PLANETS_DATA, ETFS, IPOS, SOVEREIGN_FUNDS } from '../constants';
+import { fm } from '../utils';
+import { PLANETS_DATA, IPOS } from '../constants';
 
-const CS = {
-  bg: '#060B14',
-  card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
-  label: { fontSize:10, color:'#4B5563', textTransform:'uppercase', letterSpacing:1.5, marginBottom:8 },
-  tab: (active) => ({ flex:1, padding:'9px 0', fontSize:11, fontWeight:700, border:'none', borderRadius:10, cursor:'pointer', background:active?'#1D4ED8':'#0D1B2E', color:active?'#fff':'#4B5563' }),
+const T = {
+  bg:'#030810', card:'#0A1628', raised:'#0F1E35',
+  border:'rgba(255,255,255,0.08)', borderHi:'rgba(255,255,255,0.14)',
+  text:'#F1F5F9', sub:'#94A3B8', muted:'#475569',
+  green:'#10B981', red:'#F43F5E', blue:'#3B82F6',
+  amber:'#F59E0B', purple:'#8B5CF6', cyan:'#06B6D4',
 };
 
-function Sparkline({ hist, ch }) {
-  if (!hist || hist.length < 2) return null;
-  const h = hist.slice(-20);
-  const mn = Math.min(...h), mx = Math.max(...h);
-  const pts = h.map((p,i)=>`${i/(h.length-1)*100},${26-(p-mn)/(mx-mn||1)*22}`).join(' ');
+const SECTOR_COLOR = {
+  Technology:'#3B82F6',Banking:'#10B981',Energy:'#F59E0B',Mining:'#F97316',
+  Healthcare:'#EC4899',Agriculture:'#84CC16',Utilities:'#06B6D4',
+  Telecom:'#6366F1','Real Estate':'#EAB308',Manufacturing:'#8B5CF6',Logistics:'#14B8A6',
+};
+
+const ANALYST_COLOR = {
+  'STRONG BUY':'#10B981','BUY':'#34D399','HOLD':'#F59E0B','SELL':'#F43F5E','SPECULATIVE BUY':'#8B5CF6',
+};
+
+function Sparkline({hist,ch,h=32}) {
+  if(!hist||hist.length<2) return <div style={{height:h}}/>;
+  const pts=hist.slice(-24);
+  const mn=Math.min(...pts),mx=Math.max(...pts);
+  const points=pts.map((p,i)=>`${i/(pts.length-1)*100},${h-(p-mn)/(mx-mn||1)*(h-4)+2}`).join(' ');
+  const c=(ch||0)>=0?T.green:T.red;
   return (
-    <svg width="100%" height="26" viewBox="0 0 100 26" preserveAspectRatio="none" style={{display:'block'}}>
-      <polyline points={pts} fill="none" stroke={(ch||0)>=0?'#34D399':'#EF4444'} strokeWidth="1.5"/>
+    <svg width="100%" height={h} viewBox={`0 0 100 ${h}`} preserveAspectRatio="none" style={{display:'block'}}>
+      <polyline points={points} fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
 
-function TradeModal({ title, price, currency, held, onConfirm, onClose }) {
-  const [qty, setQty] = useState('');
-  const [isBuy, setIsBuy] = useState(true);
-  const q = parseInt(qty)||0;
-  const total = q * price;
+function TradeModal({title,price,priceSub,held,isBuyOnly,onBuy,onSell,onClose}) {
+  const [mode,setMode]=useState('buy');
+  const [qty,setQty]=useState('');
+  const q=parseInt(qty)||0;
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',display:'flex',alignItems:'flex-end',zIndex:300}}>
-      <div style={{background:'#0D1B2E',borderRadius:'20px 20px 0 0',padding:22,width:'100%',border:'1px solid #1A2744'}}>
-        <div style={{fontSize:16,fontWeight:800,color:'#F8FAFC',marginBottom:4}}>{title}</div>
-        <div style={{fontSize:12,color:'#4B5563',marginBottom:16}}>{currency}{price.toFixed(2)}{held>0?` · Holding: ${held.toLocaleString()}`:''}</div>
-        <div style={{display:'flex',gap:6,marginBottom:14}}>
-          <button onClick={()=>setIsBuy(true)} style={{flex:1,padding:'9px 0',background:isBuy?'#16A34A':'#060B14',color:isBuy?'#fff':'#4B5563',border:`1px solid ${isBuy?'#16A34A':'#1A2744'}`,borderRadius:10,fontWeight:700,cursor:'pointer'}}>Buy</button>
-          {held>0&&<button onClick={()=>setIsBuy(false)} style={{flex:1,padding:'9px 0',background:!isBuy?'#DC2626':'#060B14',color:!isBuy?'#fff':'#4B5563',border:`1px solid ${!isBuy?'#DC2626':'#1A2744'}`,borderRadius:10,fontWeight:700,cursor:'pointer'}}>Sell</button>}
-        </div>
-        <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Quantity" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
-        {q>0&&<div style={{background:'#060B14',borderRadius:8,padding:'8px 12px',marginBottom:14,fontSize:12,color:'#9CA3AF'}}>Total: {currency}{total.toFixed(2)}{currency!=='$'?` (~${fm(total*(1))})`:''}</div>}
-        <div style={{display:'flex',gap:8}}>
-          <button onClick={onClose} style={{flex:1,padding:'12px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:12,fontWeight:700,cursor:'pointer'}}>Cancel</button>
-          <button onClick={()=>{if(q>0){onConfirm(isBuy,q);onClose();}}} style={{flex:2,padding:'12px 0',background:isBuy?'#16A34A':'#DC2626',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>
-            Confirm {isBuy?'Buy':'Sell'}
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400,backdropFilter:'blur(4px)'}}>
+      <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 -20px 60px rgba(0,0,0,0.5)'}}>
+        <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontSize:17,fontWeight:800,color:T.text,marginBottom:2}}>{title}</div>
+        <div style={{fontSize:12,color:T.muted,marginBottom:16}}>{priceSub||('$'+price?.toFixed(2)+'/share')}{held>0?` · You hold ${held.toLocaleString()}`:''}  </div>
+        {!isBuyOnly&&held>0&&(
+          <div style={{display:'flex',gap:6,marginBottom:14,background:T.bg,borderRadius:12,padding:4}}>
+            {['buy','sell'].map(m=>(
+              <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:'9px 0',background:mode===m?(m==='buy'?T.green:T.red):'transparent',color:mode===m?'#fff':T.muted,border:'none',borderRadius:9,fontWeight:700,fontSize:13,cursor:'pointer',transition:'all .15s'}}>{m==='buy'?'Buy':'Sell'}</button>
+            ))}
+          </div>
+        )}
+        <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Enter quantity" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+        {q>0&&price&&(
+          <div style={{background:mode==='buy'?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(mode==='buy'?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between'}}>
+            <span style={{fontSize:12,color:T.sub}}>Total cost</span>
+            <span style={{fontSize:14,fontWeight:800,color:mode==='buy'?T.green:T.red,fontFamily:'monospace'}}>{fm(q*price)}</span>
+          </div>
+        )}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+          <button onClick={onClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+          <button onClick={()=>{if(q<=0)return;mode==='buy'?onBuy(q):onSell(q);}} style={{padding:'14px 0',background:mode==='buy'?T.green:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 16px '+(mode==='buy'?'rgba(16,185,129,0.3)':'rgba(244,63,94,0.3)')}}>
+            {mode==='buy'?'Buy':'Sell'} {q>0?q.toLocaleString():''} Shares
           </button>
         </div>
       </div>
@@ -49,306 +69,423 @@ function TradeModal({ title, price, currency, held, onConfirm, onClose }) {
   );
 }
 
+function Toast({msg}) {
+  if(!msg) return null;
+  return <div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',background:'#0D1B2E',border:'1px solid rgba(255,255,255,0.15)',borderRadius:12,padding:'11px 18px',fontSize:12,color:T.text,whiteSpace:'nowrap',zIndex:500,boxShadow:'0 8px 24px rgba(0,0,0,0.4)'}}>{msg}</div>;
+}
+
 // ── EARTH MARKETS ──────────────────────────────────────────────
 function EarthTab() {
-  const { D, buyStock, sellStock } = useGame();
-  const d = D;
-  const [selected, setSelected] = useState(null);
-  const [modal, setModal] = useState(null);
-  const [msg, setMsg] = useState('');
-  const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+  const {D,buyStock,sellStock}=useGame();
+  const d=D;
+  const [selected,setSelected]=useState(null);
+  const [modal,setModal]=useState(false);
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
 
-  const co = selected ? d.companies?.find(c=>c.t===selected) : null;
+  const co=selected?d.companies?.find(c=>c.t===selected):null;
+  const consensus=co?co.analysts?.reduce((a,x)=>({STRONG_BUY:(a.STRONG_BUY||0)+(x.rating?.includes('STRONG')?1:0),BUY:(a.BUY||0)+(x.rating==='BUY'?1:0),HOLD:(a.HOLD||0)+(x.rating==='HOLD'?1:0),SELL:(a.SELL||0)+(x.rating==='SELL'?1:0)},{}),{}):null;
+  const topRating=co&&co.analysts?.length?co.analysts.sort((a,b)=>['STRONG BUY','BUY','SPECULATIVE BUY','HOLD','SELL'].indexOf(a.rating)-['STRONG BUY','BUY','SPECULATIVE BUY','HOLD','SELL'].indexOf(b.rating))[0].rating:'';
 
-  if (co) return (
-    <div style={{padding:'0 0 12px'}}>
-      <button onClick={()=>setSelected(null)} style={{background:'#0D1B2E',border:'1px solid #1A2744',color:'#9CA3AF',borderRadius:10,padding:'8px 14px',cursor:'pointer',fontSize:12,marginBottom:12}}>← Back</button>
-      <div style={CS.card}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+  if(co) return (
+    <div style={{paddingBottom:8}}>
+      <button onClick={()=>{setSelected(null);setModal(false);}} style={{background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:10,padding:'9px 14px',cursor:'pointer',fontSize:12,marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+        ← Back to Markets
+      </button>
+
+      {/* Company hero */}
+      <div style={{background:`linear-gradient(135deg,${SECTOR_COLOR[co.s]||T.blue}15,${SECTOR_COLOR[co.s]||T.blue}05)`,borderRadius:18,padding:16,border:`1px solid ${SECTOR_COLOR[co.s]||T.blue}30`,marginBottom:10}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
           <div>
-            <div style={{fontSize:16,fontWeight:800,color:'#F8FAFC'}}>{co.n}</div>
-            <div style={{fontSize:11,color:'#4B5563'}}>{co.t} · {co.s} · {co.hq}</div>
+            <div style={{fontSize:11,color:SECTOR_COLOR[co.s]||T.blue,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{co.s}</div>
+            <div style={{fontSize:20,fontWeight:900,color:T.text}}>{co.n}</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:2}}>{co.t} · {co.hq} · Est.{co.yr}</div>
           </div>
           <div style={{textAlign:'right'}}>
-            <div style={{fontSize:22,fontWeight:900,color:'#F8FAFC',fontFamily:'monospace'}}>${co.price.toFixed(2)}</div>
-            <div style={{fontSize:12,color:(co.ch||0)>=0?'#34D399':'#EF4444'}}>{(co.ch||0)>=0?'▲':'▼'} {Math.abs((co.ch||0)*100).toFixed(2)}%</div>
+            <div style={{fontSize:26,fontWeight:900,color:T.text,fontFamily:'monospace',lineHeight:1}}>${co.price.toFixed(2)}</div>
+            <div style={{fontSize:13,fontWeight:700,color:(co.ch||0)>=0?T.green:T.red,marginTop:3}}>{(co.ch||0)>=0?'▲':'▼'} {Math.abs((co.ch||0)*100).toFixed(2)}%</div>
           </div>
         </div>
-        <div style={{height:50,marginBottom:12}}><Sparkline hist={co.hist} ch={co.ch}/></div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:12}}>
-          {[['P/E',co.pe?.toFixed(1)||'—'],['Div',co.div+'%'],['Beta',co.b],['CEO',co.ceo?.split(' ').pop()],['Est.',co.yr],['Emp.',''+Math.round((co.emp||0)/1000)+'K']].map(([l,v])=>(
-            <div key={l} style={{background:'#060B14',borderRadius:8,padding:'7px 8px'}}>
-              <div style={{fontSize:8,color:'#4B5563'}}>{l}</div>
-              <div style={{fontSize:11,fontWeight:700,color:'#D1D5DB'}}>{v}</div>
+        <div style={{height:56,marginBottom:12}}><Sparkline hist={co.hist} ch={co.ch} h={56}/></div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+          {[['P/E',co.pe?.toFixed(1)],['Div Yield',co.div+'%'],['Beta',co.b],['Employees',((co.emp||0)/1000).toFixed(0)+'K']].map(([l,v])=>(
+            <div key={l} style={{background:'rgba(0,0,0,0.3)',borderRadius:8,padding:'7px 0',textAlign:'center'}}>
+              <div style={{fontSize:8,color:T.muted,textTransform:'uppercase'}}>{l}</div>
+              <div style={{fontSize:12,fontWeight:700,color:T.text,marginTop:2}}>{v}</div>
             </div>
           ))}
         </div>
-        {(co.analysts||[]).map((a,i)=>(
-          <div key={i} style={{background:'#060B14',borderRadius:8,padding:'9px 12px',marginBottom:6}}>
-            <div style={{fontSize:11,fontWeight:700,color:a.rating?.includes('BUY')?'#34D399':a.rating==='SELL'?'#EF4444':'#FBBF24'}}>{a.firm} · {a.rating} · ${a.target}</div>
-            <div style={{fontSize:10,color:'#6B7280',marginTop:3,lineHeight:1.4}}>{a.note}</div>
+      </div>
+
+      {/* Holding */}
+      {(d.stockHoldings?.[co.t]||0)>0&&(
+        <div style={{background:T.card,borderRadius:12,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontSize:11,color:T.muted}}>Your Position</div>
+            <div style={{fontSize:15,fontWeight:800,color:T.text,fontFamily:'monospace'}}>{(d.stockHoldings[co.t]).toLocaleString()} shares</div>
           </div>
-        ))}
-        {d.stockHoldings?.[co.t]>0&&(
-          <div style={{background:'#060B14',borderRadius:8,padding:'8px 12px',marginBottom:10,display:'flex',justifyContent:'space-between'}}>
-            <div style={{fontSize:11,color:'#9CA3AF'}}>Holding: {(d.stockHoldings[co.t]||0).toLocaleString()} shares</div>
-            <div style={{fontSize:11,fontWeight:700,color:co.price>=(d.avgCostBasis?.[co.t]||co.price)?'#34D399':'#EF4444'}}>
-              {((co.price-(d.avgCostBasis?.[co.t]||co.price))/(d.avgCostBasis?.[co.t]||co.price)*100).toFixed(1)}%
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:'monospace'}}>{fm(d.stockHoldings[co.t]*co.price)}</div>
+            <div style={{fontSize:12,fontWeight:700,color:co.price>=(d.avgCostBasis?.[co.t]||co.price)?T.green:T.red}}>
+              {((co.price-(d.avgCostBasis?.[co.t]||co.price))/(d.avgCostBasis?.[co.t]||co.price)*100).toFixed(1)}% P&L
             </div>
           </div>
-        )}
-        <button onClick={()=>setModal(co)} style={{width:'100%',background:'linear-gradient(135deg,#16A34A,#059669)',color:'#fff',border:'none',borderRadius:12,padding:'13px 0',fontWeight:800,fontSize:14,cursor:'pointer'}}>
-          Trade {co.t}
-        </button>
+        </div>
+      )}
+
+      {/* Analyst consensus */}
+      <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:10}}>
+        <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Analyst Views</div>
+        {co.analysts?.map((a,i)=>(
+          <div key={i} style={{padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+              <div style={{fontSize:12,fontWeight:700,color:T.text}}>{a.firm}</div>
+              <div style={{...({display:'inline-block',background:(ANALYST_COLOR[a.rating]||T.muted)+'22',color:ANALYST_COLOR[a.rating]||T.muted,padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:700,border:'1px solid '+(ANALYST_COLOR[a.rating]||T.muted)+'44'})}}>{a.rating} · ${a.target}</div>
+            </div>
+            <div style={{fontSize:11,color:T.sub,lineHeight:1.5}}>{a.note}</div>
+          </div>
+        ))}
       </div>
-      {modal&&<TradeModal title={`Trade ${modal.n}`} price={modal.price} currency="$" held={d.stockHoldings?.[modal.t]||0} onConfirm={(isBuy,q)=>{const err=isBuy?buyStock(modal.t,q):sellStock(modal.t,q);if(err)showMsg(err);else showMsg((isBuy?'Bought':'Sold')+' '+q.toLocaleString()+' '+modal.t);}} onClose={()=>setModal(null)}/>}
-      {msg&&<div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 16px',fontSize:12,color:'#93C5FD',whiteSpace:'nowrap',zIndex:200}}>{msg}</div>}
+
+      {/* Origin story */}
+      <div style={{background:T.card,borderRadius:14,padding:'12px 14px',border:'1px solid '+T.border,marginBottom:12}}>
+        <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Company Story</div>
+        <div style={{fontSize:12,color:T.sub,lineHeight:1.6}}>{co.origin}</div>
+        <div style={{marginTop:8,fontSize:12,color:T.text,fontWeight:600}}>{co.ops}</div>
+      </div>
+
+      {/* Trade button */}
+      <button onClick={()=>setModal(true)} style={{width:'100%',background:'linear-gradient(135deg,#059669,#065F46)',color:'#fff',border:'none',borderRadius:14,padding:'15px 0',fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 20px rgba(16,185,129,0.25)'}}>
+        Trade {co.t}
+      </button>
+      {modal&&(
+        <TradeModal title={co.n} price={co.price} held={d.stockHoldings?.[co.t]||0}
+          onBuy={q=>{const e=buyStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q.toLocaleString()+' '+co.t);setModal(false);}}}
+          onSell={q=>{const e=sellStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Sold '+q.toLocaleString()+' '+co.t);setModal(false);}}}
+          onClose={()=>setModal(false)}
+        />
+      )}
+      <Toast msg={msg}/>
     </div>
   );
 
   return (
     <div>
-      {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
-      {(d.companies||[]).map(co=>(
-        <div key={co.t} onClick={()=>setSelected(co.t)} style={{...CS.card,cursor:'pointer',display:'flex',gap:12,alignItems:'center'}}>
-          <div style={{flex:1}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>{co.n}</div>
-                <div style={{fontSize:10,color:'#4B5563'}}>{co.t} · {co.hq}</div>
+      <Toast msg={msg}/>
+      <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>10 Earth Companies · Tap to trade</div>
+      {(d.companies||[]).map(co=>{
+        const sC=SECTOR_COLOR[co.s]||T.blue;
+        const held=d.stockHoldings?.[co.t]||0;
+        const topA=co.analysts?.[0];
+        return (
+          <div key={co.t} onClick={()=>setSelected(co.t)} style={{background:T.card,borderRadius:16,padding:'14px',border:'1px solid '+T.border,marginBottom:8,cursor:'pointer',transition:'border-color .2s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=sC+'50'}
+            onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:3}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:sC,boxShadow:'0 0 6px '+sC,flexShrink:0}}/>
+                  <div style={{fontSize:14,fontWeight:800,color:T.text}}>{co.n}</div>
+                </div>
+                <div style={{fontSize:10,color:T.muted}}>{co.t} · {co.s}</div>
               </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:16,fontWeight:900,color:'#F8FAFC',fontFamily:'monospace'}}>${co.price.toFixed(2)}</div>
-                <div style={{fontSize:11,color:(co.ch||0)>=0?'#34D399':'#EF4444'}}>{(co.ch||0)>=0?'▲':'▼'}{Math.abs((co.ch||0)*100).toFixed(1)}%</div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontSize:18,fontWeight:900,color:T.text,fontFamily:'monospace'}}>${co.price.toFixed(2)}</div>
+                <div style={{fontSize:12,fontWeight:700,color:(co.ch||0)>=0?T.green:T.red}}>{(co.ch||0)>=0?'▲':'▼'}{Math.abs((co.ch||0)*100).toFixed(2)}%</div>
               </div>
             </div>
-            <div style={{height:28}}><Sparkline hist={co.hist} ch={co.ch}/></div>
+            <div style={{height:32,marginBottom:8}}><Sparkline hist={co.hist} ch={co.ch} h={32}/></div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              {topA&&<div style={{fontSize:10,fontWeight:700,color:ANALYST_COLOR[topA.rating]||T.muted,background:(ANALYST_COLOR[topA.rating]||T.muted)+'15',padding:'3px 8px',borderRadius:6}}>{topA.rating}</div>}
+              <div style={{display:'flex',gap:10,marginLeft:'auto'}}>
+                <div style={{fontSize:10,color:T.muted}}>Div {co.div}%</div>
+                {held>0&&<div style={{fontSize:10,fontWeight:700,color:T.amber,background:T.amber+'15',padding:'2px 7px',borderRadius:6}}>{held.toLocaleString()} held</div>}
+              </div>
+            </div>
           </div>
-          {d.stockHoldings?.[co.t]>0&&<div style={{background:'#16A34A22',border:'1px solid #16A34A44',borderRadius:6,padding:'3px 7px',fontSize:9,color:'#34D399',fontWeight:700,whiteSpace:'nowrap'}}>{(d.stockHoldings[co.t]||0).toLocaleString()}</div>}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 // ── PLANETS ────────────────────────────────────────────────────
 function PlanetsTab() {
-  const { D, buyPlanetStock, sellPlanetStock } = useGame();
-  const d = D;
-  const [planet, setPlanet] = useState(null);
-  const [modal, setModal] = useState(null);
-  const [msg, setMsg] = useState('');
-  const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+  const {D,buyPlanetStock,sellPlanetStock}=useGame();
+  const d=D;
+  const [planet,setPlanet]=useState(null);
+  const [modal,setModal]=useState(null);
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
 
-  if (planet) {
-    const pd = PLANETS_DATA[planet];
-    const pState = d.planetCompanies?.[planet];
-    if (!pd||!pState) return null;
+  if(planet) {
+    const pd=PLANETS_DATA[planet];
+    const pState=d.planetCompanies?.[planet];
+    if(!pd||!pState) return null;
+    const pc=pd.color||T.blue;
     return (
       <div>
-        <button onClick={()=>setPlanet(null)} style={{background:'#0D1B2E',border:'1px solid #1A2744',color:'#9CA3AF',borderRadius:10,padding:'8px 14px',cursor:'pointer',fontSize:12,marginBottom:12}}>← Solar System</button>
-        <div style={{background:`linear-gradient(135deg,${pd.color}18,${pd.color}28)`,borderRadius:16,padding:14,border:`1px solid ${pd.color}40`,marginBottom:10}}>
+        <button onClick={()=>setPlanet(null)} style={{background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:10,padding:'9px 14px',cursor:'pointer',fontSize:12,marginBottom:12}}>← Solar System</button>
+        <div style={{background:`linear-gradient(135deg,${pc}20,${pc}08)`,borderRadius:18,padding:16,border:`1px solid ${pc}40`,marginBottom:12,boxShadow:`0 0 30px ${pc}15`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
-              <div style={{fontSize:24}}>{pd.ico}</div>
-              <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC'}}>{pd.name}</div>
-              <div style={{fontSize:10,color:'#9CA3AF',marginTop:3}}>{pd.desc}</div>
+              <div style={{fontSize:36,marginBottom:4}}>{pd.ico}</div>
+              <div style={{fontSize:22,fontWeight:900,color:'#fff'}}>{pd.name}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',marginTop:3,lineHeight:1.4,maxWidth:200}}>{pd.desc}</div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div style={{fontSize:10,color:'#4B5563'}}>Rate</div>
-              <div style={{fontSize:20,fontWeight:800,color:pd.color,fontFamily:'monospace'}}>${pd.rate.toFixed(2)}</div>
-              <div style={{fontSize:10,color:'#4B5563'}}>GDP: {pState.gdp}%</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:2}}>Exchange Rate</div>
+              <div style={{fontSize:24,fontWeight:900,color:pc,fontFamily:'monospace'}}>1 {pd.currency}</div>
+              <div style={{fontSize:14,fontWeight:700,color:T.sub}}>= ${pd.rate.toFixed(2)} USD</div>
+              <div style={{marginTop:6,fontSize:12,color:pState.gdp>=0?T.green:T.red}}>GDP {pState.gdp>=0?'+':''}{pState.gdp}%</div>
             </div>
           </div>
-          {pState.stormActive&&<div style={{marginTop:8,background:'#7F1D1D',border:'1px solid #EF4444',borderRadius:8,padding:'6px 10px',fontSize:11,color:'#FCA5A5'}}>⚡ Storm active — prices 70%. Buy the dip!</div>}
+          {pState.stormActive&&(
+            <div style={{marginTop:12,background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#FCA5A5',fontWeight:600}}>
+              ⚡ Jupiter Storm Active — Prices at 70% · Buy the dip · Recovery in ~20 turns
+            </div>
+          )}
         </div>
         {pState.cos.map(co=>{
           const key=planet+'_'+co.t;
           const held=d.planetHoldings?.[key]||0;
           const avg=d.planetAvgCost?.[key]||co.price;
           const gain=held>0?(co.price-avg)/avg*100:0;
+          const sC=SECTOR_COLOR[co.s]||pc;
           return (
-            <div key={co.t} style={CS.card}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div key={co.t} style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+T.border,marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                 <div>
-                  <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>{co.n}</div>
-                  <div style={{fontSize:10,color:'#4B5563'}}>{co.t} · {co.s}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                    <div style={{width:7,height:7,borderRadius:'50%',background:sC}}/>
+                    <div style={{fontSize:14,fontWeight:800,color:T.text}}>{co.n}</div>
+                  </div>
+                  <div style={{fontSize:10,color:T.muted}}>{co.t} · {co.s}</div>
                 </div>
                 <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:16,fontWeight:800,color:'#F8FAFC',fontFamily:'monospace'}}>{pd.currency} {co.price.toFixed(2)}</div>
-                  <div style={{fontSize:11,color:(co.ch||0)>=0?'#34D399':'#EF4444'}}>{(co.ch||0)>=0?'▲':'▼'}{Math.abs((co.ch||0)*100).toFixed(1)}%</div>
+                  <div style={{fontSize:16,fontWeight:800,color:T.text,fontFamily:'monospace'}}>{pd.currency} {co.price.toFixed(2)}</div>
+                  <div style={{fontSize:11,color:(co.ch||0)>=0?T.green:T.red}}>{(co.ch||0)>=0?'▲':'▼'}{Math.abs((co.ch||0)*100).toFixed(1)}%</div>
+                  <div style={{fontSize:10,color:T.muted,marginTop:2}}>≈ ${(co.price*pd.rate).toFixed(2)}</div>
                 </div>
               </div>
-              <div style={{height:26,marginBottom:8}}><Sparkline hist={co.hist} ch={co.ch}/></div>
-              {held>0&&<div style={{background:'#060B14',borderRadius:8,padding:'6px 10px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
-                <div style={{fontSize:11,color:'#9CA3AF'}}>{held.toLocaleString()} shares · {fm(held*co.price*pd.rate)}</div>
-                <div style={{fontSize:11,fontWeight:700,color:gain>=0?'#34D399':'#EF4444'}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
-              </div>}
-              <button onClick={()=>setModal({co,pd,planet,held})} style={{width:'100%',background:'#16A34A',color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontWeight:700,fontSize:13,cursor:'pointer'}}>Trade</button>
+              <div style={{height:28,marginBottom:8}}><Sparkline hist={co.hist} ch={co.ch} h={28}/></div>
+              {held>0&&(
+                <div style={{background:gain>=0?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(gain>=0?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'8px 10px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+                  <div style={{fontSize:11,color:T.sub}}>{held.toLocaleString()} shares · {fm(held*co.price*pd.rate)}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:gain>=0?T.green:T.red}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
+                </div>
+              )}
+              <button onClick={()=>setModal({co,pd,planet,held})} style={{width:'100%',background:`linear-gradient(135deg,${pc}90,${pc}60)`,color:'#fff',border:'none',borderRadius:10,padding:'11px 0',fontWeight:700,fontSize:13,cursor:'pointer',opacity:.9}}>
+                Trade {co.t}
+              </button>
             </div>
           );
         })}
-        {modal&&<TradeModal title={`Trade ${modal.co.n}`} price={modal.co.price} currency={modal.pd.currency+' '} held={modal.held} onConfirm={(isBuy,q)=>{const err=isBuy?buyPlanetStock(modal.planet,modal.co.t,q):null;if(!isBuy)sellPlanetStock(modal.planet,modal.co.t,q);if(err)showMsg(err);else showMsg((isBuy?'Bought':'Sold')+' '+q+' '+modal.co.t);}} onClose={()=>setModal(null)}/>}
-        {msg&&<div style={{position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 16px',fontSize:12,color:'#93C5FD',whiteSpace:'nowrap',zIndex:200}}>{msg}</div>}
+        {modal&&(
+          <TradeModal
+            title={`${modal.pd.ico} ${modal.co.n}`}
+            price={modal.co.price*modal.pd.rate}
+            priceSub={`${modal.pd.currency} ${modal.co.price.toFixed(2)} · ≈ $${(modal.co.price*modal.pd.rate).toFixed(2)} USD`}
+            held={modal.held}
+            onBuy={q=>{const e=buyPlanetStock(modal.planet,modal.co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' '+modal.co.t);setModal(null);}}}
+            onSell={q=>{sellPlanetStock(modal.planet,modal.co.t,q);showMsg('✅ Sold '+q+' '+modal.co.t);setModal(null);}}
+            onClose={()=>setModal(null)}
+          />
+        )}
+        <Toast msg={msg}/>
       </div>
     );
   }
 
   return (
     <div>
-      {Object.entries(PLANETS_DATA).map(([pName,pd])=>{
-        const pState=d.planetCompanies?.[pName];
-        const holdings=Object.entries(d.planetHoldings||{}).filter(([k])=>k.startsWith(pName+'_'));
-        const totalVal=holdings.reduce((s,[key,n])=>{
-          const t=key.split('_')[1];const co=pState?.cos?.find(c=>c.t===t);return s+(co?n*co.price*pd.rate:0);
-        },0);
-        return (
-          <div key={pName} onClick={()=>setPlanet(pName)} style={{...CS.card,background:`linear-gradient(135deg,${pd.color}10,${pd.color}18)`,border:`1px solid ${pd.color}30`,cursor:'pointer'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{fontSize:26}}>{pd.ico}</div>
+      <Toast msg={msg}/>
+      <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>8 Planet Economies · Tap to explore</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+        {Object.entries(PLANETS_DATA).map(([pName,pd])=>{
+          const pState=d.planetCompanies?.[pName];
+          const pc=pd.color||T.blue;
+          const holdings=Object.entries(d.planetHoldings||{}).filter(([k])=>k.startsWith(pName+'_'));
+          const totalVal=holdings.reduce((s,[key,n])=>{
+            const t=key.split('_')[1];const co=pState?.cos?.find(c=>c.t===t);return s+(co?n*co.price*pd.rate:0);},0);
+          return (
+            <div key={pName} onClick={()=>setPlanet(pName)} style={{background:`linear-gradient(135deg,${pc}18,${pc}08)`,borderRadius:16,padding:14,border:`1px solid ${pc}30`,cursor:'pointer',position:'relative',overflow:'hidden'}}>
+              <div style={{fontSize:32,marginBottom:8}}>{pd.ico}</div>
+              <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:2}}>{pd.name}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',marginBottom:8}}>{pd.currency} · {pd.companies.length} cos</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
                 <div>
-                  <div style={{fontSize:14,fontWeight:800,color:'#F8FAFC'}}>{pd.name}</div>
-                  <div style={{fontSize:10,color:'#4B5563'}}>{pd.currency} · {pd.companies.length} cos · GDP {pState?.gdp||0}%</div>
+                  <div style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>Rate</div>
+                  <div style={{fontSize:13,fontWeight:800,color:pc,fontFamily:'monospace'}}>${pd.rate.toFixed(2)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  {totalVal>0&&<div style={{fontSize:10,fontWeight:700,color:T.amber}}>{fm(totalVal)}</div>}
+                  {pState?.stormActive&&<div style={{fontSize:11,color:T.red}}>⚡ Storm</div>}
+                  <div style={{fontSize:10,color:(pState?.gdp||0)>=0?T.green:T.red}}>GDP {(pState?.gdp||0)>=0?'+':''}{pState?.gdp||0}%</div>
                 </div>
               </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:14,fontWeight:800,color:pd.color,fontFamily:'monospace'}}>${pd.rate.toFixed(2)}</div>
-                {totalVal>0&&<div style={{fontSize:10,color:'#34D399'}}>{fm(totalVal)}</div>}
-                {pState?.stormActive&&<div style={{fontSize:10,color:'#EF4444'}}>⚡ Storm</div>}
-              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 // ── ETF TAB ────────────────────────────────────────────────────
 function ETFTab() {
-  const { D, buyETF, sellETF } = useGame();
-  const d = D;
-  const [modal, setModal] = useState(null);
-  const [msg, setMsg] = useState('');
-  const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+  const {D,buyETF,sellETF}=useGame();
+  const d=D;
+  const [modal,setModal]=useState(null);
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
   return (
     <div>
-      {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
-      <div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',marginBottom:10,fontSize:11,color:'#6B7280'}}>
-        ETFs track asset baskets. Dividends paid every 30 turns to Trading Wallet.
+      <Toast msg={msg}/>
+      <div style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#93C5FD',lineHeight:1.5}}>
+        📊 ETFs give diversified exposure without picking individual stocks. Dividends paid every 30 turns to your Trading Wallet.
       </div>
       {(d.etfs||[]).map(e=>{
-        const val=e.price*e.units;
+        const val=e.price*(e.units||0);
         const gain=e.units>0?(e.price-e.avgCost)/e.avgCost*100:0;
         return (
-          <div key={e.id} style={CS.card}>
+          <div key={e.id} style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+T.border,marginBottom:8}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
               <div>
-                <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>{e.n}</div>
-                <div style={{fontSize:10,color:'#4B5563'}}>{e.id} · {e.type} · {e.expense}% fee</div>
+                <div style={{fontSize:14,fontWeight:800,color:T.text}}>{e.n}</div>
+                <div style={{fontSize:10,color:T.muted}}>{e.id} · {e.type} · {e.expense}% expense ratio</div>
               </div>
               <div style={{textAlign:'right'}}>
-                <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC',fontFamily:'monospace'}}>${e.price.toFixed(2)}</div>
-                <div style={{fontSize:11,color:(e.ch||0)>=0?'#34D399':'#EF4444'}}>{(e.ch||0)>=0?'▲':'▼'}{Math.abs((e.ch||0)*100).toFixed(2)}%</div>
+                <div style={{fontSize:20,fontWeight:900,color:T.text,fontFamily:'monospace'}}>${e.price.toFixed(2)}</div>
+                <div style={{fontSize:12,color:(e.ch||0)>=0?T.green:T.red}}>{(e.ch||0)>=0?'▲':'▼'}{Math.abs((e.ch||0)*100).toFixed(2)}%</div>
               </div>
             </div>
-            <div style={{height:26,marginBottom:8}}><Sparkline hist={e.hist} ch={e.ch}/></div>
-            <div style={{display:'flex',gap:6,marginBottom:10}}>
-              {[['Div',e.div+'%'],['Sharpe',e.sharpe],['MaxDD',(e.maxDD*100).toFixed(0)+'%']].map(([l,v])=>(
-                <div key={l} style={{flex:1,background:'#060B14',borderRadius:6,padding:'6px 0',textAlign:'center'}}>
-                  <div style={{fontSize:8,color:'#4B5563'}}>{l}</div>
-                  <div style={{fontSize:11,fontWeight:700,color:'#D1D5DB'}}>{v}</div>
+            <div style={{height:32,marginBottom:10}}><Sparkline hist={e.hist} ch={e.ch} h={32}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
+              {[['Dividend',e.div+'%'],['Sharpe',e.sharpe.toFixed(2)],['Max DD',(e.maxDD*100).toFixed(0)+'%'],['YTD',((e.ytd||0)*100).toFixed(1)+'%']].map(([l,v])=>(
+                <div key={l} style={{background:T.bg,borderRadius:8,padding:'7px 0',textAlign:'center'}}>
+                  <div style={{fontSize:8,color:T.muted,textTransform:'uppercase'}}>{l}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:T.text,marginTop:2}}>{v}</div>
                 </div>
               ))}
             </div>
-            {e.units>0&&<div style={{background:'#060B14',borderRadius:8,padding:'7px 10px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
-              <div style={{fontSize:11,color:'#9CA3AF'}}>{e.units.toLocaleString()} units · {fm(val)}</div>
-              <div style={{fontSize:11,fontWeight:700,color:gain>=0?'#34D399':'#EF4444'}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
-            </div>}
-            <button onClick={()=>setModal(e)} style={{width:'100%',background:'#1D4ED8',color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontWeight:700,fontSize:13,cursor:'pointer'}}>Trade ETF</button>
+            <div style={{fontSize:11,color:T.sub,lineHeight:1.5,marginBottom:10}}>{e.desc}</div>
+            {e.units>0&&(
+              <div style={{background:gain>=0?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(gain>=0?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'8px 12px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+                <div style={{fontSize:12,color:T.sub}}>{(e.units||0).toLocaleString()} units · {fm(val)}</div>
+                <div style={{fontSize:12,fontWeight:700,color:gain>=0?T.green:T.red}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
+              </div>
+            )}
+            <button onClick={()=>setModal(e)} style={{width:'100%',background:'linear-gradient(135deg,#1D4ED8,#1E40AF)',color:'#fff',border:'none',borderRadius:12,padding:'12px 0',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+              Trade ETF
+            </button>
           </div>
         );
       })}
-      {modal&&<TradeModal title={`Trade ${modal.n}`} price={modal.price} currency="$" held={modal.units} onConfirm={(isBuy,q)=>{const err=isBuy?buyETF(modal.id,q):null;if(!isBuy)sellETF(modal.id,q);if(err)showMsg(err);else showMsg((isBuy?'Bought':'Sold')+' '+q+' units');}} onClose={()=>setModal(null)}/>}
+      {modal&&(
+        <TradeModal
+          title={modal.n} price={modal.price}
+          priceSub={`$${modal.price.toFixed(2)}/unit · ${modal.expense}% expense ratio`}
+          held={modal.units||0}
+          onBuy={q=>{const e=buyETF(modal.id,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' units');setModal(null);}}}
+          onSell={q=>{sellETF(modal.id,q);showMsg('✅ Sold '+q+' units');setModal(null);}}
+          onClose={()=>setModal(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── IPO TAB ────────────────────────────────────────────────────
-function IPOItem({ ipo, d, onBook }) {
-  const [qty, setQty] = useState('');
-  const booked = d.ipoBookings?.[ipo.id]||0;
-  const listed = d.ipoListed?.[ipo.id];
-  const opensIn = ipo.opens - d.turn;
+function IPOItem({ipo,d,onBook}) {
+  const [qty,setQty]=useState('');
+  const booked=d.ipoBookings?.[ipo.id]||0;
+  const listed=d.ipoListed?.[ipo.id];
+  const opensIn=ipo.opens-d.turn;
+  const mid=(ipo.priceRange[0]+ipo.priceRange[1])/2;
   return (
-    <div style={{...CS.card,border:listed?'1px solid #34D399':opensIn<=0?'1px solid #EF4444':'1px solid #1A2744'}}>
+    <div style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+(listed?T.green:T.border),marginBottom:8}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
         <div>
-          <div style={{fontSize:11,color:'#4B5563',textTransform:'uppercase',letterSpacing:1}}>{ipo.sector}·{ipo.planet}</div>
-          <div style={{fontSize:14,fontWeight:800,color:'#F8FAFC',marginTop:2}}>{ipo.n}</div>
+          <div style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>{ipo.sector} · {ipo.planet}</div>
+          <div style={{fontSize:16,fontWeight:800,color:T.text}}>{ipo.n}</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:2}}>Founded by {ipo.founder}</div>
         </div>
-        {listed?<div style={{background:'#14532D',color:'#34D399',padding:'3px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>LISTED</div>
-        :<div style={{background:'#060B14',color:'#4B5563',padding:'3px 10px',borderRadius:20,fontSize:10}}>T{ipo.opens}</div>}
+        {listed
+          ?<div style={{background:'rgba(16,185,129,0.15)',color:T.green,padding:'4px 12px',borderRadius:20,fontSize:11,fontWeight:700,border:'1px solid rgba(16,185,129,0.3)'}}>✅ LISTED</div>
+          :opensIn>0
+            ?<div style={{background:T.raised,color:T.sub,padding:'4px 12px',borderRadius:20,fontSize:11,fontWeight:600,border:'1px solid '+T.border}}>Opens T{ipo.opens}</div>
+            :<div style={{background:'rgba(244,63,94,0.1)',color:T.red,padding:'4px 12px',borderRadius:20,fontSize:11,fontWeight:600}}>Passed</div>
+        }
       </div>
-      <div style={{fontSize:11,color:'#6B7280',lineHeight:1.5,marginBottom:8}}>{ipo.desc}</div>
-      <div style={{display:'flex',gap:6,marginBottom:8}}>
-        {[['Range','$'+ipo.priceRange[0]+'-'+ipo.priceRange[1]],['Demand',ipo.oversubscribed.toFixed(1)+'×'],['Booked',booked.toLocaleString()]].map(([l,v])=>(
-          <div key={l} style={{flex:1,background:'#060B14',borderRadius:6,padding:'6px 0',textAlign:'center'}}>
-            <div style={{fontSize:8,color:'#4B5563'}}>{l}</div>
-            <div style={{fontSize:11,fontWeight:700,color:'#D1D5DB',fontFamily:'monospace'}}>{v}</div>
+      <div style={{fontSize:11,color:T.sub,lineHeight:1.5,marginBottom:10}}>{ipo.desc}</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:10}}>
+        {[['Price Range','$'+ipo.priceRange[0]+'-$'+ipo.priceRange[1]],['Demand',ipo.oversubscribed.toFixed(1)+'× oversubscribed'],['Your Booking',booked.toLocaleString()+' shares']].map(([l,v])=>(
+          <div key={l} style={{background:T.bg,borderRadius:8,padding:'7px 6px',textAlign:'center'}}>
+            <div style={{fontSize:8,color:T.muted,textTransform:'uppercase'}}>{l}</div>
+            <div style={{fontSize:10,fontWeight:700,color:T.text,marginTop:2,lineHeight:1.2}}>{v}</div>
           </div>
         ))}
       </div>
+      {ipo.analysts.map((a,i)=>(
+        <div key={i} style={{background:T.bg,borderRadius:8,padding:'8px 10px',marginBottom:6}}>
+          <div style={{fontSize:11,fontWeight:700,color:ANALYST_COLOR[a.view]||T.amber}}>{a.firm} · {a.view} · Target ${a.target}</div>
+          <div style={{fontSize:10,color:T.sub,marginTop:3,lineHeight:1.4}}>{a.note}</div>
+        </div>
+      ))}
       {!listed&&opensIn>0&&(
-        <div style={{display:'flex',gap:8}}>
-          <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Shares" style={{flex:1,background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:13,outline:'none'}}/>
-          <button onClick={()=>{onBook(ipo,qty);setQty('');}} style={{background:'#7C3AED',color:'#fff',border:'none',borderRadius:8,padding:'9px 16px',fontWeight:700,fontSize:13,cursor:'pointer'}}>Book</button>
+        <div style={{display:'flex',gap:8,marginTop:4}}>
+          <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Shares to book" style={{flex:1,background:T.bg,border:'1px solid '+T.border,borderRadius:10,padding:'11px 12px',color:T.text,fontSize:14,outline:'none',fontFamily:'monospace'}}/>
+          <button onClick={()=>{onBook(ipo,qty);setQty('');}} style={{background:T.purple,color:'#fff',border:'none',borderRadius:10,padding:'11px 18px',fontWeight:700,fontSize:14,cursor:'pointer'}}>Book</button>
         </div>
       )}
-      {listed&&<div style={{background:'#14532D',borderRadius:8,padding:'8px 10px',fontSize:11,color:'#34D399'}}>Listed @ ${listed.listPrice?.toFixed(2)} · {booked>0?'Your '+booked.toLocaleString()+' shares allocated.':'No booking.'}</div>}
+      {listed&&<div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:10,padding:'10px 12px',fontSize:12,color:T.green}}>Listed @ ${listed.listPrice?.toFixed(2)} · {booked>0?'Your '+booked.toLocaleString()+' shares allocated.':'No booking — missed this one.'}</div>}
     </div>
   );
 }
 
 function IPOTab() {
-  const { D, bookIPO } = useGame();
-  const d = D;
-  const [msg, setMsg] = useState('');
-  const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
-  const doBook=(ipo,qtyStr)=>{
-    const s=parseInt(qtyStr);
-    if(isNaN(s)||s<=0)return showMsg('Invalid quantity');
-    const err=bookIPO(ipo.id,s);
-    if(err)showMsg(err);else showMsg('Booked '+s.toLocaleString()+' in '+ipo.n);
-  };
+  const {D,bookIPO}=useGame();
+  const d=D;
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+  const doBook=(ipo,qStr)=>{const s=parseInt(qStr);if(!s||s<=0)return showMsg('❌ Invalid quantity');const e=bookIPO(ipo.id,s);if(e)showMsg('❌ '+e);else showMsg('✅ Booked '+s.toLocaleString()+' shares in '+ipo.n);};
   return (
     <div>
-      {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
-      <div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',marginBottom:10,fontSize:11,color:'#6B7280'}}>
-        Book IPO shares before listing day. Funds held at midpoint. Allocation credited on open.
+      <Toast msg={msg}/>
+      <div style={{background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#C4B5FD',lineHeight:1.5}}>
+        🚀 Book shares before listing at the midpoint price. Oversubscribed IPOs reduce your allocation. Listing day profit/loss credited instantly.
       </div>
       {IPOS.map(ipo=><IPOItem key={ipo.id} ipo={ipo} d={d} onBook={doBook}/>)}
     </div>
   );
 }
 
-// ── MAIN UNIVERSE SCREEN ───────────────────────────────────────
+// ── MAIN SCREEN ────────────────────────────────────────────────
+const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'}];
+
 export default function UniverseScreen() {
-  const [tab, setTab] = useState('earth');
-  const tabs = [{id:'earth',l:'🌍 Earth'},{id:'planets',l:'🌌 Planets'},{id:'etf',l:'📊 ETFs'},{id:'ipo',l:'🚀 IPOs'}];
+  const [tab,setTab]=useState('earth');
   return (
-    <div style={{padding:'14px 14px 80px',background:'#060B14',minHeight:'100%'}}>
-      <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC',marginBottom:12}}>🌌 Universe Exchange</div>
-      <div style={{display:'flex',gap:6,marginBottom:14}}>
-        {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={CS.tab(tab===t.id)}>{t.l}</button>
-        ))}
+    <div style={{background:T.bg,minHeight:'100%'}}>
+      <div style={{background:'linear-gradient(180deg,#050F20,#030810)',padding:'18px 16px 0',borderBottom:'1px solid '+T.border}}>
+        <div style={{fontSize:11,color:T.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
+        <div style={{fontSize:24,fontWeight:900,color:T.text,marginBottom:14}}>🌌 Universe Exchange</div>
+        <div style={{display:'flex',gap:0,background:T.bg,borderRadius:14,padding:3}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'9px 4px',background:tab===t.id?T.card:'transparent',border:tab===t.id?'1px solid '+T.border:'1px solid transparent',borderRadius:11,cursor:'pointer',transition:'all .15s'}}>
+              <div style={{fontSize:16}}>{t.ico}</div>
+              <div style={{fontSize:10,fontWeight:tab===t.id?700:400,color:tab===t.id?T.text:T.muted,marginTop:2}}>{t.l}</div>
+            </button>
+          ))}
+        </div>
       </div>
-      {tab==='earth'&&<EarthTab/>}
-      {tab==='planets'&&<PlanetsTab/>}
-      {tab==='etf'&&<ETFTab/>}
-      {tab==='ipo'&&<IPOTab/>}
+      <div style={{padding:'14px 16px 80px'}}>
+        {tab==='earth'&&<EarthTab/>}
+        {tab==='planets'&&<PlanetsTab/>}
+        {tab==='etf'&&<ETFTab/>}
+        {tab==='ipo'&&<IPOTab/>}
+      </div>
     </div>
   );
 }
