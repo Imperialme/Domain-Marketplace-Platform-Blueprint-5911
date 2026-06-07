@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
-import { LOAN_TIERS, SOVEREIGN_FUNDS, PLANETS_DATA } from '../constants';
+import { LOAN_TIERS, SOVEREIGN_FUNDS, PLANETS_DATA, COMMODITIES } from '../constants';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -91,7 +91,14 @@ function PortfolioTab({ d }) {
     return x + qty * (d.cryptoPrices?.[id]||0);
   }, 0);
 
-  const totalPortfolio = totalWallets + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal;
+  const commEntries = Object.entries(d.commodityHoldings||{}).filter(([,qty])=>qty>0.0001);
+  const commVal = commEntries.reduce((x,[id,qty])=>{
+    const hist = d.commodityHist?.[id];
+    const price = hist && hist.length>0 ? hist[hist.length-1] : (COMMODITIES.find(c=>c.id===id)?.ip||0);
+    return x + qty * price;
+  }, 0);
+
+  const totalPortfolio = totalWallets + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal + commVal;
 
   const SectionHeader = ({label,value,color='#F8FAFC'}) => (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 6px',borderBottom:'1px solid #1A2744',marginBottom:6}}>
@@ -107,7 +114,7 @@ function PortfolioTab({ d }) {
         <div style={{fontSize:11,color:'#4B5563',textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Total Portfolio</div>
         <div style={{fontSize:38,fontWeight:900,color:'#34D399',fontFamily:'monospace'}}>{fm(totalPortfolio)}</div>
         <div style={{display:'flex',justifyContent:'center',gap:12,marginTop:8}}>
-          {[['Wallets',totalWallets,'#60A5FA'],['Stocks',stockVal+planetVal,'#A78BFA'],['ETFs',etfVal,'#06B6D4'],['Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24'],['Crypto',cryptoVal,'#F59E0B']].map(([l,v,c])=>v>0&&(
+          {[['Wallets',totalWallets,'#60A5FA'],['Stocks',stockVal+planetVal,'#A78BFA'],['ETFs',etfVal,'#06B6D4'],['Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24'],['Crypto',cryptoVal,'#F59E0B'],['Comms',commVal,'#B45309']].map(([l,v,c])=>v>0&&(
             <div key={l} style={{textAlign:'center'}}>
               <div style={{fontSize:9,color:'#4B5563'}}>{l}</div>
               <div style={{fontSize:11,fontWeight:700,color:c,fontFamily:'monospace'}}>{fm(v)}</div>
@@ -272,7 +279,36 @@ function PortfolioTab({ d }) {
         </div>
       )}
 
-      {stockEntries.length===0&&planetEntries.length===0&&etfEntries.length===0&&fundEntries.length===0&&bondEntries.length===0&&cryptoEntries.length===0&&(
+      {/* Commodities */}
+      {commEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="⛏️ Commodities" value={commVal} color="#B45309"/>
+          {commEntries.map(([id,qty])=>{
+            const com=COMMODITIES.find(c=>c.id===id);
+            if(!com)return null;
+            const hist=d.commodityHist?.[id];
+            const price=hist&&hist.length>0?hist[hist.length-1]:com.ip;
+            const val=qty*price;
+            const avg=d.commodityAvgCost?.[id]||price;
+            const pnl=avg>0?(price-avg)/avg*100:0;
+            const fmtP=p=>p>=1000?(p/1000).toFixed(1)+'K':p>=1?p.toFixed(2):p.toFixed(4);
+            return (
+              <div key={id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{com.ico} {com.n}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{qty.toLocaleString(undefined,{maximumFractionDigits:4})} {com.unit} · avg ${fmtP(avg)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {stockEntries.length===0&&planetEntries.length===0&&etfEntries.length===0&&fundEntries.length===0&&bondEntries.length===0&&cryptoEntries.length===0&&commEntries.length===0&&(
         <div style={{...CS.card,textAlign:'center',padding:'32px 16px',color:'#4B5563'}}>
           <div style={{fontSize:36,marginBottom:10}}>📊</div>
           <div style={{fontSize:14,fontWeight:700,color:'#6B7280'}}>No positions yet</div>

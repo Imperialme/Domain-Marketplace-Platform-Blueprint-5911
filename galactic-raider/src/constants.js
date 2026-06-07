@@ -200,3 +200,40 @@ export const WHEEL_SEGMENTS = [
   {l:'15%', sub:'Debt Relief', c:'#FF9800',outcome:'debt15', prob:15},
   {l:'10%', sub:'Debt Relief', c:'#2196F3',outcome:'debt10', prob:20},
 ];
+
+// ── COMMODITIES ───────────────────────────────────────────────
+export const COMMODITIES = [
+  // ── EARTH (always unlocked) ──────────────────────────────────
+  {id:'XAU',  n:'Gold',              ico:'🥇', cat:'Earth',   unit:'oz',    ip:2100,  vol:.06, tax:.15, desc:'Eternal store of value. Spikes during crises, conflict and recession.', unlock:null,     color:'#F59E0B'},
+  {id:'XAG',  n:'Silver',            ico:'⚪', cat:'Earth',   unit:'oz',    ip:26,    vol:.09, tax:.15, desc:'Industrial and precious. Tracks gold with higher volatility.', unlock:null,     color:'#94A3B8'},
+  {id:'XWTI', n:'Crude Oil (WTI)',   ico:'🛢️', cat:'Earth',   unit:'bbl',   ip:78,    vol:.10, tax:.15, desc:'Lifeblood of Earth economy. OPEC decisions and geopolitical events drive price swings.', unlock:null,     color:'#78350F'},
+  {id:'XGAS', n:'Natural Gas',       ico:'🔥', cat:'Earth',   unit:'MMBtu', ip:3.50,  vol:.14, tax:.15, desc:'Clean transition fuel. Seasonal spikes. Volatile but recovers fast.', unlock:null,     color:'#F97316'},
+  {id:'XCOP', n:'Copper',            ico:'🟤', cat:'Earth',   unit:'lb',    ip:4.20,  vol:.08, tax:.15, desc:'Metal of civilization. Tracks global GDP closely. Essential for electrification.', unlock:null,     color:'#B45309'},
+  {id:'XLIT', n:'Lithium',           ico:'⚡', cat:'Earth',   unit:'ton',   ip:18000, vol:.15, tax:.15, desc:'EV revolution fuel. Earth reserves are scarce. Martian deposits could transform supply.', unlock:null,     color:'#6366F1'},
+  {id:'XRARE',n:'Rare Earth Bundle', ico:'💎', cat:'Earth',   unit:'unit',  ip:450,   vol:.11, tax:.15, desc:'17 critical elements needed for EVs, satellites and space tech. Geopolitically sensitive.', unlock:null,     color:'#8B5CF6'},
+  {id:'XIRON',n:'Iron Ore',          ico:'⚙️', cat:'Earth',   unit:'ton',   ip:125,   vol:.09, tax:.15, desc:'Foundation of industry. Demand driven by construction and heavy manufacturing.', unlock:null,     color:'#6B7280'},
+  {id:'XPLAT',n:'Platinum',          ico:'🔘', cat:'Earth',   unit:'oz',    ip:980,   vol:.07, tax:.15, desc:'Hydrogen economy catalyst. Rising with fuel cell adoption across space fleets.', unlock:null,     color:'#CBD5E1'},
+  {id:'XWHT', n:'Wheat',             ico:'🌾', cat:'Earth',   unit:'bushel',ip:6.50,  vol:.12, tax:.15, desc:"Earth's food staple. Conflict and drought cause violent price spikes.", unlock:null,     color:'#D97706'},
+  // ── MARS ($5B unlock) ────────────────────────────────────────
+  {id:'MLIT', n:'Martian Lithium',   ico:'🔴', cat:'Mars',    unit:'ton',   ip:54000, vol:.18, tax:.15, desc:'Ultra-pure, 3× Earth grade. Powers the entire solar EV industry. Rising fast.', unlock:'Mars',    color:'#C62828'},
+  {id:'MIRO', n:'Red Dust Iron',     ico:'🌋', cat:'Mars',    unit:'ton',   ip:390,   vol:.14, tax:.15, desc:'Higher purity than Earth iron. Core material for Mars robotics and interplanetary construction.', unlock:'Mars',    color:'#B45309'},
+  {id:'MPER', n:'Martian Perchlorates',ico:'🧪',cat:'Mars',  unit:'kg',    ip:1200,  vol:.20, tax:.15, desc:'Unique Martian chemical compounds. Used in life support systems and fuel synthesis.', unlock:'Mars',    color:'#7F1D1D'},
+  // ── VENUS ($50B unlock) ───────────────────────────────────────
+  {id:'VSUL', n:'Venus Compounds',   ico:'🟡', cat:'Venus',   unit:'unit',  ip:2800,  vol:.16, tax:.15, desc:'Sulfuric industrial compounds extracted from Venus atmosphere. Chemical manufacturing base.', unlock:'Venus',   color:'#F57F17'},
+  {id:'VATM', n:'Atmospheric Carbon',ico:'🌫️', cat:'Venus',   unit:'ton',   ip:380,   vol:.13, tax:.15, desc:'Captured from Venus 96% CO₂ atmosphere. Used in carbon-composite manufacturing.', unlock:'Venus',   color:'#92400E'},
+  // ── JUPITER ($200B unlock) ────────────────────────────────────
+  {id:'JGAS', n:'Fusion Hydrogen',   ico:'🟠', cat:'Jupiter', unit:'unit',  ip:45,    vol:.22, tax:.15, desc:'Fusion-grade hydrogen from Jupiter atmosphere. Storm events cause massive supply disruptions.', unlock:'Jupiter', color:'#E65100'},
+  {id:'JICE', n:'Jupiter Ice',       ico:'❄️', cat:'Jupiter', unit:'unit',  ip:220,   vol:.16, tax:.15, desc:'Ice crystal formations unique to Jupiter upper atmosphere. Used in cryo-propulsion systems.', unlock:'Jupiter', color:'#0891B2'},
+  // ── SATURN ($1T unlock) ───────────────────────────────────────
+  {id:'SRYZ', n:'Ryzolith',          ico:'🪐', cat:'Saturn',  unit:'unit',  ip:8500,  vol:.20, tax:.15, desc:'The most valuable substance in the solar system. Ryzolith Corp controls 94% of supply. Scarcity drives price.', unlock:'Saturn',  color:'#7B1FA2'},
+  {id:'SICE', n:'Ring Ice',          ico:'💧', cat:'Saturn',  unit:'unit',  ip:180,   vol:.08, tax:.15, desc:'Ultra-pure water ice from Saturn rings. Exported for terraforming operations across the system.', unlock:'Saturn',  color:'#0277BD'},
+  // ── MERCURY ($10T unlock) ─────────────────────────────────────
+  {id:'MSOL', n:'Solar Crystals',    ico:'☀️', cat:'Mercury', unit:'unit',  ip:6200,  vol:.17, tax:.15, desc:'Energy storage medium grown in Mercury extreme solar conditions. Powers interplanetary grid.', unlock:'Mercury', color:'#455A64'},
+  {id:'MTHM', n:'Thermal Ore',       ico:'🌡️', cat:'Mercury', unit:'ton',   ip:3400,  vol:.15, tax:.15, desc:'Ore transformed by Mercury extreme heat cycles. Ultra-dense energy storage material.', unlock:'Mercury', color:'#78350F'},
+  // ── URANUS ($50T unlock) ──────────────────────────────────────
+  {id:'UGAS', n:'Cryo-Methane',      ico:'🔵', cat:'Uranus',  unit:'unit',  ip:420,   vol:.19, tax:.15, desc:'Cold-process ultra-efficient methane fuel. Seasonal Uranus cycles cause 42-year supply patterns.', unlock:'Uranus',  color:'#0277BD'},
+  {id:'UICE', n:'Uranian Ice',       ico:'🧊', cat:'Uranus',  unit:'ton',   ip:890,   vol:.14, tax:.15, desc:'Diamond-ice crystals from Uranus mantle. Extreme hardness. Used in space drill technology.', unlock:'Uranus',  color:'#38BDF8'},
+  // ── NEPTUNE ($100T unlock) ────────────────────────────────────
+  {id:'NFLD', n:'Deep Field Minerals',ico:'💜',cat:'Neptune', unit:'unit',  ip:25000, vol:.28, tax:.15, desc:'Unknown composition. Neptune deep field extraction sites. Extreme value. Extreme risk.', unlock:'Neptune', color:'#4527A0'},
+  {id:'NWIN', n:'Wind Energy Crystals',ico:'🌊',cat:'Neptune',unit:'unit',  ip:4800,  vol:.22, tax:.15, desc:'Formed by Neptune 2,100 km/h winds. Most efficient energy storage medium ever discovered.', unlock:'Neptune', color:'#6D28D9'},
+];

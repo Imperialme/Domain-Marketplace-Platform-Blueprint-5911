@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
-import { PLANETS_DATA, IPOS } from '../constants';
+import { PLANETS_DATA, IPOS, COMMODITIES } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
 
 const CRYPTO_COINS = [
@@ -853,8 +853,154 @@ function CryptoTab() {
 
 function r2(n){return Math.round(n*100)/100;}
 
+// ── COMMODITIES TAB ────────────────────────────────────────────
+const CAT_COLORS = {Earth:'#2E7D32',Mars:'#C62828',Venus:'#F57F17',Jupiter:'#E65100',Saturn:'#7B1FA2',Mercury:'#455A64',Uranus:'#0277BD',Neptune:'#4527A0'};
+const CAT_ICOS   = {Earth:'🌍',Mars:'🔴',Venus:'🟡',Jupiter:'🟠',Saturn:'🪐',Mercury:'☿',Uranus:'🔵',Neptune:'💜'};
+
+function CommoditiesTab() {
+  const {D,buyCommodity,sellCommodity}=useGame();
+  const d=D;
+  const [modal,setModal]=useState(null); // {type:'buy'|'sell', com}
+  const [qty,setQty]=useState('');
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  const getPrice=comId=>{const h=d.commodityHist?.[comId];return h&&h.length>0?h[h.length-1]:(COMMODITIES.find(c=>c.id===comId)?.ip||0);};
+  const getPrev =comId=>{const h=d.commodityHist?.[comId];return h&&h.length>1?h[h.length-2]:getPrice(comId);};
+
+  const doTrade=()=>{
+    const q=parseFloat(qty);
+    if(!q||q<=0)return showMsg('Enter a valid quantity');
+    const err=modal.type==='buy'?buyCommodity(modal.com.id,q):sellCommodity(modal.com.id,q);
+    if(err)showMsg('❌ '+err);
+    else{showMsg('✅ '+(modal.type==='buy'?'Bought':'Sold')+' '+q+' '+modal.com.unit+' of '+modal.com.n);setModal(null);setQty('');}
+  };
+
+  const setByPct=idx=>{
+    const pcts=[0.25,0.50,0.75,1.00];
+    if(!modal)return;
+    if(modal.type==='buy'){
+      const price=getPrice(modal.com.id);
+      setQty(price>0?String(Math.round((d.tradingWallet*pcts[idx]/price)*10000)/10000):'0');
+    } else {
+      const held=d.commodityHoldings?.[modal.com.id]||0;
+      setQty(String(Math.round(held*pcts[idx]*10000)/10000));
+    }
+  };
+
+  const cats=['Earth','Mars','Venus','Jupiter','Saturn','Mercury','Uranus','Neptune'];
+
+  return (
+    <div>
+      <Toast msg={msg}/>
+      <div style={{background:'rgba(180,83,9,0.08)',border:'1px solid rgba(180,83,9,0.25)',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:11,color:'#FCD34D',lineHeight:1.6}}>
+        ⛏️ <strong>Commodity Exchange</strong> — trade raw materials from across the solar system. Prices driven by planetary GDP, storms, and geopolitical events. Flat <strong>15% CGT</strong> on profits.
+      </div>
+      {cats.map(cat=>{
+        const catComms=COMMODITIES.filter(c=>c.cat===cat);
+        if(!catComms.length)return null;
+        const pc=CAT_COLORS[cat]||T.blue;
+        const catIco=CAT_ICOS[cat]||'🌐';
+        const isUnlocked=cat==='Earth'||d.planetUnlocks?.[cat]!==false;
+        return (
+          <div key={cat} style={{marginBottom:18}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+              <span style={{fontSize:20}}>{catIco}</span>
+              <span style={{fontSize:11,fontWeight:800,color:pc,textTransform:'uppercase',letterSpacing:1.2}}>{cat} Commodities</span>
+              {!isUnlocked&&<span style={{fontSize:9,color:'#94A3B8',background:'rgba(0,0,0,0.4)',borderRadius:6,padding:'2px 7px'}}>🔒 LOCKED</span>}
+            </div>
+            {catComms.map(com=>{
+              const price=getPrice(com.id);
+              const prev=getPrev(com.id);
+              const ch=prev>0?(price-prev)/prev:0;
+              const held=d.commodityHoldings?.[com.id]||0;
+              const heldVal=held*price;
+              const avg=d.commodityAvgCost?.[com.id]||price;
+              const pnl=held>0?(price-avg)/avg*100:0;
+              const hist=d.commodityHist?.[com.id]||[com.ip];
+              const locked=!isUnlocked;
+              const fmt=p=>p>=1000?(p/1000).toFixed(1)+'K':p>=1?p.toFixed(2):p.toFixed(4);
+              return (
+                <div key={com.id} style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+(locked?'rgba(255,255,255,0.03)':T.border),marginBottom:8,position:'relative',overflow:'hidden'}}>
+                  {locked&&(
+                    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.72)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                      <div style={{fontSize:28,marginBottom:6}}>🔒</div>
+                      <div style={{fontSize:11,color:'#94A3B8',fontWeight:700}}>Unlock {com.unlock} first</div>
+                      <div style={{fontSize:9,color:'#475569',marginTop:3}}>Net worth threshold required</div>
+                    </div>
+                  )}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:22}}>{com.ico}</span>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:800,color:T.text}}>{com.n}</div>
+                        <div style={{fontSize:9,color:T.muted,textTransform:'uppercase',letterSpacing:.8}}>{com.id} · per {com.unit}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontSize:18,fontWeight:900,color:T.text,fontFamily:'monospace'}}>${fmt(price)}</div>
+                      <div style={{fontSize:11,fontWeight:700,color:ch>=0?T.green:T.red}}>{ch>=0?'▲':'▼'}{Math.abs(ch*100).toFixed(2)}%</div>
+                    </div>
+                  </div>
+                  <div style={{height:26,marginBottom:8}}><Sparkline hist={hist} ch={ch} h={26}/></div>
+                  <div style={{fontSize:11,color:T.sub,lineHeight:1.4,marginBottom:8}}>{com.desc}</div>
+                  {held>0.0001&&(
+                    <div style={{background:pnl>=0?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(pnl>=0?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'8px 10px',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+                      <span style={{fontSize:11,color:T.sub}}>{held.toLocaleString(undefined,{maximumFractionDigits:4})} {com.unit} · {fm(heldVal)}</span>
+                      <span style={{fontSize:11,fontWeight:700,color:pnl>=0?T.green:T.red}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {!locked&&(
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                      <button onClick={()=>{setModal({type:'buy',com});setQty('');}} style={{padding:'11px 0',background:`linear-gradient(135deg,${pc}90,${pc}60)`,color:'#fff',border:'none',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>Buy</button>
+                      <button onClick={()=>{setModal({type:'sell',com});setQty('');}} disabled={held<=0.0001} style={{padding:'11px 0',background:held>0.0001?'rgba(244,63,94,0.12)':T.raised,color:held>0.0001?T.red:T.muted,border:'1px solid '+(held>0.0001?'rgba(244,63,94,0.3)':T.border),borderRadius:10,fontWeight:700,fontSize:13,cursor:held>0.0001?'pointer':'not-allowed',opacity:held>0.0001?1:0.5}}>Sell</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+      {modal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400,backdropFilter:'blur(4px)'}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'0 -20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+              <span style={{fontSize:30}}>{modal.com.ico}</span>
+              <div>
+                <div style={{fontSize:17,fontWeight:800,color:T.text}}>{modal.type==='buy'?'Buy':'Sell'} {modal.com.n}</div>
+                <div style={{fontSize:11,color:T.muted}}>${getPrice(modal.com.id)>=1?getPrice(modal.com.id).toFixed(2):getPrice(modal.com.id).toFixed(4)} per {modal.com.unit} · 15% CGT on profits</div>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:T.sub,lineHeight:1.4,marginBottom:12}}>{modal.com.desc}</div>
+            {modal.type==='buy'
+              ?<div style={{fontSize:11,color:T.muted,marginBottom:6}}>Wallet: {fm(d.tradingWallet)} · Max: {(d.tradingWallet/getPrice(modal.com.id)).toFixed(4)} {modal.com.unit}</div>
+              :<div style={{fontSize:11,color:T.muted,marginBottom:6}}>Holding: {(d.commodityHoldings?.[modal.com.id]||0).toLocaleString(undefined,{maximumFractionDigits:4})} {modal.com.unit}</div>
+            }
+            <QuickPcts onSelect={setByPct} labels={['25%','50%','75%','Max']}/>
+            <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder={`Units (${modal.com.unit})`} style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            {parseFloat(qty)>0&&(
+              <div style={{background:modal.type==='buy'?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(modal.type==='buy'?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'10px 14px',marginBottom:12,display:'flex',justifyContent:'space-between'}}>
+                <span style={{fontSize:12,color:T.sub}}>{modal.type==='buy'?'Total cost':'Gross proceeds'}</span>
+                <span style={{fontSize:14,fontWeight:800,color:modal.type==='buy'?T.green:T.red,fontFamily:'monospace'}}>{fm(parseFloat(qty)*getPrice(modal.com.id))}</span>
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
+              <button onClick={()=>setModal(null)} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={doTrade} style={{padding:'14px 0',background:modal.type==='buy'?T.green:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 16px '+(modal.type==='buy'?'rgba(16,185,129,0.3)':'rgba(244,63,94,0.3)') }}>
+                {modal.type==='buy'?'Buy':'Sell'} {modal.com.n}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN SCREEN ────────────────────────────────────────────────
-const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'},{id:'crypto',ico:'₿',l:'Crypto'}];
+const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'},{id:'crypto',ico:'₿',l:'Crypto'},{id:'commodities',ico:'⛏️',l:'Raw Mats'}];
 
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
@@ -879,6 +1025,7 @@ export default function UniverseScreen() {
         {tab==='ipo'&&<IPOTab/>}
         {tab==='bonds'&&<BondsTab/>}
         {tab==='crypto'&&<CryptoTab/>}
+        {tab==='commodities'&&<CommoditiesTab/>}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { createContext, useContext, useRef, useState, useCallback } from 'react';
-import { EARTH_COMPANIES, CEO_DECISIONS, ETFS, IPOS, SOVEREIGN_FUNDS, TAX_ERAS, PLANETS_DATA, PE_BOUNDS } from '../constants';
+import { EARTH_COMPANIES, CEO_DECISIONS, ETFS, IPOS, SOVEREIGN_FUNDS, TAX_ERAS, PLANETS_DATA, PE_BOUNDS, COMMODITIES } from '../constants';
 import { cl, r2 } from '../utils';
 
 const GameContext = createContext(null);
@@ -113,6 +113,10 @@ function buildInitialState() {
     fundDeposits: Object.fromEntries(SOVEREIGN_FUNDS.map(f => [f.id, { deposit: 0, earned: 0 }])),
     // Bonds
     bondHoldings: [],
+    // Commodities
+    commodityHoldings: {},
+    commodityAvgCost: {},
+    commodityHist: Object.fromEntries(COMMODITIES.map(c => [c.id, [c.ip]])),
     // Philanthropy / Redemption
     totalDebt: 0,
     redeemPts: 0,
@@ -304,6 +308,34 @@ export function GameProvider({ children }) {
       s.cryptoHist[coin.id] = [...(s.cryptoHist[coin.id]||[prev]).slice(-48), next];
     });
 
+    // Commodity price movements
+    if (!s.commodityHist) s.commodityHist = Object.fromEntries(COMMODITIES.map(c=>[c.id,[c.ip]]));
+    if (!s.commodityHoldings) s.commodityHoldings = {};
+    if (!s.commodityAvgCost) s.commodityAvgCost = {};
+    COMMODITIES.forEach(com => {
+      const hist = s.commodityHist[com.id] || [com.ip];
+      const prev = hist[hist.length - 1] || com.ip;
+      let move = 1 + (Math.random() - 0.48) * com.vol * 1.8;
+      // Gold/Silver safe-haven spike during negative geo events
+      if ((com.id==='XAU'||com.id==='XAG') && s.geoEvents?.[0]?.impact==='negative') move *= 1 + Math.random()*0.05;
+      // Oil geopolitical premium
+      if ((com.id==='XWTI'||com.id==='XGAS') && s.geoEvents?.[0]?.impact==='negative') move *= 1 + Math.random()*0.04;
+      // Lithium tracks Martian economy
+      if ((com.id==='MLIT'||com.id==='XLIT') && s.planetCompanies?.Mars) {
+        const mgdp = s.planetCompanies.Mars.gdp || 3.8;
+        move *= 1 + (mgdp - 3.0) * 0.01;
+      }
+      // Jupiter storm wrecks hydrogen supply
+      if (com.id==='JGAS' && s.planetCompanies?.Jupiter?.stormActive) move *= 0.55 + Math.random()*0.15;
+      // Ryzolith increases in scarcity over time
+      if (com.id==='SRYZ' && s.turn > 200) move *= 1 + (s.turn / 20000);
+      // Deep Field Minerals extreme volatility
+      if (com.id==='NFLD' || com.id==='NWIN') move *= 1 + (Math.random()-0.5)*0.15;
+      // Floor at 5% of initial price — prevents zero-ing out
+      const next = Math.max(com.ip * 0.05, r2(prev * move));
+      s.commodityHist[com.id] = [...hist.slice(-48), next];
+    });
+
     // Planet currency rate fluctuation — small ±2% shift each turn
     Object.entries(PLANETS_DATA).forEach(([pName, pd]) => {
       const pState = s.planetCompanies[pName];
@@ -434,7 +466,12 @@ export function GameProvider({ children }) {
     const cryptoVal = Object.entries(s.cryptoHoldings||{}).reduce((x,[id,qty]) => {
       return x + qty * (s.cryptoPrices?.[id]||0);
     }, 0);
-    const totalPortfolio = walletVal + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal;
+    const commVal = Object.entries(s.commodityHoldings||{}).reduce((x,[id,qty]) => {
+      const hist = s.commodityHist?.[id];
+      const price = hist && hist.length > 0 ? hist[hist.length-1] : (COMMODITIES.find(c=>c.id===id)?.ip||0);
+      return x + qty * price;
+    }, 0);
+    const totalPortfolio = walletVal + stockVal + etfVal + fundVal + planetVal + bondVal + cryptoVal + commVal;
 
     // Update peak NW
     if (totalPortfolio > (s.stats.peakNetWorth||0)) {
@@ -1059,6 +1096,69 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, logTx]);
 
+  // ── COMMODITIES ───────────────────────────────────────────────
+  const buyCommodity = useCallback((comId, units) => {
+    const s = S.current;
+    const com = COMMODITIES.find(c => c.id === comId);
+    if (!com) return 'Commodity not found';
+    if (com.unlock && !s.planetUnlocks?.[com.unlock]) return com.unlock + ' not yet unlocked';
+    if (!s.commodityHoldings) s.commodityHoldings = {};
+    if (!s.commodityAvgCost) s.commodityAvgCost = {};
+    if (!s.commodityHist) s.commodityHist = {};
+    const hist = s.commodityHist[comId] || [com.ip];
+    const price = hist[hist.length - 1] || com.ip;
+    const cost = r2(units * price);
+    if (cost <= 0) return 'Invalid quantity';
+    if (cost > s.tradingWallet) return 'Insufficient Trading Wallet funds';
+    s.tradingWallet = r2(s.tradingWallet - cost);
+    const prev = s.commodityHoldings[comId] || 0;
+    const prevAvg = s.commodityAvgCost[comId] || price;
+    s.commodityHoldings[comId] = r2(prev + units);
+    s.commodityAvgCost[comId] = r2((prevAvg * prev + cost) / s.commodityHoldings[comId]);
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    if (s.stats.tradesTotal === 1) earnBadge('first_trade');
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+    logTx('BUY_COMM', 'Trading', -cost, 'Bought '+units+' '+com.unit+' '+com.n+' @ $'+price.toFixed(price<1?4:2));
+    refresh();
+    return null;
+  }, [refresh, logTx, earnBadge]);
+
+  const sellCommodity = useCallback((comId, units) => {
+    const s = S.current;
+    const com = COMMODITIES.find(c => c.id === comId);
+    if (!com) return 'Commodity not found';
+    if (!s.commodityHoldings) s.commodityHoldings = {};
+    const held = s.commodityHoldings[comId] || 0;
+    if (units <= 0) return 'Invalid quantity';
+    if (units > held + 0.0001) return 'Only '+held.toFixed(4)+' '+com.unit+' held';
+    const safeUnits = Math.min(units, held);
+    const hist = s.commodityHist?.[comId] || [com.ip];
+    const price = hist[hist.length - 1] || com.ip;
+    const avgCost = s.commodityAvgCost?.[comId] || price;
+    const proceeds = r2(safeUnits * price);
+    const profit = Math.max(0, (price - avgCost) * safeUnits);
+    const cgt = r2(profit * (com.tax || 0.15));
+    s.tradingWallet = r2(s.tradingWallet + proceeds - cgt);
+    s.commodityHoldings[comId] = r2(held - safeUnits);
+    if (s.commodityHoldings[comId] < 0.0001) delete s.commodityHoldings[comId];
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    s.stats.totalTaxPaid = r2((s.stats.totalTaxPaid||0) + cgt);
+    const net = r2(proceeds - cgt - avgCost * safeUnits);
+    if (net > 0) {
+      s.stats.tradesWon = (s.stats.tradesWon||0) + 1;
+      if (net > (s.stats.biggestWin||0)) { s.stats.biggestWin = net; s.stats.biggestWinDesc = 'Sold '+com.n+' for +$'+net.toFixed(2); }
+    } else {
+      s.stats.tradesLost = (s.stats.tradesLost||0) + 1;
+      if (Math.abs(net) > (s.stats.biggestLoss||0)) { s.stats.biggestLoss = Math.abs(net); s.stats.biggestLossDesc = 'Sold '+com.n+' for -$'+Math.abs(net).toFixed(2); }
+    }
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+    logTx('SELL_COMM', 'Trading', proceeds-cgt, 'Sold '+safeUnits+' '+com.unit+' '+com.n+' · CGT 15%: $'+cgt.toFixed(2)+' · Net: $'+(proceeds-cgt).toFixed(2));
+    refresh();
+    return null;
+  }, [refresh, logTx, earnBadge]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1086,10 +1186,12 @@ export function GameProvider({ children }) {
     spinFortune, FORTUNE_SEGS,
     buyBond,
     buyCrypto, sellCrypto,
+    buyCommodity, sellCommodity,
     exchangeToLocal, exchangeToUSD,
     saveGame, loadGame,
     addNews, earnBadge,
     BADGE_DEFS,
+    COMMODITIES,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
