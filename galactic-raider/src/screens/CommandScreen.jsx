@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
-import { PHI_CATS, WHEEL_SEGMENTS, TOTAL_SHARES } from '../constants';
+import { PHI_CATS, WHEEL_SEGMENTS } from '../constants';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -15,6 +15,66 @@ function CEOTab() {
   const d = D;
   const [msg, setMsg] = useState('');
   const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+
+  const hasBoardAccess = Object.values(d.companyOwnership||{}).some(pct=>pct>=10);
+  const maxOwnership = Math.max(0, ...Object.values(d.companyOwnership||{0:0}));
+
+  if (!hasBoardAccess) {
+    return (
+      <div>
+        {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
+        <div style={{textAlign:'center', padding:'40px 16px'}}>
+          <div style={{fontSize:48, marginBottom:16}}>🔒</div>
+          <div style={{fontSize:16, fontWeight:800, color:'#F8FAFC', marginBottom:8}}>No Board Access</div>
+          <div style={{fontSize:12, color:'#6B7280', lineHeight:1.6}}>
+            Buy 10%+ of any company to unlock voting rights.
+            {'\n\n'}25%+ = propose strategy. 50%+ = replace CEO.
+          </div>
+          <div style={{marginTop:16, fontSize:11, color:'#4B5563'}}>
+            Your highest ownership: {maxOwnership.toFixed(2)}%
+          </div>
+        </div>
+
+        {/* Still show decisions so they can see what's pending */}
+        {(d.pendingDecisions||[]).length>0&&(
+          <div style={{...CS.card,border:'1px solid rgba(71,85,105,0.4)',marginTop:12}}>
+            <div style={{fontSize:12,color:'#6B7280',marginBottom:8}}>{(d.pendingDecisions||[]).length} board decision{(d.pendingDecisions||[]).length>1?'s':''} pending — acquire 10%+ to vote</div>
+            {(d.pendingDecisions||[]).map(dec=>(
+              <div key={dec.id} style={{padding:'8px 0',borderBottom:'1px solid #0A1220'}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#94A3B8'}}>{dec.company}</div>
+                <div style={{fontSize:11,color:'#4B5563'}}>{dec.headline}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Board Access status */}
+        <div style={{...CS.card,marginTop:12}}>
+          <div style={CS.label}>Ownership Status</div>
+          <div style={{fontSize:10,color:'#6B7280',marginBottom:10,lineHeight:1.5}}>10% = vote on dividends · 25% = strategy · 50% = replace CEO</div>
+          {(d.companies||[]).filter(co=>(d.companyOwnership?.[co.t]||0)>0).map(co=>{
+            const pct=d.companyOwnership?.[co.t]||0;
+            const color=pct>=50?'#F59E0B':pct>=25?'#FBBF24':pct>=10?'#60A5FA':'#4B5563';
+            return (
+              <div key={co.t} style={{padding:'10px 0',borderBottom:'1px solid #0A1220'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC'}}>{co.n} <span style={{color:'#4B5563',fontSize:10}}>({co.t})</span></div>
+                  <div style={{fontSize:12,fontWeight:700,color,fontFamily:'monospace'}}>{pct.toFixed(2)}%</div>
+                </div>
+                <div style={{background:'#060B14',borderRadius:3,height:4,overflow:'hidden'}}>
+                  <div style={{width:Math.min(pct,100)+'%',height:'100%',background:color,borderRadius:3,transition:'width .4s'}}/>
+                </div>
+              </div>
+            );
+          })}
+          {!(d.companies||[]).some(co=>(d.companyOwnership?.[co.t]||0)>0)&&(
+            <div style={{fontSize:12,color:'#4B5563',textAlign:'center',padding:'12px 0'}}>No positions yet — buy stocks in Markets tab</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
@@ -71,9 +131,6 @@ function CEOTab() {
             </div>
           );
         })}
-        {!(d.companies||[]).some(co=>(d.companyOwnership?.[co.t]||0)>0)&&(
-          <div style={{fontSize:12,color:'#4B5563',textAlign:'center',padding:'12px 0'}}>Buy 10%+ in any company to unlock board access</div>
-        )}
       </div>
 
       {/* CEO Log */}
@@ -93,8 +150,8 @@ function CEOTab() {
   );
 }
 
-// ── WHEEL TAB ──────────────────────────────────────────────────
-function WheelTab() {
+// ── DEBT RELIEF WHEEL ──────────────────────────────────────────
+function DebtReliefWheel() {
   const { D, spinWheel } = useGame();
   const d = D;
   const [spinning, setSpinning] = useState(false);
@@ -137,7 +194,6 @@ function WheelTab() {
           ))}
         </div>
 
-        {/* Wheel */}
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
           <div style={{position:'relative',width:240,height:240}}>
             <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',fontSize:20,zIndex:10}}>▼</div>
@@ -180,10 +236,10 @@ function WheelTab() {
         </div>
       </div>
 
-      {(d.spinHistory||[]).length>0&&(
+      {(d.spinHistory||[]).filter(sp=>sp.type!=='fortune').length>0&&(
         <div style={CS.card}>
           <div style={CS.label}>Spin History</div>
-          {(d.spinHistory||[]).map((sp,i)=>(
+          {(d.spinHistory||[]).filter(sp=>sp.type!=='fortune').map((sp,i)=>(
             <div key={i} style={{padding:'8px 0',borderBottom:'1px solid #0A1220'}}>
               <div style={{display:'flex',justifyContent:'space-between'}}>
                 <div style={{fontSize:10,color:'#4B5563'}}>Turn {sp.turn}</div>
@@ -194,6 +250,177 @@ function WheelTab() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── FORTUNE WHEEL ──────────────────────────────────────────────
+function FortuneWheelTab() {
+  const { D, spinFortune, FORTUNE_SEGS } = useGame();
+  const d = D;
+  const [spinning, setSpinning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [rotation, setRotation] = useState(0);
+  const [stakeAmt, setStakeAmt] = useState('');
+  const [activePct, setActivePct] = useState(null);
+  const [insured, setInsured] = useState(false);
+  const animRef = useRef(null);
+
+  if (!FORTUNE_SEGS) return null;
+
+  const maxStake = Math.floor((d.tradingWallet||0) * 0.75);
+  const stake = parseFloat(stakeAmt)||0;
+  const insuranceFee = insured ? Math.round(stake*0.05*100)/100 : 0;
+  const canSpin = (d.spinTokens||0)>=1 && stake>0 && stake<=maxStake && stake<=(d.tradingWallet||0);
+
+  const setByPct = (pct) => {
+    const amt = Math.floor((d.tradingWallet||0)*pct/100);
+    setStakeAmt(String(amt));
+    setActivePct(pct);
+  };
+
+  const handleSpin = () => {
+    if (spinning||!canSpin) return;
+    const res = spinFortune(stake, insured);
+    if (typeof res==='string') { setResult('❌ '+res); return; }
+    setSpinning(true); setResult(null);
+    const segSize = 360/FORTUNE_SEGS.length;
+    const target = 360-(res.segIdx*segSize)-segSize/2;
+    const end = rotation + 1800 + target;
+    const start = performance.now();
+    const animate = (now) => {
+      const t = Math.min((now-start)/4000,1);
+      const ease = 1-Math.pow(1-t,4);
+      setRotation(rotation+(end-rotation)*ease);
+      if(t<1){animRef.current=requestAnimationFrame(animate);}
+      else{setRotation(end%360);setSpinning(false);setResult(res.msg);}
+    };
+    animRef.current = requestAnimationFrame(animate);
+  };
+  useEffect(()=>()=>{if(animRef.current)cancelAnimationFrame(animRef.current);},[]);
+
+  const segSize = 360/FORTUNE_SEGS.length;
+
+  return (
+    <div>
+      <div style={{background:'linear-gradient(135deg,#1A0F2E,#2D1A0A)',borderRadius:16,padding:14,border:'1px solid #78350F',marginBottom:12}}>
+        {/* Stats row */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
+          {[['Spin Tokens',d.spinTokens||0,'#FBBF24'],['Trading Wallet',fm(d.tradingWallet||0),'#34D399'],['Max Stake',fm(maxStake),'#F59E0B']].map(([l,v,c])=>(
+            <div key={l} style={{background:'rgba(0,0,0,.4)',borderRadius:8,padding:'8px 6px',textAlign:'center'}}>
+              <div style={{fontSize:9,color:'#6B7280',textTransform:'uppercase',marginBottom:3}}>{l}</div>
+              <div style={{fontSize:13,fontWeight:800,color:c,fontFamily:'monospace'}}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Stake selector */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,color:'#94A3B8',marginBottom:6,fontWeight:700}}>Stake Amount (max 75% of wallet)</div>
+          <div style={{display:'flex',gap:6,marginBottom:8}}>
+            {[10,25,50,75].map(p=>(
+              <button key={p} onClick={()=>setByPct(p)} style={{flex:1,padding:'7px 0',background:activePct===p?'#D97706':'rgba(0,0,0,.3)',border:'1px solid '+(activePct===p?'#F59E0B':'rgba(255,255,255,0.1)'),color:activePct===p?'#000':'#94A3B8',borderRadius:8,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                {p}%
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            value={stakeAmt}
+            onChange={e=>{setStakeAmt(e.target.value);setActivePct(null);}}
+            placeholder={`Enter stake (max ${fm(maxStake)})`}
+            style={{width:'100%',background:'rgba(0,0,0,.4)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:15,outline:'none',boxSizing:'border-box',fontFamily:'monospace'}}
+          />
+        </div>
+
+        {/* Insurance toggle */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(0,0,0,.3)',borderRadius:10,padding:'10px 14px',marginBottom:14}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC'}}>🛡️ Insurance (5% premium)</div>
+            <div style={{fontSize:10,color:'#6B7280'}}>Guarantees minimum 50% return on bad spins</div>
+            {insured&&stake>0&&<div style={{fontSize:10,color:'#FBBF24',marginTop:2}}>Fee: {fm(insuranceFee)}</div>}
+          </div>
+          <button onClick={()=>setInsured(x=>!x)} style={{background:insured?'#059669':'rgba(255,255,255,0.1)',border:'none',borderRadius:20,padding:'8px 16px',color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+            {insured?'ON':'OFF'}
+          </button>
+        </div>
+
+        {/* Wheel */}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+          <div style={{position:'relative',width:240,height:240}}>
+            <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',fontSize:20,zIndex:10}}>▼</div>
+            <svg width="240" height="240" viewBox="0 0 240 240" style={{transform:`rotate(${rotation}deg)`,transition:spinning?'none':'transform .1s'}}>
+              {FORTUNE_SEGS.map((seg,i)=>{
+                const a1=(i*segSize-90)*Math.PI/180;
+                const a2=((i+1)*segSize-90)*Math.PI/180;
+                const r=110,cx=120,cy=120;
+                const x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+                const x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
+                const mx=cx+r*.65*Math.cos((a1+a2)/2);
+                const my=cy+r*.65*Math.sin((a1+a2)/2);
+                return (
+                  <g key={i}>
+                    <path d={`M${cx},${cy}L${x1},${y1}A${r},${r},0,0,1,${x2},${y2}Z`} fill={seg.c} stroke="#060B14" strokeWidth="1.5"/>
+                    <text x={mx} y={my} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="9" fontWeight="800" style={{pointerEvents:'none'}}>{seg.l}</text>
+                  </g>
+                );
+              })}
+              <circle cx="120" cy="120" r="18" fill="#060B14" stroke="#D97706" strokeWidth="3"/>
+              <text x="120" y="120" textAnchor="middle" dominantBaseline="middle" fill="#FBBF24" fontSize="11">$</text>
+            </svg>
+          </div>
+
+          {result&&<div style={{background:result.includes('Won')?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)',border:'1px solid '+(result.includes('Won')?'#10B981':'#EF4444'),borderRadius:12,padding:'10px 20px',fontSize:13,fontWeight:800,color:result.includes('Won')?'#34D399':'#FCA5A5',textAlign:'center'}}>{result.includes('❌')?result:'🎰 '+result}</div>}
+
+          <button onClick={handleSpin} disabled={spinning||!canSpin} style={{width:'100%',background:canSpin&&!spinning?'linear-gradient(135deg,#D97706,#92400E)':'#0D1B2E',color:canSpin&&!spinning?'#fff':'#4B5563',border:`1px solid ${canSpin?'#F59E0B':'#1A2744'}`,borderRadius:12,padding:'14px 0',fontWeight:800,fontSize:15,cursor:canSpin&&!spinning?'pointer':'not-allowed',letterSpacing:.5}}>
+            {spinning?'Spinning...':canSpin?'🎰 SPIN FORTUNE WHEEL':'🔒 '+(d.spinTokens<1?'No Spin Tokens':stake<=0?'Enter Stake':stake>maxStake?'Stake Too Large':'Invalid')}
+          </button>
+        </div>
+
+        {/* Segment legend */}
+        <div style={{marginTop:12,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:4}}>
+          {FORTUNE_SEGS.map((seg,i)=>(
+            <div key={i} style={{background:seg.c+'30',border:'1px solid '+seg.c+'50',borderRadius:6,padding:'4px 6px',textAlign:'center'}}>
+              <div style={{fontSize:11,fontWeight:800,color:'#F8FAFC'}}>{seg.l}</div>
+              <div style={{fontSize:8,color:'rgba(255,255,255,0.5)'}}>{seg.prob}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {(d.spinHistory||[]).filter(sp=>sp.type==='fortune').length>0&&(
+        <div style={CS.card}>
+          <div style={CS.label}>Fortune History</div>
+          {(d.spinHistory||[]).filter(sp=>sp.type==='fortune').map((sp,i)=>(
+            <div key={i} style={{padding:'8px 0',borderBottom:'1px solid #0A1220'}}>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <div style={{fontSize:10,color:'#4B5563'}}>T{sp.turn} · Staked {fm(sp.stake)}</div>
+                <div style={{fontSize:10,fontWeight:700,color:sp.net>=0?'#34D399':'#EF4444'}}>{sp.mult}× → {fm(sp.payout)}</div>
+              </div>
+              <div style={{fontSize:12,color:'#F8FAFC',marginTop:2}}>{sp.msg}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── WHEEL TAB (Combined) ───────────────────────────────────────
+function WheelTab() {
+  const [subTab, setSubTab] = useState('debtrelief');
+  return (
+    <div>
+      <div style={{display:'flex',gap:6,marginBottom:14,background:'#060B14',borderRadius:12,padding:4}}>
+        <button onClick={()=>setSubTab('debtrelief')} style={{flex:1,padding:'9px 0',background:subTab==='debtrelief'?'#4C1D95':'transparent',border:'none',borderRadius:9,color:subTab==='debtrelief'?'#C4B5FD':'#4B5563',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+          🎡 Debt Relief
+        </button>
+        <button onClick={()=>setSubTab('fortune')} style={{flex:1,padding:'9px 0',background:subTab==='fortune'?'#78350F':'transparent',border:'none',borderRadius:9,color:subTab==='fortune'?'#FBBF24':'#4B5563',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+          🎰 Fortune Wheel
+        </button>
+      </div>
+      {subTab==='debtrelief'&&<DebtReliefWheel/>}
+      {subTab==='fortune'&&<FortuneWheelTab/>}
     </div>
   );
 }

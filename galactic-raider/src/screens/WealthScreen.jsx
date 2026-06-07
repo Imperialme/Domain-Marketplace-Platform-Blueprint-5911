@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
-import { LOAN_TIERS, SOVEREIGN_FUNDS } from '../constants';
+import { LOAN_TIERS, SOVEREIGN_FUNDS, PLANETS_DATA } from '../constants';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -65,33 +65,236 @@ function FundItem({ fund, d, walletBalance, onDeposit, onWithdraw }) {
   );
 }
 
+// ── PORTFOLIO TAB ─────────────────────────────────────────────
+function PortfolioTab({ d }) {
+  const totalWallets = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
+  const stockEntries = Object.entries(d.stockHoldings||{}).filter(([,n])=>n>0);
+  const etfEntries = (d.etfs||[]).filter(e=>e.units>0);
+  const fundEntries = Object.entries(d.fundDeposits||{}).filter(([,f])=>f.deposit>0);
+  const bondEntries = d.bondHoldings||[];
+
+  const stockVal = stockEntries.reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0);
+  const etfVal = etfEntries.reduce((x,e)=>x+e.price*e.units,0);
+  const fundVal = fundEntries.reduce((x,[,f])=>x+(f.deposit||0),0);
+  const bondVal = bondEntries.reduce((x,b)=>x+b.principal,0);
+
+  const planetEntries = Object.entries(d.planetHoldings||{}).filter(([,n])=>n>0);
+  const planetVal = planetEntries.reduce((x,[key,n])=>{
+    const parts=key.split('_');const pName=parts[0];const ticker=parts.slice(1).join('_');
+    const pd=PLANETS_DATA[pName];const ps=d.planetCompanies?.[pName];
+    const co=ps?.cos?.find(c=>c.t===ticker);
+    return x+(co&&pd?co.price*pd.rate*n:0);
+  },0);
+
+  const totalPortfolio = totalWallets + stockVal + etfVal + fundVal + planetVal + bondVal;
+
+  const SectionHeader = ({label,value,color='#F8FAFC'}) => (
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 6px',borderBottom:'1px solid #1A2744',marginBottom:6}}>
+      <div style={{fontSize:11,color:'#4B5563',textTransform:'uppercase',letterSpacing:1.5,fontWeight:700}}>{label}</div>
+      <div style={{fontSize:13,fontWeight:800,color,fontFamily:'monospace'}}>{fm(value)}</div>
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Total */}
+      <div style={{background:'linear-gradient(135deg,#0A2010,#061A0E)',borderRadius:16,padding:'16px 14px',border:'1px solid #16A34A',marginBottom:12,textAlign:'center'}}>
+        <div style={{fontSize:11,color:'#4B5563',textTransform:'uppercase',letterSpacing:1.5,marginBottom:6}}>Total Portfolio</div>
+        <div style={{fontSize:38,fontWeight:900,color:'#34D399',fontFamily:'monospace'}}>{fm(totalPortfolio)}</div>
+        <div style={{display:'flex',justifyContent:'center',gap:12,marginTop:8}}>
+          {[['Wallets',totalWallets,'#60A5FA'],['Stocks',stockVal+planetVal,'#A78BFA'],['ETFs',etfVal,'#06B6D4'],['Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24']].map(([l,v,c])=>v>0&&(
+            <div key={l} style={{textAlign:'center'}}>
+              <div style={{fontSize:9,color:'#4B5563'}}>{l}</div>
+              <div style={{fontSize:11,fontWeight:700,color:c,fontFamily:'monospace'}}>{fm(v)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Wallets summary */}
+      <div style={CS.card}>
+        <SectionHeader label="Wallets" value={totalWallets} color="#60A5FA"/>
+        {[['💵 Cash','cashWallet','#60A5FA'],['🏦 Savings','savingsWallet','#34D399'],['⚡ Trading','tradingWallet','#FBBF24'],['🛡️ Foundation','foundationBalance','#A78BFA']].map(([l,k,c])=>(d[k]||0)>0&&(
+          <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+            <span style={{fontSize:12,color:'#94A3B8'}}>{l}</span>
+            <span style={{fontSize:12,fontWeight:700,color:c,fontFamily:'monospace'}}>{fm(d[k]||0)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Earth Stocks */}
+      {stockEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="Earth Stocks" value={stockVal} color="#A78BFA"/>
+          {stockEntries.map(([ticker,n])=>{
+            const co=d.companies?.find(c=>c.t===ticker);if(!co)return null;
+            const val=co.price*n;
+            const avgCost=d.avgCostBasis?.[ticker]||co.price;
+            const pnl=(co.price-avgCost)/avgCost*100;
+            return (
+              <div key={ticker} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{ticker}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{n.toLocaleString()} shares · avg ${avgCost.toFixed(2)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Planet Stocks */}
+      {planetEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="Planet Stocks" value={planetVal} color="#06B6D4"/>
+          {planetEntries.map(([key,n])=>{
+            const parts=key.split('_');const pName=parts[0];const ticker=parts.slice(1).join('_');
+            const pd=PLANETS_DATA[pName];const ps=d.planetCompanies?.[pName];
+            const co=ps?.cos?.find(c=>c.t===ticker);
+            if(!co||!pd)return null;
+            const val=co.price*pd.rate*n;
+            const avgCost=d.planetAvgCost?.[key]||co.price;
+            const pnl=(co.price-avgCost)/avgCost*100;
+            return (
+              <div key={key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{ticker} <span style={{fontSize:10,color:'#4B5563'}}>· {pName}</span></div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{n.toLocaleString()} shares · {pd.currency} {avgCost.toFixed(2)} avg</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ETFs */}
+      {etfEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="ETFs" value={etfVal} color="#06B6D4"/>
+          {etfEntries.map(e=>{
+            const val=e.price*e.units;
+            const gain=e.units>0?(e.price-e.avgCost)/e.avgCost*100:0;
+            return (
+              <div key={e.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{e.id}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{e.units.toLocaleString()} units · avg ${e.avgCost?.toFixed(2)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:gain>=0?'#34D399':'#EF4444'}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Bonds */}
+      {bondEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="Active Bonds" value={bondVal} color="#FBBF24"/>
+          {bondEntries.map((b,i)=>{
+            const turnsLeft=b.purchaseTurn+b.maturity-((d.turn)||1);
+            const proj=r2(b.principal*(1+(b.yield/100)*(b.maturity/365)));
+            return (
+              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{b.n}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{b.yield}% yield · {Math.max(0,turnsLeft)} turns left</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#FBBF24',fontFamily:'monospace'}}>{fm(b.principal)}</div>
+                  <div style={{fontSize:10,color:'#34D399'}}>→ {fm(proj)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sovereign Funds */}
+      {fundEntries.length>0&&(
+        <div style={CS.card}>
+          <SectionHeader label="Sovereign Funds" value={fundVal} color="#F472B6"/>
+          {fundEntries.map(([fid,f])=>{
+            const fund=SOVEREIGN_FUNDS.find(x=>x.id===fid);
+            return (
+              <div key={fid} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{fid}</div>
+                  <div style={{fontSize:10,color:'#4B5563'}}>{fund?.rate}% APR · Earned {fm(f.earned||0)}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'#F472B6',fontFamily:'monospace'}}>{fm(f.deposit)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {stockEntries.length===0&&planetEntries.length===0&&etfEntries.length===0&&fundEntries.length===0&&bondEntries.length===0&&(
+        <div style={{...CS.card,textAlign:'center',padding:'32px 16px',color:'#4B5563'}}>
+          <div style={{fontSize:36,marginBottom:10}}>📊</div>
+          <div style={{fontSize:14,fontWeight:700,color:'#6B7280'}}>No positions yet</div>
+          <div style={{fontSize:12,marginTop:6}}>Go to Markets to buy stocks, ETFs, and more.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function r2(n){return Math.round(n*100)/100;}
+
 export default function WealthScreen() {
-  const { D, transfer, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund } = useGame();
+  const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund } = useGame();
   const d = D;
-  const [tab, setTab] = useState('wallets');
+  const [tab, setTab] = useState('portfolio');
   const [repayAmt, setRepayAmt] = useState('');
-  const [transferPct, setTransferPct] = useState(50);
+  const [transferAmt, setTransferAmt] = useState('');
+  const [activePct, setActivePct] = useState(null);
   const [msg, setMsg] = useState('');
   const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
 
   const doTransfer = (dir) => {
-    transfer(dir, transferPct);
+    const amount = parseFloat(transferAmt);
+    if (!amount || amount <= 0) return showMsg('Enter an amount');
+    transferByAmount(dir, amount);
     const labels={C2T:'Cash→Trading',T2C:'Trading→Cash',C2S:'Cash→Savings',S2C:'Savings→Cash',T2S:'Trading→Savings',S2T:'Savings→Trading'};
-    showMsg(labels[dir]+' ('+transferPct+'%)');
+    showMsg(labels[dir]+': '+fm(amount));
   };
 
-  const tabs=[{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'log',l:'📋 Log'}];
+  const handlePctSelect = (pct, walletKey) => {
+    const bal = d[walletKey] || 0;
+    const amt = Math.floor(bal * pct / 100);
+    setTransferAmt(String(amt));
+    setActivePct(pct);
+  };
+
+  const tabs=[{id:'portfolio',l:'📊 Portfolio'},{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'log',l:'📋 Log'}];
 
   return (
     <div style={{padding:'14px 14px 80px',background:'#060B14',minHeight:'100%'}}>
       <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC',marginBottom:12}}>💰 Wealth Manager</div>
-      <div style={{display:'flex',gap:6,marginBottom:14}}>
+      <div style={{display:'flex',gap:4,marginBottom:14,overflowX:'auto',paddingBottom:4}}>
         {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={CS.tab(tab===t.id)}>{t.l}</button>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{...CS.tab(tab===t.id),flexShrink:0,padding:'9px 10px'}}>{t.l}</button>
         ))}
       </div>
 
       {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
+
+      {/* PORTFOLIO */}
+      {tab==='portfolio'&&<PortfolioTab d={d}/>}
 
       {/* WALLETS */}
       {tab==='wallets'&&<>
@@ -106,15 +309,25 @@ export default function WealthScreen() {
         </div>
 
         <div style={CS.card}>
-          <div style={CS.label}>Transfer Amount</div>
-          {/* Transfer % selector */}
-          <div style={{display:'flex',gap:5,marginBottom:12}}>
-            {[10,25,50,75,100].map(p=>(
-              <button key={p} onClick={()=>setTransferPct(p)} style={{flex:1,padding:'8px 0',background:transferPct===p?'#1D4ED8':'#060B14',border:'1px solid '+(transferPct===p?'#3B82F6':'#1A2744'),color:transferPct===p?'#fff':'#6B7280',borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+          <div style={CS.label}>Transfer Money</div>
+          {/* % preset buttons */}
+          <div style={{fontSize:10,color:'#4B5563',marginBottom:5}}>Quick % (from source wallet)</div>
+          <div style={{display:'flex',gap:5,marginBottom:8}}>
+            {[10,25,50,75].map(p=>(
+              <button key={p} onClick={()=>handlePctSelect(p,'tradingWallet')} style={{flex:1,padding:'7px 0',background:activePct===p?'#1D4ED8':'#060B14',border:'1px solid '+(activePct===p?'#3B82F6':'#1A2744'),color:activePct===p?'#fff':'#6B7280',borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
                 {p}%
               </button>
             ))}
           </div>
+          {/* Custom amount input */}
+          <div style={{fontSize:10,color:'#4B5563',marginBottom:5}}>Or enter exact amount</div>
+          <input
+            type="number"
+            value={transferAmt}
+            onChange={e=>{setTransferAmt(e.target.value);setActivePct(null);}}
+            placeholder="$ Amount"
+            style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:14,outline:'none',boxSizing:'border-box',marginBottom:12,fontFamily:'monospace'}}
+          />
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
             {[['C2T','💵 Cash → ⚡ Trading'],['T2C','⚡ Trading → 💵 Cash'],['C2S','💵 Cash → 🏦 Savings'],['S2C','🏦 Savings → 💵 Cash'],['T2S','⚡ Trading → 🏦 Savings'],['S2T','🏦 Savings → ⚡ Trading']].map(([dir,lbl])=>(
               <button key={dir} onClick={()=>doTransfer(dir)} style={{background:'#060B14',border:'1px solid #1A2744',color:'#93C5FD',borderRadius:10,padding:'11px 14px',fontSize:12,fontWeight:600,cursor:'pointer',textAlign:'left'}}>
@@ -179,7 +392,6 @@ export default function WealthScreen() {
                 </div>
               ))}
             </div>
-            {/* Quick repay presets */}
             <div style={{fontSize:9,color:'#4B5563',marginBottom:5}}>Quick repay</div>
             <PctRow
               onSelect={(i)=>{
@@ -220,7 +432,7 @@ export default function WealthScreen() {
         ))}
         <div style={CS.card}>
           <div style={CS.label}>Stats</div>
-          {[['Total Debt',fm(d.totalDebt||0),'#EF4444'],['Interest Paid',fm(d.totalInterestPaid||0),'#FBBF24'],['Loans History',(d.loanHistory||[]).length+' loans','#9CA3AF']].map(([l,v,c])=>(
+          {[['Total Debt',fm(d.totalDebt||0),'#EF4444'],['Interest Paid',fm(d.totalInterestPaid||0),'#FBBF24'],['Tax Paid',fm(d.stats?.totalTaxPaid||0),'#F59E0B'],['Loans History',(d.loanHistory||[]).length+' loans','#9CA3AF']].map(([l,v,c])=>(
             <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid #0A1220'}}>
               <span style={{fontSize:12,color:'#6B7280'}}>{l}</span>
               <span style={{fontSize:12,fontWeight:700,color:c,fontFamily:'monospace'}}>{v}</span>

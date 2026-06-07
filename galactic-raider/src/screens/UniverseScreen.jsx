@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { PLANETS_DATA, IPOS } from '../constants';
+import { PLANET_THRESHOLDS } from '../store/gameStore';
 
 const T = {
   bg:'#030810', card:'#0A1628', raised:'#0F1E35',
@@ -72,7 +73,6 @@ function TradeModal({title,price,priceSub,held,walletBalance,isBuyOnly,onBuy,onS
           </div>
         )}
 
-        {/* Quick % presets */}
         <div style={{marginBottom:6,fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:1}}>
           {mode==='buy'?`Quick buy — wallet: ${fm(walletBalance||0)} · max ${maxAffordable.toLocaleString()} shares`:`Quick sell — holding: ${(held||0).toLocaleString()} shares`}
         </div>
@@ -239,11 +239,39 @@ function PlanetsTab() {
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
 
+  const totalPortfolio = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0)+
+    Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0)+
+    (d.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0)+
+    Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
+
   if(planet) {
     const pd=PLANETS_DATA[planet];
     const pState=d.planetCompanies?.[planet];
+    const isUnlocked=d.planetUnlocks?.[planet]!==false;
     if(!pd||!pState) return null;
     const pc=pd.color||T.blue;
+
+    if(!isUnlocked) {
+      const threshold=PLANET_THRESHOLDS[planet]||0;
+      const progress=Math.min(1,totalPortfolio/(threshold||1));
+      return (
+        <div>
+          <button onClick={()=>setPlanet(null)} style={{background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:10,padding:'9px 14px',cursor:'pointer',fontSize:12,marginBottom:12}}>← Solar System</button>
+          <div style={{background:`linear-gradient(135deg,${pc}15,${pc}05)`,borderRadius:18,padding:24,border:`1px solid ${pc}30`,textAlign:'center'}}>
+            <div style={{fontSize:64,marginBottom:12}}>{pd.ico}</div>
+            <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:8}}>{pd.name}</div>
+            <div style={{fontSize:36,marginBottom:12}}>🔒</div>
+            <div style={{fontSize:14,fontWeight:700,color:'#94A3B8',marginBottom:8}}>Locked — Need {fm(threshold)}</div>
+            <div style={{background:'rgba(0,0,0,0.3)',borderRadius:8,height:8,overflow:'hidden',marginBottom:8}}>
+              <div style={{width:(progress*100)+'%',height:'100%',background:pc,borderRadius:8}}/>
+            </div>
+            <div style={{fontSize:12,color:'#475569'}}>{fm(totalPortfolio)} / {fm(threshold)} ({(progress*100).toFixed(1)}%)</div>
+            <div style={{marginTop:12,fontSize:11,color:'#475569',lineHeight:1.5}}>{pd.desc}</div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <button onClick={()=>setPlanet(null)} style={{background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:10,padding:'9px 14px',cursor:'pointer',fontSize:12,marginBottom:12}}>← Solar System</button>
@@ -327,11 +355,23 @@ function PlanetsTab() {
         {Object.entries(PLANETS_DATA).map(([pName,pd])=>{
           const pState=d.planetCompanies?.[pName];
           const pc=pd.color||T.blue;
+          const isUnlocked=d.planetUnlocks?.[pName]!==false;
+          const threshold=PLANET_THRESHOLDS[pName];
+          const progress=threshold?Math.min(1,totalPortfolio/threshold):1;
           const holdings=Object.entries(d.planetHoldings||{}).filter(([k])=>k.startsWith(pName+'_'));
           const totalVal=holdings.reduce((s,[key,n])=>{
             const t=key.split('_')[1];const co=pState?.cos?.find(c=>c.t===t);return s+(co?n*co.price*pd.rate:0);},0);
           return (
             <div key={pName} onClick={()=>setPlanet(pName)} style={{background:`linear-gradient(135deg,${pc}18,${pc}08)`,borderRadius:16,padding:14,border:`1px solid ${pc}30`,cursor:'pointer',position:'relative',overflow:'hidden'}}>
+              {!isUnlocked&&(
+                <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.6)',borderRadius:16,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                  <div style={{fontSize:20,marginBottom:4}}>🔒</div>
+                  <div style={{fontSize:10,color:'#94A3B8',fontWeight:700}}>{fm(threshold||0)}</div>
+                  <div style={{width:'60%',background:'rgba(255,255,255,0.1)',borderRadius:3,height:4,marginTop:6,overflow:'hidden'}}>
+                    <div style={{width:(progress*100)+'%',height:'100%',background:pc}}/>
+                  </div>
+                </div>
+              )}
               <div style={{fontSize:32,marginBottom:8}}>{pd.ico}</div>
               <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:2}}>{pd.name}</div>
               <div style={{fontSize:10,color:'rgba(255,255,255,0.45)',marginBottom:8}}>{pd.currency} · {pd.companies.length} cos</div>
@@ -504,8 +544,142 @@ function IPOTab() {
   );
 }
 
+// ── BONDS TAB ──────────────────────────────────────────────────
+const BOND_DATA = {
+  government: [
+    {id:'US10Y', n:'Earth 10Y Treasury', yield:5.2, maturity:90, risk:'Low', currency:'USD', minInvest:10000, desc:'Earth government bond. Fixed 5.2% annual yield. Principal + interest returned at maturity (Turn +90).'},
+    {id:'EU5Y', n:'Earth 5Y Eurozone', yield:4.1, maturity:60, risk:'Low', currency:'USD', minInvest:5000, desc:'EU sovereign bond. 4.1% yield. Lower rate, lower risk.'},
+    {id:'EM3Y', n:'Emerging Market Bond', yield:7.8, maturity:45, risk:'Medium', currency:'USD', minInvest:25000, desc:'Higher yield from emerging economies. Moderate default risk.'},
+  ],
+  corporate: [
+    {id:'SLKT_BOND', n:'Silk Road Tech Bond', yield:9.4, maturity:60, risk:'Medium', currency:'USD', company:'SLKT', minInvest:50000, desc:'Corporate bond issued by Silk Road Tech. Yield tied to company health.'},
+    {id:'TNPT_BOND', n:'Titan Petroleum Bond', yield:8.1, maturity:90, risk:'Medium', currency:'USD', company:'TNPT', minInvest:25000, desc:'Energy sector corporate bond. Stable issuer.'},
+    {id:'EMTS_BOND', n:'Emerging Tech High Yield', yield:14.2, maturity:30, risk:'High', currency:'USD', company:'EMTS', minInvest:100000, desc:'High-yield bond. Short maturity. Higher default risk.'},
+  ],
+  cosmic: [
+    {id:'MARS_GOV', n:'Mars Government Bond', yield:18.4, maturity:120, risk:'High', currency:'MCR', planet:'Mars', minInvest:100000, desc:'Martian sovereign bond. High yield reflects planetary risk premium.', unlock:'Mars'},
+    {id:'JUPITER_CORP', n:'Jupiter Autonomous Corp Bond', yield:24.8, maturity:150, risk:'Very High', currency:'JCR', planet:'Jupiter', minInvest:500000, desc:'Jupiter robotic economy bond. Storm events may delay maturity payout.', unlock:'Jupiter'},
+    {id:'NEPTUNE_GOV', n:'Neptune Deep Research Bond', yield:35.0, maturity:200, risk:'Extreme', currency:'NPT', planet:'Neptune', minInvest:10000000, desc:'Highest yielding bond in the solar system. Extreme risk. Research breakthrough events spike value.', unlock:'Neptune'},
+  ],
+};
+
+const RISK_COLOR = {Low:T.green, Medium:T.amber, High:T.red, 'Very High':'#DC2626', Extreme:'#7F1D1D'};
+
+function BondsTab() {
+  const {D, buyBond}=useGame();
+  const d=D;
+  const [buyModal,setBuyModal]=useState(null);
+  const [buyAmt,setBuyAmt]=useState('');
+  const [msg,setMsg]=useState('');
+  const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+
+  const allBonds=[...BOND_DATA.government,...BOND_DATA.corporate,...BOND_DATA.cosmic];
+
+  const handleBuy=()=>{
+    const amt=parseFloat(buyAmt);
+    if(!amt||amt<=0) return showMsg('Enter an amount');
+    const err=buyBond(buyModal.id,amt,buyModal);
+    if(err) showMsg('❌ '+err);
+    else{showMsg('✅ Purchased '+buyModal.n);setBuyModal(null);setBuyAmt('');}
+  };
+
+  const BondSection=({title,bonds,ico})=>(
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:800,color:T.sub,marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>{ico} {title}</div>
+      {bonds.map(bond=>{
+        const locked=bond.unlock&&d.planetUnlocks?.[bond.unlock]===false;
+        return (
+          <div key={bond.id} style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+T.border,marginBottom:8,position:'relative',overflow:'hidden'}}>
+            {locked&&(
+              <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.7)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                <div style={{fontSize:24,marginBottom:4}}>🔒</div>
+                <div style={{fontSize:11,color:'#94A3B8',fontWeight:700}}>Unlock {bond.unlock} first</div>
+              </div>
+            )}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:800,color:T.text}}>{bond.n}</div>
+                <div style={{fontSize:10,color:T.muted,marginTop:2}}>{bond.currency} · Min {fm(bond.minInvest)}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:22,fontWeight:900,color:T.green,fontFamily:'monospace'}}>{bond.yield}%</div>
+                <div style={{fontSize:9,color:T.muted}}>annual yield</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,marginBottom:8}}>
+              <div style={{background:T.bg,borderRadius:6,padding:'5px 8px',fontSize:10,fontWeight:700,color:RISK_COLOR[bond.risk]||T.muted}}>{bond.risk} Risk</div>
+              <div style={{background:T.bg,borderRadius:6,padding:'5px 8px',fontSize:10,color:T.muted}}>Matures: T+{bond.maturity}</div>
+            </div>
+            <div style={{fontSize:11,color:T.sub,lineHeight:1.5,marginBottom:10}}>{bond.desc}</div>
+            {!locked&&(
+              <button onClick={()=>{setBuyModal(bond);setBuyAmt('');}} style={{width:'100%',background:'linear-gradient(135deg,#1D4ED8,#7C3AED)',color:'#fff',border:'none',borderRadius:10,padding:'11px 0',fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                Buy Bond
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div>
+      <Toast msg={msg}/>
+      <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#6EE7B7',lineHeight:1.5}}>
+        🏦 Bonds pay fixed yield on maturity. Principal + total interest credited to Savings Wallet when bond matures.
+      </div>
+
+      {/* Active bonds */}
+      {(d.bondHoldings||[]).length>0&&(
+        <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid rgba(16,185,129,0.3)',marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:800,color:T.green,marginBottom:10}}>Your Active Bonds</div>
+          {(d.bondHoldings||[]).map((b,i)=>{
+            const turnsLeft=b.purchaseTurn+b.maturity-(d.turn||1);
+            return (
+              <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.3)'}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>{b.n}</div>
+                  <div style={{fontSize:10,color:T.muted}}>{b.yield}% · {Math.max(0,turnsLeft)} turns left</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.green,fontFamily:'monospace'}}>{fm(b.principal)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <BondSection title="Government Bonds" bonds={BOND_DATA.government} ico="🏛️"/>
+      <BondSection title="Corporate Bonds" bonds={BOND_DATA.corporate} ico="🏢"/>
+      <BondSection title="Cosmic Bonds" bonds={BOND_DATA.cosmic} ico="🌌"/>
+
+      {buyModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'flex-end',zIndex:400}}>
+          <div style={{background:'#0D1B2E',borderRadius:'22px 22px 0 0',padding:22,width:'100%',border:'1px solid rgba(255,255,255,0.12)'}}>
+            <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+            <div style={{fontSize:16,fontWeight:800,color:T.text,marginBottom:4}}>{buyModal.n}</div>
+            <div style={{fontSize:12,color:T.muted,marginBottom:16}}>{buyModal.yield}% annual yield · Matures T+{buyModal.maturity} · Min {fm(buyModal.minInvest)}</div>
+            <div style={{fontSize:11,color:T.sub,marginBottom:12}}>Trading Wallet: {fm(d.tradingWallet||0)}</div>
+            <input type="number" value={buyAmt} onChange={e=>setBuyAmt(e.target.value)} placeholder={`Min $${buyModal.minInvest.toLocaleString()}`} style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            {parseFloat(buyAmt)>0&&(
+              <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12,color:T.green}}>
+                Projected payout: {fm(parseFloat(buyAmt)*(1+(buyModal.yield/100)*(buyModal.maturity/365)))}
+              </div>
+            )}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>setBuyModal(null)} style={{flex:1,padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              <button onClick={handleBuy} style={{flex:2,padding:'14px 0',background:T.green,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Buy Bond</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN SCREEN ────────────────────────────────────────────────
-const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'}];
+const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'}];
 
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
@@ -514,9 +688,9 @@ export default function UniverseScreen() {
       <div style={{background:'linear-gradient(180deg,#050F20,#030810)',padding:'18px 16px 0',borderBottom:'1px solid '+T.border}}>
         <div style={{fontSize:11,color:T.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
         <div style={{fontSize:24,fontWeight:900,color:T.text,marginBottom:14}}>🌌 Universe Exchange</div>
-        <div style={{display:'flex',gap:0,background:T.bg,borderRadius:14,padding:3}}>
+        <div style={{display:'flex',gap:0,background:T.bg,borderRadius:14,padding:3,overflowX:'auto'}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'9px 4px',background:tab===t.id?T.card:'transparent',border:tab===t.id?'1px solid '+T.border:'1px solid transparent',borderRadius:11,cursor:'pointer',transition:'all .15s'}}>
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,minWidth:52,padding:'9px 4px',background:tab===t.id?T.card:'transparent',border:tab===t.id?'1px solid '+T.border:'1px solid transparent',borderRadius:11,cursor:'pointer',transition:'all .15s'}}>
               <div style={{fontSize:16}}>{t.ico}</div>
               <div style={{fontSize:10,fontWeight:tab===t.id?700:400,color:tab===t.id?T.text:T.muted,marginTop:2}}>{t.l}</div>
             </button>
@@ -528,6 +702,7 @@ export default function UniverseScreen() {
         {tab==='planets'&&<PlanetsTab/>}
         {tab==='etf'&&<ETFTab/>}
         {tab==='ipo'&&<IPOTab/>}
+        {tab==='bonds'&&<BondsTab/>}
       </div>
     </div>
   );

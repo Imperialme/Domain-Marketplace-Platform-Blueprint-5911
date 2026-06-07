@@ -4,6 +4,45 @@ import { cl, r2 } from '../utils';
 
 const GameContext = createContext(null);
 
+const PLANET_THRESHOLDS = {
+  Mars: 5e9,
+  Venus: 50e9,
+  Jupiter: 200e9,
+  Saturn: 1e12,
+  Mercury: 10e12,
+  Uranus: 50e12,
+  Neptune: 100e12,
+};
+
+const BADGE_DEFS = [
+  {id:'millionaire', label:'Millionaire', desc:'Reach $1M net worth', ico:'💰'},
+  {id:'decamillionaire', label:'Decamillionaire', desc:'Reach $10M net worth', ico:'💎'},
+  {id:'centimillionaire', label:'Centimillionaire', desc:'Reach $100M net worth', ico:'🏆'},
+  {id:'billionaire', label:'Billionaire', desc:'Reach $1B net worth', ico:'👑'},
+  {id:'decabillionaire', label:'Decabillionaire', desc:'Reach $10B net worth', ico:'🌟'},
+  {id:'centibillionaire', label:'Centibillionaire', desc:'Reach $100B net worth', ico:'⭐'},
+  {id:'trillionaire', label:'Trillionaire', desc:'Reach $1T net worth', ico:'🌌'},
+  {id:'first_trade', label:'First Trade', desc:'Execute your first trade', ico:'📈'},
+  {id:'trade_50', label:'Active Trader', desc:'Execute 50 trades', ico:'⚡'},
+  {id:'trade_100', label:'Trade Master', desc:'Execute 100 trades', ico:'🎯'},
+  {id:'mars_unlocked', label:'Mars Colonist', desc:'Unlock Mars markets', ico:'🔴'},
+  {id:'neptune_unlocked', label:'Neptune Pioneer', desc:'Unlock Neptune markets', ico:'💜'},
+  {id:'first_donation', label:'Philanthropist', desc:'Make your first donation', ico:'🤲'},
+  {id:'first_spin', label:'High Roller', desc:'Spin the Fortune Wheel', ico:'🎡'},
+  {id:'ceo_first', label:'Board Member', desc:'Make your first board decision', ico:'👔'},
+  {id:'loan_repaid', label:'Debt Free', desc:'Fully repay a loan', ico:'✅'},
+];
+
+const WEALTH_TIERS = [
+  {threshold:1e6, label:'$1M'},
+  {threshold:10e6, label:'$10M'},
+  {threshold:100e6, label:'$100M'},
+  {threshold:1e9, label:'$1B'},
+  {threshold:10e9, label:'$10B'},
+  {threshold:100e9, label:'$100B'},
+  {threshold:1e12, label:'$1T'},
+];
+
 function buildInitialState() {
   return {
     turn: 1,
@@ -26,7 +65,7 @@ function buildInitialState() {
     stockHoldings: {},
     avgCostBasis: {},
     companyOwnership: {},
-    // CEO — decisions trigger at their designated turns, not pre-loaded
+    // CEO
     pendingDecisions: [],
     resolvedDecisions: [],
     ceoLog: [
@@ -51,12 +90,24 @@ function buildInitialState() {
         }
       ])
     ),
+    planetUnlocks: {
+      Earth: true,
+      Mars: false,
+      Venus: false,
+      Jupiter: false,
+      Saturn: false,
+      Mercury: false,
+      Uranus: false,
+      Neptune: false,
+    },
     transferLog: [],
     // ETFs / IPOs / Funds
     etfs: ETFS.map(e => ({ ...e, price: e.ip, units: 0, avgCost: e.ip, hist: [e.ip, e.ip], ch: 0 })),
     ipoBookings: {},
     ipoListed: {},
     fundDeposits: Object.fromEntries(SOVEREIGN_FUNDS.map(f => [f.id, { deposit: 0, earned: 0 }])),
+    // Bonds
+    bondHoldings: [],
     // Philanthropy / Redemption
     totalDebt: 0,
     redeemPts: 0,
@@ -71,13 +122,31 @@ function buildInitialState() {
     spinHistory: [],
     // News
     news: [
-      { id:1, t:1, ico:'🌌', ti:'Galactic Raider — Capital Exchange', bo:'You start with $1,000,000. Grow it into a multi-billion empire. Solar System unlocks at $5B.', g:true },
+      { id:1, t:1, ico:'🌌', ti:'Galactic Raider — Capital Exchange', bo:'You start with $1,000,000. Grow it into a multi-billion empire. Unlock planets as your net worth grows.', g:true },
       { id:2, t:1, ico:'⚖️', ti:'Economic Governor Active', bo:'P/E bounds enforced. Prices anchored to fundamentals. All 8 rules running.', g:true },
     ],
     txLog: [
       { turn:1, type:'INIT', wallet:'ALL', amount:1000000, desc:'Starting capital: Cash $100K, Savings $100K, Trading $800K' },
     ],
-    solarUnlocked: false,
+    // Stats
+    stats: {
+      tradesTotal: 0,
+      tradesWon: 0,
+      tradesLost: 0,
+      biggestWin: 0,
+      biggestWinDesc: '',
+      biggestLoss: 0,
+      biggestLossDesc: '',
+      peakNetWorth: 1000000,
+      nwHistory: [[1, 1000000]],
+      unlockLog: [],
+      totalTaxPaid: 0,
+      totalGSFIncome: 0,
+      totalSavingsInterest: 0,
+    },
+    badges: [],
+    playerName: 'Raider',
+    playerAvatar: '🚀',
   };
 }
 
@@ -95,6 +164,15 @@ export function GameProvider({ children }) {
     const s = S.current;
     s.news = [{ id: Math.random(), t: s.turn, ico, ti, bo, g },...s.news].slice(0, 80);
   }, []);
+
+  const earnBadge = useCallback((id) => {
+    const s = S.current;
+    if (!s.badges.includes(id)) {
+      s.badges = [...s.badges, id];
+      const def = BADGE_DEFS.find(b => b.id === id);
+      if (def) addNews(def.ico, 'Badge Earned: '+def.label, def.desc, true);
+    }
+  }, [addNews]);
 
   // ── ADVANCE TURN ─────────────────────────────────────────────
   const advanceTurn = useCallback(() => {
@@ -214,6 +292,7 @@ export function GameProvider({ children }) {
           const earned = r2(fd.deposit * (fund.rate / 100 / 365));
           fd.earned = r2(fd.earned + earned);
           s.tradingWallet = r2(s.tradingWallet + earned);
+          s.stats.totalGSFIncome = r2((s.stats.totalGSFIncome||0) + earned);
         }
       }
     });
@@ -258,6 +337,7 @@ export function GameProvider({ children }) {
     if (s.savingsWallet > 0) {
       const int = r2(s.savingsWallet * 0.02 / 365);
       s.savingsWallet = r2(s.savingsWallet + int);
+      s.stats.totalSavingsInterest = r2((s.stats.totalSavingsInterest||0) + int);
     }
     if (s.foundationOpen && s.foundationBalance > 0) {
       s.foundationBalance = r2(s.foundationBalance + r2(s.foundationBalance * 0.03 / 365));
@@ -287,30 +367,106 @@ export function GameProvider({ children }) {
     s.phiBenefits = (s.phiBenefits || []).map(b => ({ ...b, rem: b.rem - 1 })).filter(b => b.rem > 0);
     s.taxRelief = Math.min(0.75, s.phiBenefits.reduce((x, b) => x + b.rate, 0));
 
+    // Bond maturity payouts
+    const maturingBonds = (s.bondHoldings||[]).filter(b => b.purchaseTurn + b.maturity <= s.turn);
+    const remainingBonds = (s.bondHoldings||[]).filter(b => b.purchaseTurn + b.maturity > s.turn);
+    maturingBonds.forEach(b => {
+      const totalYield = r2(b.principal * (b.yield / 100) * (b.maturity / 365));
+      const payout = r2(b.principal + totalYield);
+      s.savingsWallet = r2(s.savingsWallet + payout);
+      addNews('🏦', 'Bond Matured: '+b.n, 'Principal '+b.principal.toLocaleString()+' + yield '+totalYield.toLocaleString()+' = $'+payout.toLocaleString()+' credited to Savings.', true);
+    });
+    s.bondHoldings = remainingBonds;
+
     // Streak
     s.streak = Math.min(s.streak + 1, 7);
     if (s.streak >= 7 && !s.streakBonus) {
       s.streakBonus = true;
       s.spinTokens = (s.spinTokens || 0) + 1;
       addNews('🎯', '7-Day Login Streak!', '10% debt forgiveness + 1 free Wheel spin token awarded.', true);
+      s.stats.unlockLog = [...(s.stats.unlockLog||[]), {turn:s.turn, desc:'7-day streak — spin token awarded'}];
     }
 
-    // Solar System unlock check
-    if (!s.solarUnlocked) {
-      const nw = s.cashWallet + s.savingsWallet + s.tradingWallet;
-      const stockRegions = new Set(Object.keys(s.stockHoldings).map(t => {
-        const co = s.companies.find(c => c.t === t);
-        return co ? co.hq : null;
-      }).filter(Boolean));
-      const bondTypes = 0;
-      if (nw >= 5e9 && s.turn >= 300 && stockRegions.size >= 3 && s.donCount >= 2) {
-        s.solarUnlocked = true;
-        addNews('🌌', 'SOLAR SYSTEM UNLOCKED!', 'You\'ve built a $5B+ empire. 7 planets now open for investment. The universe is yours.', true);
+    // Calculate total portfolio for stats
+    const stockVal = Object.entries(s.stockHoldings||{}).reduce((x,[t,n]) => {
+      const co = s.companies.find(c => c.t === t); return x + (co ? co.price * n : 0);
+    }, 0);
+    const etfVal = (s.etfs||[]).reduce((x,e) => x + e.price * (e.units||0), 0);
+    const fundVal = Object.values(s.fundDeposits||{}).reduce((x,f) => x + (f.deposit||0), 0);
+    const walletVal = (s.cashWallet||0) + (s.savingsWallet||0) + (s.tradingWallet||0) + (s.foundationBalance||0);
+    const planetVal = Object.entries(s.planetHoldings||{}).reduce((x,[key,n]) => {
+      const parts = key.split('_'); const pName = parts[0]; const ticker = parts.slice(1).join('_');
+      const pd = PLANETS_DATA[pName]; const ps = s.planetCompanies?.[pName];
+      const co = ps?.cos?.find(c => c.t === ticker);
+      return x + (co && pd ? co.price * pd.rate * n : 0);
+    }, 0);
+    const bondVal = (s.bondHoldings||[]).reduce((x,b) => x + b.principal, 0);
+    const totalPortfolio = walletVal + stockVal + etfVal + fundVal + planetVal + bondVal;
+
+    // Update peak NW
+    if (totalPortfolio > (s.stats.peakNetWorth||0)) {
+      s.stats.peakNetWorth = totalPortfolio;
+    }
+
+    // NW history
+    s.stats.nwHistory = [...(s.stats.nwHistory||[]), [s.turn, totalPortfolio]].slice(-500);
+
+    // Planet unlock checks
+    Object.entries(PLANET_THRESHOLDS).forEach(([planet, threshold]) => {
+      if (totalPortfolio >= threshold && !s.planetUnlocks[planet]) {
+        s.planetUnlocks[planet] = true;
+        addNews('🌌', planet+' UNLOCKED!', 'Net worth '+totalPortfolio.toLocaleString()+' reached '+threshold.toLocaleString()+'. '+planet+' markets are now open!', true);
+        s.stats.unlockLog = [...(s.stats.unlockLog||[]), {turn:s.turn, desc:planet+' markets unlocked'}];
+        if (planet === 'Mars') earnBadge('mars_unlocked');
+        if (planet === 'Neptune') earnBadge('neptune_unlocked');
+      }
+    });
+
+    // Wealth tier spin token bonuses
+    WEALTH_TIERS.forEach(tier => {
+      const prevNW = (s.stats.nwHistory||[]).length > 1 ? (s.stats.nwHistory[s.stats.nwHistory.length-2]||[0,0])[1] : 0;
+      if (totalPortfolio >= tier.threshold && prevNW < tier.threshold) {
+        s.spinTokens = (s.spinTokens||0) + 1;
+        addNews('💰', 'Wealth Milestone: '+tier.label+'!', 'Net worth crossed '+tier.label+'. +1 spin token awarded!', true);
+        s.stats.unlockLog = [...(s.stats.unlockLog||[]), {turn:s.turn, desc:'Crossed '+tier.label+' milestone'}];
+      }
+    });
+
+    // Trades milestone spin tokens (50, 100, 150...)
+    const trades = s.stats.tradesTotal||0;
+    if (trades > 0 && trades % 50 === 0) {
+      const key = '_tradesMilestone'+trades;
+      if (!s[key]) {
+        s[key] = true;
+        s.spinTokens = (s.spinTokens||0) + 1;
+        addNews('⚡', trades+' Trades Milestone!', 'You have executed '+trades+' trades. +1 spin token!', true);
       }
     }
 
+    // Badge checks based on NW
+    const nwBadges = [
+      [1e6, 'millionaire'], [10e6, 'decamillionaire'], [100e6, 'centimillionaire'],
+      [1e9, 'billionaire'], [10e9, 'decabillionaire'], [100e9, 'centibillionaire'], [1e12, 'trillionaire'],
+    ];
+    nwBadges.forEach(([thresh, bid]) => {
+      if (totalPortfolio >= thresh) earnBadge(bid);
+    });
+
+    // Trade badges
+    if ((s.stats.tradesTotal||0) >= 1) earnBadge('first_trade');
+    if ((s.stats.tradesTotal||0) >= 50) earnBadge('trade_50');
+    if ((s.stats.tradesTotal||0) >= 100) earnBadge('trade_100');
+    if ((s.donCount||0) >= 1) earnBadge('first_donation');
+
+    // Auto-save every 10 turns
+    if (s.turn % 10 === 0) {
+      try {
+        localStorage.setItem('CC_autosave', JSON.stringify(s));
+      } catch(e) {}
+    }
+
     refresh();
-  }, [refresh, addNews]);
+  }, [refresh, addNews, earnBadge]);
 
   // ── STOCK TRADING ─────────────────────────────────────────────
   const buyStock = useCallback((ticker, qty) => {
@@ -335,10 +491,17 @@ export function GameProvider({ children }) {
     else if (pct >= 10 && !s._board10?.[ticker])
       { s._board10 = s._board10 || {}; s._board10[ticker] = true; addNews('🏛️', 'BOARD SEAT: '+ticker, 'You own '+pct.toFixed(2)+'% of '+co.n+'. You can vote on dividends.', true); }
 
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+
+    // Badge for first trade
+    if (s.stats.tradesTotal === 1) earnBadge('first_trade');
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+
     logTx('BUY', 'Trading', -cost, 'Bought '+qty.toLocaleString()+' '+ticker+' @ $'+co.price.toFixed(2));
     refresh();
     return null;
-  }, [refresh, logTx, addNews]);
+  }, [refresh, logTx, addNews, earnBadge]);
 
   const sellStock = useCallback((ticker, qty) => {
     const s = S.current;
@@ -347,6 +510,7 @@ export function GameProvider({ children }) {
     const held = s.stockHoldings[ticker] || 0;
     if (qty > held) return 'Only '+held+' shares held';
     const proc = r2(qty * co.price);
+    const costBasis = r2((s.avgCostBasis[ticker] || co.price) * qty);
     const profit = Math.max(0, (co.price - (s.avgCostBasis[ticker] || co.price)) * qty);
     const era = TAX_ERAS[s.eraIdx];
     const cgt = r2(profit * (era.cgt || 0.20) * (1 - (s.taxRelief || 0)));
@@ -355,10 +519,32 @@ export function GameProvider({ children }) {
     if (!s.stockHoldings[ticker]) delete s.stockHoldings[ticker];
     const TOTAL = { SLKT:1200000000,MRDB:800000000,FRMN:600000000,TNPT:900000000,MDCR:400000000 };
     s.companyOwnership[ticker] = Math.round(((s.stockHoldings[ticker]||0) / (TOTAL[ticker] || 500000000)) * 10000) / 100;
+
+    // Stats tracking
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    s.stats.totalTaxPaid = r2((s.stats.totalTaxPaid||0) + cgt);
+    const net = r2(proc - cgt - costBasis);
+    if (net > 0) {
+      s.stats.tradesWon = (s.stats.tradesWon||0) + 1;
+      if (net > (s.stats.biggestWin||0)) {
+        s.stats.biggestWin = net;
+        s.stats.biggestWinDesc = 'Sold '+ticker+' for +$'+net.toFixed(2);
+      }
+    } else {
+      s.stats.tradesLost = (s.stats.tradesLost||0) + 1;
+      if (Math.abs(net) > (s.stats.biggestLoss||0)) {
+        s.stats.biggestLoss = Math.abs(net);
+        s.stats.biggestLossDesc = 'Sold '+ticker+' for -$'+Math.abs(net).toFixed(2);
+      }
+    }
+
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+
     logTx('SELL', 'Trading', proc - cgt, 'Sold '+qty.toLocaleString()+' '+ticker+' · CGT: $'+cgt.toFixed(2)+' · Net: $'+(proc-cgt).toFixed(2));
     refresh();
     return null;
-  }, [refresh, logTx]);
+  }, [refresh, logTx, earnBadge]);
 
   // ── WALLET TRANSFERS ─────────────────────────────────────────
   const transfer = useCallback((dir, pct) => {
@@ -380,6 +566,27 @@ export function GameProvider({ children }) {
     s[d.from] = r2(s[d.from] - amt);
     s[d.to]   = r2(s[d.to]   + amt);
     logTx('TRANSFER', d.from+'→'+d.to, amt, pct+'% transfer: $'+amt.toFixed(2));
+    refresh();
+  }, [refresh, logTx]);
+
+  const transferByAmount = useCallback((dir, amount) => {
+    const s = S.current;
+    const map = {
+      C2T:{from:'cashWallet',to:'tradingWallet'},
+      T2C:{from:'tradingWallet',to:'cashWallet'},
+      C2S:{from:'cashWallet',to:'savingsWallet'},
+      S2C:{from:'savingsWallet',to:'cashWallet'},
+      T2S:{from:'tradingWallet',to:'savingsWallet'},
+      S2T:{from:'savingsWallet',to:'tradingWallet'},
+    };
+    const d = map[dir];
+    if (!d) return;
+    const available = s[d.from] || 0;
+    const amt = Math.min(r2(Math.abs(amount)), available);
+    if (amt <= 0) return;
+    s[d.from] = r2(s[d.from] - amt);
+    s[d.to] = r2(s[d.to] + amt);
+    logTx('TRANSFER', d.from+'→'+d.to, amt, 'Transfer $'+amt.toFixed(2));
     refresh();
   }, [refresh, logTx]);
 
@@ -419,10 +626,11 @@ export function GameProvider({ children }) {
     if (s.activeLoan.outstanding <= 0) {
       s.loanHistory = [{ ...s.activeLoan, repaid: true, repaidTurn: s.turn }, ...s.loanHistory].slice(0, 10);
       s.activeLoan = null;
+      earnBadge('loan_repaid');
     }
     logTx('REPAY', 'Trading', -amount, 'Loan repayment: $'+amount.toFixed(2));
     refresh();
-  }, [refresh, logTx]);
+  }, [refresh, logTx, earnBadge]);
 
   // ── CEO DECISIONS ────────────────────────────────────────────
   const resolveDecision = useCallback((decId, optIdx) => {
@@ -439,12 +647,14 @@ export function GameProvider({ children }) {
     s.resolvedDecisions = [{ ...dec, chosen: opt, auto: false, resolvedTurn: s.turn }, ...s.resolvedDecisions].slice(0, 20);
     s.ceoLog.unshift({ turn: s.turn, ticker: dec.ticker, msg: 'YOU DECIDED: '+opt.l+' · Price impact: '+(opt.priceImp>=0?'+':'')+Math.round(opt.priceImp*100)+'%', good: opt.good });
     addNews('👔', 'CEO Decision: '+dec.company, opt.l+' · '+opt.detail, opt.good);
+    earnBadge('ceo_first');
     refresh();
-  }, [refresh, addNews]);
+  }, [refresh, addNews, earnBadge]);
 
   // ── PLANET TRADING ───────────────────────────────────────────
   const buyPlanetStock = useCallback((planet, ticker, qty) => {
     const s = S.current;
+    if (!s.planetUnlocks[planet]) return planet+' is not unlocked yet';
     const ps = s.planetCompanies[planet];
     if (!ps) return 'Planet not found';
     const co = ps.cos.find(c => c.t === ticker);
@@ -457,10 +667,16 @@ export function GameProvider({ children }) {
     const key = planet + '_' + ticker;
     s.planetHoldings[key] = (s.planetHoldings[key] || 0) + qty;
     s.planetAvgCost[key] = r2(((s.planetAvgCost[key]||co.price)*((s.planetHoldings[key]||0)-qty)+costLocal)/s.planetHoldings[key]);
+
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    if (s.stats.tradesTotal === 1) earnBadge('first_trade');
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+
     logTx('BUY_PLANET', 'Trading', -costUSD, 'Bought '+qty.toLocaleString()+' '+ticker+' on '+planet+' @ '+pd.currency+' '+co.price.toFixed(2)+' (~$'+costUSD.toFixed(2)+')');
     refresh();
     return null;
-  }, [refresh, logTx]);
+  }, [refresh, logTx, earnBadge]);
 
   const sellPlanetStock = useCallback((planet, ticker, qty) => {
     const s = S.current;
@@ -479,8 +695,26 @@ export function GameProvider({ children }) {
     s.tradingWallet = r2(s.tradingWallet + procUSD - cgt);
     s.planetHoldings[key] = held - qty;
     if (!s.planetHoldings[key]) delete s.planetHoldings[key];
+
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    s.stats.totalTaxPaid = r2((s.stats.totalTaxPaid||0) + cgt);
+    const costBasis = r2((s.planetAvgCost[key]||co.price) * qty * pd.rate);
+    const net = r2(procUSD - cgt - costBasis);
+    if (net > 0) {
+      s.stats.tradesWon = (s.stats.tradesWon||0) + 1;
+      if (net > (s.stats.biggestWin||0)) {
+        s.stats.biggestWin = net;
+        s.stats.biggestWinDesc = 'Sold '+ticker+' ('+planet+') for +$'+net.toFixed(2);
+      }
+    } else {
+      s.stats.tradesLost = (s.stats.tradesLost||0) + 1;
+    }
+
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+
     refresh();
-  }, [refresh]);
+  }, [refresh, earnBadge]);
 
   // ── ETF TRADING ──────────────────────────────────────────────
   const buyETF = useCallback((etfId, units) => {
@@ -493,10 +727,14 @@ export function GameProvider({ children }) {
     const prev = e.units;
     e.units = prev + units;
     e.avgCost = r2((e.avgCost * prev + cost) / e.units);
+
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    if (s.stats.tradesTotal === 1) earnBadge('first_trade');
+
     logTx('BUY_ETF', 'Trading', -cost, 'Bought '+units+' units '+e.n+' @ $'+e.price.toFixed(2));
     refresh();
     return null;
-  }, [refresh, logTx]);
+  }, [refresh, logTx, earnBadge]);
 
   const sellETF = useCallback((etfId, units) => {
     const s = S.current;
@@ -508,9 +746,23 @@ export function GameProvider({ children }) {
     const cgt = r2(profit * (era.cgt || 0.20));
     s.tradingWallet = r2(s.tradingWallet + proc - cgt);
     e.units -= units;
+
+    s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    s.stats.totalTaxPaid = r2((s.stats.totalTaxPaid||0) + cgt);
+
+    const net = r2(proc - cgt - (e.avgCost * units));
+    if (net > 0) {
+      s.stats.tradesWon = (s.stats.tradesWon||0) + 1;
+    } else {
+      s.stats.tradesLost = (s.stats.tradesLost||0) + 1;
+    }
+
+    if (s.stats.tradesTotal >= 50) earnBadge('trade_50');
+    if (s.stats.tradesTotal >= 100) earnBadge('trade_100');
+
     logTx('SELL_ETF', 'Trading', proc-cgt, 'Sold '+units+' '+e.n+' · CGT: $'+cgt.toFixed(2));
     refresh();
-  }, [refresh, logTx]);
+  }, [refresh, logTx, earnBadge]);
 
   // ── SOVEREIGN FUND ───────────────────────────────────────────
   const depositFund = useCallback((fundId, amount) => {
@@ -553,8 +805,6 @@ export function GameProvider({ children }) {
   // ── PHILANTHROPY ─────────────────────────────────────────────
   const donate = useCallback((catIdx, amount) => {
     const s = S.current;
-    const cat = s.phiBenefits !== undefined ? require('../constants').PHI_CATS[catIdx] : null;
-    // Dynamic import workaround — inline the data
     const CATS = [{n:'Healthcare',ico:'🏥',rate:.20,dur:3,mult:1.3},{n:'Education',ico:'🎓',rate:.25,dur:5,mult:1.5},{n:'Environment',ico:'🌱',rate:.30,dur:7,mult:1.1},{n:'Infrastructure',ico:'🌉',rate:.15,dur:4,mult:1.0},{n:'Poverty',ico:'🤝',rate:.20,dur:3,mult:1.2},{n:'Science',ico:'🔬',rate:.25,dur:5,mult:1.0},{n:'Arts',ico:'🎨',rate:.10,dur:2,mult:1.0},{n:'Disaster',ico:'🚨',rate:.35,dur:8,mult:1.0}];
     const c = CATS[catIdx];
     if (!c) return;
@@ -572,13 +822,14 @@ export function GameProvider({ children }) {
       s.spinTokens = (s.spinTokens||0) + 1;
       addNews('🎡', 'Spin Token Earned!', '500+ points and 2+ donations → 1 Wheel of Fortune spin token.', true);
     }
+    earnBadge('first_donation');
     addNews(c.ico, 'Donation: '+c.n, '$'+amount.toLocaleString()+' donated to '+c.n+'. Tax relief: '+Math.round(c.rate*100)+'% for '+c.dur+' turns. +'+pts+' redemption points.', true);
     logTx('DONATE', 'Trading', -amount, 'Donation: $'+amount.toLocaleString()+' to '+c.n+'. +'+pts+' pts.');
     refresh();
     return null;
-  }, [refresh, addNews, logTx]);
+  }, [refresh, addNews, logTx, earnBadge]);
 
-  // ── WHEEL SPIN ───────────────────────────────────────────────
+  // ── WHEEL SPIN (Debt Relief) ──────────────────────────────────
   const spinWheel = useCallback(() => {
     const s = S.current;
     if ((s.spinsUsed||0) >= 5) return 'Maximum 5 lifetime spins reached';
@@ -587,7 +838,6 @@ export function GameProvider({ children }) {
     if ((s.donCount||0) < 2) return 'Need 2+ donations';
     if (s.turn - (s.lastSpin||0) < 100 && s.lastSpin > 0) return 'Must wait 100 turns between spins';
 
-    // Weighted random
     const SEGS = [{outcome:'debt5',prob:30},{outcome:'pts100',prob:15},{outcome:'debt10',prob:20},{outcome:'debt5',prob:30},{outcome:'debt15',prob:15},{outcome:'debt5',prob:30},{outcome:'debt25',prob:10},{outcome:'pts200',prob:10},{outcome:'debt50',prob:10},{outcome:'debt5',prob:30},{outcome:'debt15',prob:15},{outcome:'debt10',prob:20}];
     const total = SEGS.reduce((x, s) => x + s.prob, 0);
     let rnd = Math.random() * total;
@@ -613,20 +863,112 @@ export function GameProvider({ children }) {
     }
     s.spinHistory = [{ turn: s.turn, outcome, msg, segIdx }, ...(s.spinHistory||[])].slice(0, 10);
     addNews('🎡', 'Wheel of Fortune Result', msg, true);
+    earnBadge('first_spin');
     refresh();
     return { segIdx, msg };
-  }, [refresh, addNews]);
+  }, [refresh, addNews, earnBadge]);
+
+  // ── FORTUNE WHEEL ────────────────────────────────────────────
+  const FORTUNE_SEGS = [
+    {l:'0.5×', mult:0.5, c:'#7F1D1D', prob:15},
+    {l:'0.75×', mult:0.75, c:'#DC2626', prob:20},
+    {l:'1.0×', mult:1.0, c:'#374151', prob:20},
+    {l:'1.25×', mult:1.25, c:'#D97706', prob:15},
+    {l:'1.5×', mult:1.5, c:'#059669', prob:12},
+    {l:'2.0×', mult:2.0, c:'#10B981', prob:10},
+    {l:'3.0×', mult:3.0, c:'#3B82F6', prob:6},
+    {l:'5.0×', mult:5.0, c:'#F59E0B', prob:2},
+  ];
+
+  const spinFortune = useCallback((stake, insured) => {
+    const s = S.current;
+    if ((s.spinTokens||0) < 1) return 'No spin tokens';
+    const maxStake = r2(s.tradingWallet * 0.75);
+    if (stake > maxStake) return 'Max stake is 75% of trading wallet';
+    if (stake > s.tradingWallet) return 'Insufficient funds';
+
+    const total = FORTUNE_SEGS.reduce((x,seg) => x+seg.prob, 0);
+    let rnd = Math.random() * total;
+    let segIdx = 0;
+    for (let i=0; i<FORTUNE_SEGS.length; i++) { rnd -= FORTUNE_SEGS[i].prob; if(rnd<=0){segIdx=i;break;} }
+    const seg = FORTUNE_SEGS[segIdx];
+
+    const insuranceFee = insured ? r2(stake * 0.05) : 0;
+    const totalCost = r2(stake + insuranceFee);
+    if (totalCost > s.tradingWallet) return 'Insufficient funds for stake + insurance';
+
+    s.tradingWallet = r2(s.tradingWallet - totalCost);
+    s.spinTokens = Math.max(0, s.spinTokens - 1);
+
+    let payout = r2(stake * seg.mult);
+    if (insured && seg.mult < 1) payout = Math.max(payout, r2(stake * 0.5));
+
+    s.tradingWallet = r2(s.tradingWallet + payout);
+    const net = r2(payout - stake);
+    const msg = seg.l+' — '+(net >= 0 ? 'Won' : 'Lost')+' $'+Math.abs(net).toFixed(2)+(insured ? ' (insured)' : '');
+
+    s.spinHistory = [{turn:s.turn, type:'fortune', stake, mult:seg.mult, payout, msg, segIdx}, ...(s.spinHistory||[])].slice(0,10);
+    addNews('🎡', 'Fortune Wheel: '+seg.l, msg, net >= 0);
+    earnBadge('first_spin');
+    refresh();
+    return { segIdx, msg, mult: seg.mult, payout, net };
+  }, [refresh, addNews, earnBadge]);
+
+  // ── BONDS ────────────────────────────────────────────────────
+  const buyBond = useCallback((bondId, amount, bondDef) => {
+    const s = S.current;
+    if (!bondDef) return 'Bond not found';
+    if (amount < bondDef.minInvest) return 'Minimum investment: $'+bondDef.minInvest.toLocaleString();
+    if (amount > s.tradingWallet) return 'Insufficient funds';
+    if (bondDef.unlock && !s.planetUnlocks[bondDef.unlock]) return bondDef.unlock+' must be unlocked first';
+    s.tradingWallet = r2(s.tradingWallet - amount);
+    s.bondHoldings = [...(s.bondHoldings||[]), {
+      id: bondId+'_'+Date.now(),
+      bondId,
+      principal: amount,
+      purchaseTurn: s.turn,
+      maturity: bondDef.maturity,
+      yield: bondDef.yield,
+      n: bondDef.n,
+    }];
+    logTx('BUY_BOND', 'Trading', -amount, 'Bought '+bondDef.n+' bond for $'+amount.toFixed(2)+' @ '+bondDef.yield+'% yield, matures T'+(s.turn+bondDef.maturity));
+    refresh();
+    return null;
+  }, [refresh, logTx]);
+
+  // ── SAVE / LOAD ──────────────────────────────────────────────
+  const saveGame = useCallback((slot='slot1') => {
+    try {
+      localStorage.setItem('CC_save_'+slot, JSON.stringify(S.current));
+      return null;
+    } catch(e) { return 'Save failed'; }
+  }, []);
+
+  const loadGame = useCallback((slot='slot1') => {
+    try {
+      const data = localStorage.getItem('CC_save_'+slot);
+      if (!data) return 'No save found';
+      S.current = JSON.parse(data);
+      refresh();
+      return null;
+    } catch(e) { return 'Load failed'; }
+  }, [refresh]);
 
   const value = {
     D, S,
-    advanceTurn, buyStock, sellStock, transfer,
+    advanceTurn, buyStock, sellStock, transfer, transferByAmount,
     openFoundation, takeLoan, repayLoan,
     resolveDecision, buyPlanetStock, sellPlanetStock,
     buyETF, sellETF, depositFund, withdrawFund, bookIPO, donate, spinWheel,
-    addNews,
+    spinFortune, FORTUNE_SEGS,
+    buyBond,
+    saveGame, loadGame,
+    addNews, earnBadge,
+    BADGE_DEFS,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 
 export const useGame = () => useContext(GameContext);
+export { BADGE_DEFS, PLANET_THRESHOLDS };

@@ -1,37 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GameProvider, useGame } from './store/gameStore';
 import { C } from './utils';
 import HomeScreen from './screens/HomeScreen';
 import UniverseScreen from './screens/UniverseScreen';
 import WealthScreen from './screens/WealthScreen';
 import CommandScreen from './screens/CommandScreen';
-import SettingsScreen from './screens/SettingsScreen';
+import GalaxyScreen from './screens/GalaxyScreen';
 
 const TABS = [
   { id: 'home',     label: 'Home',    ico: '🏠' },
-  { id: 'universe', label: 'Markets', ico: '🌌' },
+  { id: 'markets',  label: 'Markets', ico: '🌌' },
   { id: 'wealth',   label: 'Wealth',  ico: '💰' },
   { id: 'command',  label: 'Command', ico: '🎯' },
-  { id: 'settings', label: 'Settings',ico: '⚙️' },
+  { id: 'galaxy',   label: 'Galaxy',  ico: '🔭' },
 ];
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState('home');
-  const { D } = useGame();
+  const [autoAdv, setAutoAdv] = useState(false);
+  const [autoSpeed, setAutoSpeed] = useState(3);
+  const autoRef = useRef(null);
+  const { D, advanceTurn } = useGame();
+
+  // Auto-advance lives at App level — persists across tab changes
+  useEffect(() => {
+    clearInterval(autoRef.current);
+    if (autoAdv) {
+      autoRef.current = setInterval(() => advanceTurn(), autoSpeed * 1000);
+    }
+    return () => clearInterval(autoRef.current);
+  }, [autoAdv, autoSpeed, advanceTurn]);
+
   const pendingCEO = (D.pendingDecisions || []).length;
   const hasBoardAccess = Object.values(D.companyOwnership || {}).some(pct => pct >= 10);
   const showBadge = pendingCEO > 0 && hasBoardAccess;
 
+  // Wealth notification: check if any position held
+  const stockVal = Object.entries(D.stockHoldings||{}).reduce((x,[t,n])=>{
+    const co=D.companies?.find(c=>c.t===t); return x+(co?co.price*n:0);},0);
+  const etfVal = (D.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0);
+  const fundVal = Object.values(D.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
+  const wealthHasGain = stockVal + etfVal + fundVal > 0;
+
   const screens = {
-    home:     <HomeScreen onNavigate={setActiveTab} />,
-    universe: <UniverseScreen />,
-    wealth:   <WealthScreen />,
-    command:  <CommandScreen />,
-    settings: <SettingsScreen />,
+    home:    <HomeScreen onNavigate={setActiveTab} autoAdv={autoAdv} setAutoAdv={setAutoAdv} autoSpeed={autoSpeed} setAutoSpeed={setAutoSpeed} />,
+    markets: <UniverseScreen />,
+    wealth:  <WealthScreen />,
+    command: <CommandScreen />,
+    galaxy:  <GalaxyScreen />,
   };
 
   return (
-    <div style={{ background: '#060B14', minHeight: '100dvh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: C.text }}>
+    <div style={{ background: '#060B14', minHeight: '100dvh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#F1F5F9' }}>
       <div style={{ height: 'calc(100dvh - 64px)', overflowY: 'auto', overflowX: 'hidden' }}>
         {screens[activeTab]}
       </div>
@@ -47,6 +67,12 @@ function AppShell() {
               <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.ico}</span>
               {tab.id === 'command' && showBadge && (
                 <div style={{ position: 'absolute', top: -4, right: -6, background: '#EF4444', borderRadius: 10, minWidth: 14, height: 14, fontSize: 8, color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{pendingCEO}</div>
+              )}
+              {tab.id === 'wealth' && wealthHasGain && (
+                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#10B981', borderRadius: '50%', border: '1px solid #060B14' }} />
+              )}
+              {tab.id === 'home' && autoAdv && (
+                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%', border: '1px solid #060B14' }} />
               )}
             </div>
             <span style={{ fontSize: 9, color: activeTab === tab.id ? '#93C5FD' : '#4B5563', fontWeight: activeTab === tab.id ? 700 : 400, letterSpacing: 0.3 }}>{tab.label}</span>

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { TAX_ERAS } from '../constants';
+import { PLANET_THRESHOLDS } from '../store/gameStore';
 
 const T = {
   bg:'#030810', card:'#0A1628', raised:'#0F1E35',
@@ -19,21 +20,97 @@ const pill = (c,bg,txt) => ({
 
 const GEO_IMPACT_COLOR = { positive:T.green, negative:T.red, mixed:T.amber, neutral:T.muted };
 
-export default function HomeScreen({ onNavigate }) {
+const PLANET_ORDER = [
+  {name:'Earth', ico:'🌍', color:'#2E7D32'},
+  {name:'Mars', ico:'🔴', color:'#C62828'},
+  {name:'Venus', ico:'🟡', color:'#F57F17'},
+  {name:'Jupiter', ico:'🟠', color:'#E65100'},
+  {name:'Saturn', ico:'🪐', color:'#7B1FA2'},
+  {name:'Mercury', ico:'☿', color:'#455A64'},
+  {name:'Uranus', ico:'🔵', color:'#0277BD'},
+  {name:'Neptune', ico:'💜', color:'#4527A0'},
+];
+
+// Simple SettingsModal inline
+function SettingsModal({ onClose }) {
+  const { D, S, saveGame, loadGame } = useGame();
+  const d = D;
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = m => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const nw = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
+  const stockVal = Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{
+    const co=d.companies?.find(c=>c.t===t); return x+(co?co.price*n:0);},0);
+  const totalPortfolio = nw + stockVal + (d.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0) + Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:500,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.7)'}}/>
+      <div style={{position:'relative',background:'#060B14',borderRadius:'22px 22px 0 0',padding:20,maxHeight:'85vh',overflowY:'auto',border:'1px solid rgba(255,255,255,0.1)'}}>
+        <div style={{width:40,height:4,background:'rgba(255,255,255,0.15)',borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontSize:18,fontWeight:900,color:'#F1F5F9',marginBottom:16}}>⚙️ Settings</div>
+
+        {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
+
+        {/* Stats */}
+        <div style={{background:'#0A1628',borderRadius:14,padding:14,border:'1px solid rgba(255,255,255,0.08)',marginBottom:12}}>
+          <div style={{fontSize:10,color:'#475569',textTransform:'uppercase',letterSpacing:1.5,marginBottom:8}}>Game Stats</div>
+          {[['Turn','T'+d.turn],['Net Worth',fm(totalPortfolio)],['Peak NW',fm(d.stats?.peakNetWorth||totalPortfolio)],['Trades',(d.stats?.tradesTotal||0).toLocaleString()]].map(([l,v])=>(
+            <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid rgba(0,0,0,0.3)'}}>
+              <span style={{fontSize:12,color:'#6B7280'}}>{l}</span>
+              <span style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Save / Load */}
+        <div style={{background:'#0A1628',borderRadius:14,padding:14,border:'1px solid rgba(255,255,255,0.08)',marginBottom:12}}>
+          <div style={{fontSize:10,color:'#475569',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Save / Load</div>
+          {['slot1','slot2','slot3'].map(slot=>{
+            const saved = localStorage.getItem('CC_save_'+slot);
+            const info = saved ? (() => { try { const d = JSON.parse(saved); return 'T'+d.turn+' · '+fm((d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)); } catch(e) { return 'Save data'; } })() : null;
+            return (
+              <div key={slot} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,color:'#F8FAFC',fontWeight:700}}>{slot.toUpperCase()}</div>
+                  {info&&<div style={{fontSize:10,color:'#475569'}}>{info}</div>}
+                </div>
+                <button onClick={()=>{const e=saveGame(slot);showMsg(e||'Saved to '+slot+'!');}} style={{background:'#059669',color:'#fff',border:'none',borderRadius:8,padding:'7px 12px',fontWeight:700,fontSize:11,cursor:'pointer'}}>Save</button>
+                <button onClick={()=>{const e=loadGame(slot);showMsg(e||'Loaded '+slot+'!');}} style={{background:'#1D4ED8',color:'#fff',border:'none',borderRadius:8,padding:'7px 12px',fontWeight:700,fontSize:11,cursor:'pointer'}}>Load</button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Reset */}
+        <div style={{background:'#0A1628',borderRadius:14,padding:14,border:'1px solid rgba(239,68,68,0.2)',marginBottom:12}}>
+          {!confirmReset?(
+            <button onClick={()=>setConfirmReset(true)} style={{width:'100%',background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#FCA5A5',borderRadius:10,padding:'12px 0',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+              🗑️ Reset Game
+            </button>
+          ):(
+            <div>
+              <div style={{fontSize:12,color:'#FCA5A5',marginBottom:10}}>This will delete all progress. Sure?</div>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>setConfirmReset(false)} style={{flex:1,padding:'10px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:10,fontWeight:700,cursor:'pointer'}}>Cancel</button>
+                <button onClick={()=>window.location.reload()} style={{flex:2,padding:'10px 0',background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #DC2626',borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>Reset Everything</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button onClick={onClose} style={{width:'100%',background:'#0A1628',border:'1px solid rgba(255,255,255,0.1)',color:'#94A3B8',borderRadius:14,padding:'13px 0',fontWeight:700,fontSize:15,cursor:'pointer'}}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+export default function HomeScreen({ onNavigate, autoAdv, setAutoAdv, autoSpeed, setAutoSpeed }) {
   const { D, advanceTurn } = useGame();
   const d = D;
   const era = TAX_ERAS[d.eraIdx];
-
-  const [autoAdv, setAutoAdv] = useState(false);
-  const [autoSpeed, setAutoSpeed] = useState(3);
-  const autoRef = useRef(null);
-
-  useEffect(() => {
-    if (autoAdv) {
-      autoRef.current = setInterval(() => advanceTurn(), autoSpeed * 1000);
-    }
-    return () => clearInterval(autoRef.current);
-  }, [autoAdv, autoSpeed, advanceTurn]);
+  const [showSettings, setShowSettings] = useState(false);
 
   const nw = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
   const stockVal = Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{
@@ -42,13 +119,7 @@ export default function HomeScreen({ onNavigate }) {
   const fundVal = Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
   const totalPortfolio = nw + stockVal + etfVal + fundVal;
   const pending = (d.pendingDecisions||[]).length;
-
-  // Board access check — CEO decisions are relevant once you own 10%+ in any company
   const hasBoardAccess = Object.values(d.companyOwnership||{}).some(pct=>pct>=10);
-
-  const stockRegions = new Set(Object.keys(d.stockHoldings||{}).map(t=>{
-    const co=d.companies?.find(c=>c.t===t);return co?.hq;}).filter(Boolean));
-  const unlockDone = [nw>=5e9,d.turn>=300,stockRegions.size>=3,(d.donCount||0)>=2].filter(Boolean).length;
 
   const eraC = {'Normal':T.muted,'Capital Gains':T.green,'Low Tax':T.blue,'High Tax':T.red,'Dividend':T.purple,'Transaction':T.amber,'Wealth Tax':'#EC4899'}[era.name]||T.muted;
 
@@ -62,9 +133,12 @@ export default function HomeScreen({ onNavigate }) {
             <div style={{fontSize:11,color:T.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
             <div style={{fontSize:28,fontWeight:900,color:T.text,lineHeight:1}}>Turn {d.turn}</div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5}}>
-            <div style={pill(eraC)}>{era.name}</div>
-            <div style={pill(d.gdp>=0?T.green:T.red)}>GDP {d.gdp>=0?'+':''}{d.gdp}%</div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5}}>
+              <div style={pill(eraC)}>{era.name}</div>
+              <div style={pill(d.gdp>=0?T.green:T.red)}>GDP {d.gdp>=0?'+':''}{d.gdp}%</div>
+            </div>
+            <button onClick={()=>setShowSettings(true)} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:20,color:T.muted,padding:'4px',borderRadius:8}}>⚙️</button>
           </div>
         </div>
 
@@ -109,7 +183,7 @@ export default function HomeScreen({ onNavigate }) {
           </div>
         )}
 
-        {/* CEO Alert — only shown when you have board access AND pending decisions */}
+        {/* CEO Alert */}
         {pending>0&&hasBoardAccess&&(
           <div onClick={()=>onNavigate?.('command')} style={{background:'rgba(239,68,68,0.1)',borderRadius:14,padding:'14px 16px',border:'1px solid rgba(239,68,68,0.4)',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,cursor:'pointer',boxShadow:'0 0 20px rgba(239,68,68,0.1)'}}>
             <div>
@@ -120,12 +194,11 @@ export default function HomeScreen({ onNavigate }) {
           </div>
         )}
 
-        {/* Board access hint (no ownership yet, but decisions exist) */}
         {pending>0&&!hasBoardAccess&&(
           <div onClick={()=>onNavigate?.('command')} style={{background:'rgba(71,85,105,0.15)',borderRadius:14,padding:'12px 16px',border:'1px solid rgba(71,85,105,0.3)',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,cursor:'pointer'}}>
             <div>
-              <div style={{fontSize:13,color:T.sub,fontWeight:700}}>🏛️ {pending} Board Decision{pending>1?'s':''} Available</div>
-              <div style={{fontSize:11,color:T.muted,marginTop:2}}>Own 10%+ of a company to vote</div>
+              <div style={{fontSize:13,color:T.sub,fontWeight:700}}>🏛️ Board decisions exist — own 10%+ of a company to vote</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>{pending} decision{pending>1?'s':''} pending</div>
             </div>
             <div style={{fontSize:12,color:T.muted}}>View →</div>
           </div>
@@ -169,26 +242,39 @@ export default function HomeScreen({ onNavigate }) {
           </div>
         </div>
 
-        {/* Solar System Unlock */}
-        <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+(d.solarUnlocked?T.amber:T.border),marginBottom:12}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <div style={{fontSize:14,fontWeight:700,color:T.text}}>🌌 Solar System Unlock</div>
-            {d.solarUnlocked
-              ?<div style={pill(T.amber)}>UNLOCKED</div>
-              :<div style={{fontSize:12,color:T.muted}}>{unlockDone}/4</div>
-            }
-          </div>
-          <div style={{background:T.bg,borderRadius:4,height:6,overflow:'hidden',marginBottom:12}}>
-            <div style={{width:(unlockDone/4*100)+'%',height:'100%',background:'linear-gradient(90deg,#3B82F6,#F59E0B)',borderRadius:4,transition:'width .6s ease'}}/>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:2}}>
-            {[['Net Worth $5B',nw>=5e9,fm(nw)+' / $5B'],['Turn 300+',d.turn>=300,'T'+d.turn+' / T300'],['3+ Stock Regions',stockRegions.size>=3,stockRegions.size+' / 3 regions'],['2+ Donations',(d.donCount||0)>=2,(d.donCount||0)+' / 2']].map(([l,done,cur])=>(
-              <div key={l} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                <div style={{fontSize:16}}>{done?'✅':'⬜'}</div>
-                <div style={{flex:1,fontSize:12,fontWeight:done?600:400,color:done?T.green:T.sub}}>{l}</div>
-                <div style={{fontSize:10,color:T.muted,fontFamily:'monospace'}}>{cur}</div>
-              </div>
-            ))}
+        {/* Planet Unlock Progress */}
+        <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border,marginBottom:12}}>
+          <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:12}}>🌌 Planet Unlock Progress</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {PLANET_ORDER.map(({name,ico,color})=>{
+              const unlocked = d.planetUnlocks?.[name] !== false;
+              const threshold = PLANET_THRESHOLDS[name];
+              const progress = threshold ? Math.min(1, totalPortfolio / threshold) : 1;
+              return (
+                <div key={name} style={{background:unlocked?color+'15':T.bg,borderRadius:12,padding:'10px 12px',border:'1px solid '+(unlocked?color+'40':T.border)}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                    <div style={{display:'flex',alignItems:'center',gap:5}}>
+                      <span style={{fontSize:16}}>{ico}</span>
+                      <span style={{fontSize:12,fontWeight:800,color:unlocked?T.text:T.muted}}>{name}</span>
+                    </div>
+                    {unlocked
+                      ?<div style={{fontSize:9,background:color+'30',color,padding:'2px 6px',borderRadius:6,fontWeight:700}}>ACTIVE</div>
+                      :<div style={{fontSize:9,color:T.muted}}>🔒</div>
+                    }
+                  </div>
+                  {threshold&&(
+                    <>
+                      <div style={{background:T.border,borderRadius:3,height:4,overflow:'hidden',marginBottom:4}}>
+                        <div style={{width:(progress*100)+'%',height:'100%',background:unlocked?color:'#374151',borderRadius:3,transition:'width .4s'}}/>
+                      </div>
+                      <div style={{fontSize:9,color:T.muted,fontFamily:'monospace'}}>
+                        {unlocked?'Unlocked at '+fm(threshold):'Need '+fm(threshold)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -230,6 +316,8 @@ export default function HomeScreen({ onNavigate }) {
           ))}
         </div>
       </div>
+
+      {showSettings && <SettingsModal onClose={()=>setShowSettings(false)} />}
     </div>
   );
 }
