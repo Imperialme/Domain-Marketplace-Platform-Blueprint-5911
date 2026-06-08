@@ -103,9 +103,19 @@ function buildInitialState() {
     transferLog: [],
     // Crypto
     cryptoHoldings: {},
-    cryptoPrices: {BTC:65000,ETH:3200,DOGE:.35,SOL:180,MRC:12.5,NTX:8888},
+    cryptoPrices: {
+      BTC:65000, ETH:3200, BNB:600, XRP:0.60, ADA:0.45,
+      SOL:180, DOGE:0.35, AVAX:35, LTC:85, LINK:18,
+      DOT:8, MATIC:0.90, TON:5.50, UNI:10,
+      MRC:12.5, NTX:8888, VNS:2.5, JFS:45, SRZ:120, MCY:35
+    },
     cryptoAvgCost: {},
-    cryptoHist: {BTC:[65000],ETH:[3200],DOGE:[.35],SOL:[180],MRC:[12.5],NTX:[8888]},
+    cryptoHist: {
+      BTC:[65000], ETH:[3200], BNB:[600], XRP:[0.60], ADA:[0.45],
+      SOL:[180], DOGE:[0.35], AVAX:[35], LTC:[85], LINK:[18],
+      DOT:[8], MATIC:[0.90], TON:[5.50], UNI:[10],
+      MRC:[12.5], NTX:[8888], VNS:[2.5], JFS:[45], SRZ:[120], MCY:[35]
+    },
     // ETFs / IPOs / Funds
     etfs: ETFS.map(e => ({ ...e, price: e.ip, units: 0, avgCost: e.ip, hist: [e.ip, e.ip], ch: 0 })),
     ipoBookings: {},
@@ -298,15 +308,22 @@ export function GameProvider({ children }) {
 
     // Crypto price update
     const CRYPTO_COINS_STORE = [
-      {id:'BTC',vol:.12,ip:65000},{id:'ETH',vol:.16,ip:3200},{id:'DOGE',vol:.28,ip:.35},
-      {id:'SOL',vol:.20,ip:180},{id:'MRC',vol:.35,ip:12.5},{id:'NTX',vol:.42,ip:8888}
+      {id:'BTC',vol:.12,ip:65000},{id:'ETH',vol:.16,ip:3200},{id:'BNB',vol:.18,ip:600},
+      {id:'XRP',vol:.22,ip:.60},{id:'ADA',vol:.24,ip:.45},{id:'SOL',vol:.20,ip:180},
+      {id:'DOGE',vol:.28,ip:.35},{id:'AVAX',vol:.25,ip:35},{id:'LTC',vol:.18,ip:85},
+      {id:'LINK',vol:.22,ip:18},{id:'DOT',vol:.20,ip:8},{id:'MATIC',vol:.25,ip:.90},
+      {id:'TON',vol:.20,ip:5.50},{id:'UNI',vol:.22,ip:10},
+      {id:'MRC',vol:.35,ip:12.5},{id:'NTX',vol:.42,ip:8888},
+      {id:'VNS',vol:.30,ip:2.5},{id:'JFS',vol:.38,ip:45},
+      {id:'SRZ',vol:.45,ip:120},{id:'MCY',vol:.32,ip:35}
     ];
     if (!s.cryptoPrices) s.cryptoPrices = Object.fromEntries(CRYPTO_COINS_STORE.map(c=>[c.id,c.ip]));
     if (!s.cryptoHist) s.cryptoHist = Object.fromEntries(CRYPTO_COINS_STORE.map(c=>[c.id,[c.ip]]));
     CRYPTO_COINS_STORE.forEach(coin => {
-      const move = 1 + (Math.random()-0.48)*coin.vol*2;
       const prev = s.cryptoPrices[coin.id] || coin.ip;
-      const next = Math.max(0.001, r2(prev * move));
+      const meanRevert = Math.pow(coin.ip / prev, 0.008);
+      const move = (1 + (Math.random()-0.5)*coin.vol*1.3) * meanRevert;
+      const next = Math.max(coin.ip * 0.03, Math.min(coin.ip * 25, r2(prev * move)));
       s.cryptoPrices[coin.id] = next;
       s.cryptoHist[coin.id] = [...(s.cryptoHist[coin.id]||[prev]).slice(-48), next];
     });
@@ -388,10 +405,14 @@ export function GameProvider({ children }) {
         const booked = s.ipoBookings[ipo.id] || 0;
         if (booked > 0) {
           const allocation = Math.floor(booked * (ipo.oversubscribed > 1 ? 0.85 : 1));
-          const proceeds = r2(allocation * listPrice);
-          const cost = r2(allocation * midpoint);
-          s.tradingWallet = r2(s.tradingWallet + proceeds - cost);
-          addNews('🚀', 'IPO LISTED: '+ipo.n, ipo.n+' listed at $'+listPrice.toFixed(2)+'. Your '+allocation.toLocaleString()+' shares allocated. Net: $'+r2(proceeds - cost).toFixed(2), proceeds > cost);
+          const unallocated = booked - allocation;
+          if (unallocated > 0) s.tradingWallet = r2(s.tradingWallet + unallocated * midpoint);
+          s.stockHoldings[ipo.id] = (s.stockHoldings[ipo.id]||0) + allocation;
+          s.avgCostBasis[ipo.id] = midpoint;
+          if (!s.companies.find(c=>c.t===ipo.id)) {
+            s.companies.push({ t:ipo.id, n:ipo.n, s:ipo.sector||'Technology', price:listPrice, pe:18, ch:0, hist:[listPrice,listPrice], div:0.5, b:1.5, yr:2020, emp:5000, hq:ipo.planet||'Earth', ip:listPrice, pe0:18, analysts:[], origin:'IPO listing.' });
+          }
+          addNews('🚀', 'IPO LISTED: '+ipo.n, ipo.n+' listed at $'+listPrice.toFixed(2)+'. Your '+allocation.toLocaleString()+' shares allocated at $'+midpoint.toFixed(2)+'. Now tradeable in Markets.', true);
         } else {
           addNews('📋', 'IPO LISTED: '+ipo.n, ipo.n+' opened at $'+listPrice.toFixed(2)+'. You had no booking.', true);
         }
@@ -691,8 +712,9 @@ export function GameProvider({ children }) {
 
   const repayLoan = useCallback((amount) => {
     const s = S.current;
-    if (!s.activeLoan) return;
-    if (amount > s.tradingWallet) return;
+    if (!s.activeLoan) return 'No active loan';
+    if (amount <= 0) return 'Invalid amount';
+    if (amount > s.tradingWallet) return 'Insufficient Trading Wallet balance ($'+s.tradingWallet.toFixed(2)+' available)';
     s.tradingWallet = r2(s.tradingWallet - amount);
     s.activeLoan.outstanding = r2(s.activeLoan.outstanding - amount);
     s.totalDebt = Math.max(0, r2(s.totalDebt - amount));
@@ -1162,6 +1184,16 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, logTx, earnBadge]);
 
+  const setPlayerAvatar = useCallback((emoji) => {
+    S.current.playerAvatar = emoji;
+    refresh();
+  }, [refresh]);
+
+  const setPlayerName = useCallback((name) => {
+    S.current.playerName = name.trim() || 'Raider';
+    refresh();
+  }, [refresh]);
+
   const setDarkMode = useCallback((val) => {
     S.current.darkMode = val;
     refresh();
@@ -1206,6 +1238,7 @@ export function GameProvider({ children }) {
     BADGE_DEFS,
     COMMODITIES,
     setDarkMode, setLanguage,
+    setPlayerAvatar, setPlayerName,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

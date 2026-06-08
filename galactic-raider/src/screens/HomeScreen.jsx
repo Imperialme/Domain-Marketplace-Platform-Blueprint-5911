@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
-import { TAX_ERAS } from '../constants';
+import { TAX_ERAS, PLANETS_DATA } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
 import { getTheme } from '../theme';
 import { getT } from '../i18n';
@@ -114,7 +114,21 @@ export default function HomeScreen({ onNavigate, autoAdv, setAutoAdv, autoSpeed,
     const co=d.companies?.find(c=>c.t===t); return x+(co?co.price*n:0);},0);
   const etfVal = (d.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0);
   const fundVal = Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
-  const totalPortfolio = nw + stockVal + etfVal + fundVal;
+  const cryptoVal = Object.entries(d.cryptoHoldings||{}).reduce((x,[id,qty]) => {
+    const hist = d.cryptoHist?.[id]; const price = hist&&hist.length>0?hist[hist.length-1]:(d.cryptoPrices?.[id]||0);
+    return x + qty * price;
+  }, 0);
+  const commVal = Object.entries(d.commodityHoldings||{}).reduce((x,[id,qty]) => {
+    const hist = d.commodityHist?.[id]; const price = hist&&hist.length>0?hist[hist.length-1]:0;
+    return x + qty * price;
+  }, 0);
+  const planetVal = Object.entries(d.planetHoldings||{}).reduce((x,[key,n]) => {
+    const [pn,...rest]=key.split('_'); const tk=rest.join('_');
+    const ps=d.planetCompanies?.[pn]; const co=ps?.cos?.find(c=>c.t===tk);
+    return x+(co&&PLANETS_DATA[pn]?co.price*PLANETS_DATA[pn].rate*n:0);
+  }, 0);
+  const bondVal = (d.bondHoldings||[]).reduce((x,b)=>x+b.principal,0);
+  const totalPortfolio = nw + stockVal + etfVal + fundVal + cryptoVal + commVal + planetVal + bondVal;
   const pending = (d.pendingDecisions||[]).length;
   const hasBoardAccess = Object.values(d.companyOwnership||{}).some(pct=>pct>=10);
 
@@ -147,7 +161,7 @@ export default function HomeScreen({ onNavigate, autoAdv, setAutoAdv, autoSpeed,
 
         {/* Breakdown chips */}
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:12}}>
-          {[['💵',fm(d.cashWallet||0),T.blue],['🏦',fm(d.savingsWallet||0),T.green],['⚡',fm(d.tradingWallet||0),T.amber],['📊',fm(stockVal),T.purple],['🌌',fm(etfVal),T.cyan],['💎',fm(fundVal),'#F472B6']].map(([ico,v,c])=>(
+          {[['💵',fm(d.cashWallet||0),T.blue],['🏦',fm(d.savingsWallet||0),T.green],['⚡',fm(d.tradingWallet||0),T.amber],['📊',fm(stockVal),T.purple],['🌌',fm(etfVal),T.cyan],['💎',fm(fundVal),'#F472B6'],['🪙',fm(cryptoVal),'#F59E0B'],['⛏️',fm(commVal),'#84CC16']].map(([ico,v,c])=>(
             <div key={ico} style={{background:c+'15',border:'1px solid '+c+'30',borderRadius:8,padding:'5px 9px',display:'flex',alignItems:'center',gap:4}}>
               <span style={{fontSize:11}}>{ico}</span>
               <span style={{fontSize:11,fontWeight:700,color:c,fontFamily:'monospace'}}>{v}</span>

@@ -24,6 +24,8 @@ const STRINGS = {
     home_title:'Cosmos Capital', home_subtitle:'Financial Empire Simulator', home_auto_advance:'Auto Advance', home_speed:'Speed',
     no_positions:'No positions yet', no_history:'No history yet', board_access:'Board Access', no_board_access:'No Board Access', pending_decisions:'Pending Decisions',
     galaxy_title:'🔭 Galaxy', avatar_select:'Choose Avatar', planet_locked:'Locked', unlock_at:'Unlock at',
+    tab_profile:'Profile', tab_insights:'Insights', tab_academy:'Academy', tab_glossary:'Glossary', tab_badges:'Badges',
+    slot_save:'Save Slot',
   },
   zh: {
     nav_home:'主页', nav_markets:'市场', nav_wealth:'财富', nav_command:'指挥', nav_galaxy:'星系',
@@ -41,6 +43,8 @@ const STRINGS = {
     home_title:'宇宙资本', home_subtitle:'金融帝国模拟器', home_auto_advance:'自动推进', home_speed:'速度',
     no_positions:'暂无持仓', no_history:'暂无历史', board_access:'董事会权限', no_board_access:'无董事会权限', pending_decisions:'待决策',
     galaxy_title:'🔭 星系', avatar_select:'选择头像', planet_locked:'已锁定', unlock_at:'解锁条件',
+    tab_profile:'个人资料', tab_insights:'洞察', tab_academy:'学院', tab_glossary:'词汇表', tab_badges:'徽章',
+    slot_save:'存档槽',
   },
   ja: {
     nav_home:'ホーム', nav_markets:'マーケット', nav_wealth:'資産', nav_command:'コマンド', nav_galaxy:'銀河',
@@ -58,6 +62,8 @@ const STRINGS = {
     home_title:'コスモスキャピタル', home_subtitle:'金融帝国シミュレーター', home_auto_advance:'自動進行', home_speed:'速度',
     no_positions:'ポジションなし', no_history:'履歴なし', board_access:'取締役会アクセス', no_board_access:'取締役会アクセスなし', pending_decisions:'保留中の決議',
     galaxy_title:'🔭 銀河', avatar_select:'アバター選択', planet_locked:'ロック中', unlock_at:'解除条件',
+    tab_profile:'プロフィール', tab_insights:'インサイト', tab_academy:'アカデミー', tab_glossary:'用語集', tab_badges:'バッジ',
+    slot_save:'セーブスロット',
   },
   ar: {
     nav_home:'الرئيسية', nav_markets:'الأسواق', nav_wealth:'الثروة', nav_command:'القيادة', nav_galaxy:'المجرة',
@@ -75,6 +81,8 @@ const STRINGS = {
     home_title:'كوزموس كابيتال', home_subtitle:'محاكي الإمبراطورية المالية', home_auto_advance:'التقدم التلقائي', home_speed:'السرعة',
     no_positions:'لا توجد مراكز بعد', no_history:'لا يوجد سجل بعد', board_access:'صلاحية مجلس الإدارة', no_board_access:'لا توجد صلاحية', pending_decisions:'قرارات معلقة',
     galaxy_title:'🔭 المجرة', avatar_select:'اختر الصورة الرمزية', planet_locked:'مقفل', unlock_at:'يُفتح عند',
+    tab_profile:'الملف الشخصي', tab_insights:'التحليلات', tab_academy:'الأكاديمية', tab_glossary:'المسرد', tab_badges:'الشارات',
+    slot_save:'فتحة الحفظ',
   },
   de: {
     nav_home:'Start', nav_markets:'Märkte', nav_wealth:'Vermögen', nav_command:'Zentrale', nav_galaxy:'Galaxie',
@@ -92,6 +100,8 @@ const STRINGS = {
     home_title:'Cosmos Capital', home_subtitle:'Finanzimperium-Simulator', home_auto_advance:'Auto-Fortschritt', home_speed:'Geschwindigkeit',
     no_positions:'Noch keine Positionen', no_history:'Noch kein Verlauf', board_access:'Vorstandszugang', no_board_access:'Kein Vorstandszugang', pending_decisions:'Ausstehende Entscheidungen',
     galaxy_title:'🔭 Galaxie', avatar_select:'Avatar wählen', planet_locked:'Gesperrt', unlock_at:'Freischalten ab',
+    tab_profile:'Profil', tab_insights:'Einblicke', tab_academy:'Akademie', tab_glossary:'Glossar', tab_badges:'Abzeichen',
+    slot_save:'Speicherslot',
   },
   fr: {
     nav_home:'Accueil', nav_markets:'Marchés', nav_wealth:'Patrimoine', nav_command:'Centre', nav_galaxy:'Galaxie',
@@ -109,6 +119,8 @@ const STRINGS = {
     home_title:'Cosmos Capital', home_subtitle:"Simulateur d'Empire Financier", home_auto_advance:'Avance automatique', home_speed:'Vitesse',
     no_positions:'Aucune position', no_history:'Aucun historique', board_access:'Accès au conseil', no_board_access:"Pas d'accès au conseil", pending_decisions:'Décisions en attente',
     galaxy_title:'🔭 Galaxie', avatar_select:'Choisir un avatar', planet_locked:'Verrouillé', unlock_at:'Déverrouiller à',
+    tab_profile:'Profil', tab_insights:'Perspectives', tab_academy:'Académie', tab_glossary:'Glossaire', tab_badges:'Badges',
+    slot_save:'Emplacement',
   },
 };
 

@@ -4,6 +4,7 @@ import { BADGE_DEFS, PLANET_THRESHOLDS } from '../store/gameStore';
 import { fm } from '../utils';
 import { PLANETS_DATA } from '../constants';
 import { getTheme } from '../theme';
+import { getT } from '../i18n';
 
 // Default T for module-level helpers that need it (sub-components will use their own TH)
 const T_DEFAULT = {
@@ -528,24 +529,19 @@ const SPACE_AVATARS = [
 ];
 
 function SettingsPanelGalaxy({onBack}) {
-  const {D,S,saveGame,loadGame}=useGame();
+  const {D,setPlayerAvatar,setPlayerName}=useGame();
   const d=D;
   const [name,setName]=useState(d.playerName||'Raider');
-  const [confirmReset,setConfirmReset]=useState(false);
   const [msg,setMsg]=useState('');
   const [currentAvatar,setCurrentAvatar]=useState(d.playerAvatar||'🚀');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
 
-  const saveName=()=>{S.current.playerName=name;showMsg('Name saved!');};
-  const setAvatar=(avatar)=>{S.current.playerAvatar=avatar.id;setCurrentAvatar(avatar.id);showMsg('Avatar set: '+avatar.label+'!');};
-
-  const nw=(d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
-  const stockVal=Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0);
-  const totalPortfolio=nw+stockVal+(d.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0)+Object.values(d.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
+  const saveName=()=>{setPlayerName(name);showMsg('Name saved!');};
+  const saveAvatar=(avatar)=>{setPlayerAvatar(avatar.id);setCurrentAvatar(avatar.id);showMsg('Avatar set: '+avatar.label+'!');};
 
   return (
     <div style={{background:T.bg,minHeight:'100%',paddingBottom:80}}>
-      <PanelHeader title="⚙️ Settings" onBack={onBack}/>
+      <PanelHeader title="⚙️ Profile" onBack={onBack}/>
       <div style={{padding:'14px 16px'}}>
         {msg&&<div style={{background:T.card,border:'1px solid '+T.border,borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
 
@@ -561,7 +557,7 @@ function SettingsPanelGalaxy({onBack}) {
             {SPACE_AVATARS.map(avatar=>{
               const selected=currentAvatar===avatar.id;
               return (
-                <button key={avatar.id} onClick={()=>setAvatar(avatar)} style={{background:selected?'rgba(59,130,246,0.15)':'rgba(0,0,0,0.3)',border:'2px solid '+(selected?T.blue:T.border),borderRadius:12,padding:'10px 4px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
+                <button key={avatar.id} onClick={()=>saveAvatar(avatar)} style={{background:selected?'rgba(59,130,246,0.15)':'rgba(0,0,0,0.3)',border:'2px solid '+(selected?T.blue:T.border),borderRadius:12,padding:'10px 4px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
                   <div style={{fontSize:24,marginBottom:4}}>{avatar.id}</div>
                   <div style={{fontSize:9,color:selected?T.blue:T.muted,fontWeight:700,lineHeight:1.2}}>{avatar.label}</div>
                 </button>
@@ -570,55 +566,9 @@ function SettingsPanelGalaxy({onBack}) {
           </div>
         </div>
 
-        {/* Save / Load */}
-        <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+T.border,marginBottom:12}}>
-          <div style={{fontSize:11,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Save / Load</div>
-          {['slot1','slot2','slot3'].map(slot=>{
-            const saved=localStorage.getItem('CC_save_'+slot);
-            const info=saved?(() => {try{const sd=JSON.parse(saved);return 'T'+sd.turn+' · '+fm((sd.cashWallet||0)+(sd.savingsWallet||0)+(sd.tradingWallet||0));}catch(e){return 'Save data';}})():null;
-            return (
-              <div key={slot} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,color:T.text,fontWeight:700}}>{slot.toUpperCase()}</div>
-                  {info&&<div style={{fontSize:10,color:T.muted}}>{info}</div>}
-                  {!saved&&<div style={{fontSize:10,color:T.muted}}>Empty</div>}
-                </div>
-                <button onClick={()=>{const e=saveGame(slot);showMsg(e||'Saved to '+slot+'!');}} style={{background:'#059669',color:'#fff',border:'none',borderRadius:8,padding:'7px 12px',fontWeight:700,fontSize:11,cursor:'pointer'}}>Save</button>
-                <button onClick={()=>{const e=loadGame(slot);showMsg(e||'Loaded '+slot+'!');}} style={{background:T.blue,color:'#fff',border:'none',borderRadius:8,padding:'7px 12px',fontWeight:700,fontSize:11,cursor:'pointer',opacity:saved?1:0.5}} disabled={!saved}>Load</button>
-              </div>
-            );
-          })}
-          <div style={{marginTop:10,fontSize:10,color:T.muted}}>Auto-save: every 10 turns (slot: CC_autosave)</div>
-          <button onClick={()=>{const e=loadGame('autosave'.replace('slot','CC_autosave').replace('CC_save_','')||'autosave');showMsg(e||'Auto-save loaded!');}} style={{marginTop:6,background:'rgba(255,255,255,0.05)',border:'1px solid '+T.border,color:T.muted,borderRadius:8,padding:'7px 12px',fontSize:11,cursor:'pointer',width:'100%'}}>Load Auto-Save</button>
-        </div>
-
-        {/* How to Play */}
-        <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+T.border,marginBottom:12}}>
-          <div style={{fontSize:11,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>How to Play</div>
-          {[['🏠 Home','Advance turns, track portfolio, view world events'],['🌌 Markets','Trade Earth stocks, planet companies, ETFs, IPOs, and bonds'],['💰 Wealth','Manage wallets, loans, sovereign funds, and portfolio overview'],['🎯 Command','CEO decisions (10%+ ownership), debt wheel, fortune wheel, donations'],['🔭 Galaxy','Insights, academy, space guide, glossary, badges, settings'],['🌌 Planet Unlock','Planets unlock as net worth grows: Mars $5B → Neptune $100T'],['📊 Tax Eras','8 tax regimes rotate every 60 turns — time trades accordingly']].map(([l,v])=>(
-            <div key={l} style={{padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.3)'}}>
-              <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:2}}>{l}</div>
-              <div style={{fontSize:11,color:T.muted,lineHeight:1.4}}>{v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Reset */}
-        <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid rgba(239,68,68,0.2)'}}>
-          <div style={{fontSize:11,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:10}}>Danger Zone</div>
-          {!confirmReset?(
-            <button onClick={()=>setConfirmReset(true)} style={{width:'100%',background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#FCA5A5',borderRadius:10,padding:'12px 0',fontWeight:700,fontSize:14,cursor:'pointer'}}>
-              🗑️ Reset Game
-            </button>
-          ):(
-            <div>
-              <div style={{fontSize:12,color:'#FCA5A5',marginBottom:10}}>Turn {d.turn}, {fm(totalPortfolio)} net worth — permanently delete all progress?</div>
-              <div style={{display:'flex',gap:8}}>
-                <button onClick={()=>setConfirmReset(false)} style={{flex:1,padding:'11px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:10,fontWeight:700,cursor:'pointer'}}>Cancel</button>
-                <button onClick={()=>window.location.reload()} style={{flex:2,padding:'11px 0',background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #DC2626',borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>Reset Everything</button>
-              </div>
-            </div>
-          )}
+        {/* Redirect note */}
+        <div style={{background:T.card,borderRadius:14,padding:14,border:'1px solid '+T.border,marginBottom:12,fontSize:12,color:T.sub,lineHeight:1.6}}>
+          💡 For theme, language & save slots: go to <strong style={{color:T.text}}>Command → ⚙️ Settings</strong>
         </div>
       </div>
     </div>
@@ -641,6 +591,7 @@ export default function GalaxyScreen() {
   const [panel,setPanel]=useState(null);
   const { D } = useGame();
   const TH = getTheme(D.darkMode);
+  const t = getT(D.language);
 
   if(panel) return <PanelWrapper panel={panel} onBack={()=>setPanel(null)}/>;
 
@@ -655,14 +606,14 @@ export default function GalaxyScreen() {
 
       <div style={{padding:'14px 16px'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-          <Tile ico='📊' label='Insights' sub='Your analytics' color='#3B82F6' onClick={()=>setPanel('insights')}/>
+          <Tile ico='📊' label={t('tab_insights')} sub='Your analytics' color='#3B82F6' onClick={()=>setPanel('insights')}/>
           <Tile ico='🪐' label='Space Guide' sub='Planet deep dives' color='#8B5CF6' onClick={()=>setPanel('space')}/>
-          <Tile ico='🎓' label='Academy' sub='Learn the game' color='#10B981' onClick={()=>setPanel('academy')}/>
-          <Tile ico='📚' label='Glossary' sub='All terms defined' color='#F59E0B' onClick={()=>setPanel('glossary')}/>
+          <Tile ico='🎓' label={t('tab_academy')} sub='Learn the game' color='#10B981' onClick={()=>setPanel('academy')}/>
+          <Tile ico='📚' label={t('tab_glossary')} sub='All terms defined' color='#F59E0B' onClick={()=>setPanel('glossary')}/>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-          <Tile ico='🏅' label='Badges' sub='Achievements' color='#F43F5E' onClick={()=>setPanel('badges')}/>
-          <Tile ico='⚙️' label='Settings' sub='Save · Theme · Profile' color='#475569' onClick={()=>setPanel('settings')}/>
+          <Tile ico='🏅' label={t('tab_badges')} sub='Achievements' color='#F43F5E' onClick={()=>setPanel('badges')}/>
+          <Tile ico='⚙️' label={t('tab_profile')} sub='Profile & Avatar' color='#475569' onClick={()=>setPanel('settings')}/>
         </div>
       </div>
     </div>
