@@ -3,6 +3,7 @@ import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { PLANETS_DATA, IPOS, COMMODITIES } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
+import { getTheme } from '../theme';
 
 const CRYPTO_COINS = [
   {id:'BTC', n:'Bitcoin', sym:'BTC', ico:'🟡', ip:65000, vol:.12, desc:'The original store of value. Earth-based. Institutional backing.', theme:'Digital Gold · Earth Network', unlock:null},
@@ -1004,16 +1005,18 @@ const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planet
 
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
+  const { D } = useGame();
+  const TH = getTheme(D.darkMode);
   return (
-    <div style={{background:T.bg,minHeight:'100%'}}>
-      <div style={{background:'linear-gradient(180deg,#050F20,#030810)',padding:'18px 16px 0',borderBottom:'1px solid '+T.border}}>
-        <div style={{fontSize:11,color:T.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
-        <div style={{fontSize:24,fontWeight:900,color:T.text,marginBottom:14}}>🌌 Universe Exchange</div>
-        <div style={{display:'flex',gap:0,background:T.bg,borderRadius:14,padding:3,overflowX:'auto'}}>
+    <div style={{background:TH.bg,minHeight:'100%'}}>
+      <div style={{background:TH.isDark?'linear-gradient(180deg,#050F20,#030810)':TH.bg,padding:'18px 16px 0',borderBottom:'1px solid '+TH.border}}>
+        <div style={{fontSize:11,color:TH.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
+        <div style={{fontSize:24,fontWeight:900,color:TH.text,marginBottom:14}}>🌌 Universe Exchange</div>
+        <div style={{display:'flex',gap:0,background:TH.bg,borderRadius:14,padding:3,overflowX:'auto'}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,minWidth:52,padding:'9px 4px',background:tab===t.id?T.card:'transparent',border:tab===t.id?'1px solid '+T.border:'1px solid transparent',borderRadius:11,cursor:'pointer',transition:'all .15s'}}>
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,minWidth:52,padding:'9px 4px',background:tab===t.id?TH.card:'transparent',border:tab===t.id?'1px solid '+TH.border:'1px solid transparent',borderRadius:11,cursor:'pointer',transition:'all .15s'}}>
               <div style={{fontSize:16}}>{t.ico}</div>
-              <div style={{fontSize:10,fontWeight:tab===t.id?700:400,color:tab===t.id?T.text:T.muted,marginTop:2}}>{t.l}</div>
+              <div style={{fontSize:10,fontWeight:tab===t.id?700:400,color:tab===t.id?TH.text:TH.muted,marginTop:2}}>{t.l}</div>
             </button>
           ))}
         </div>

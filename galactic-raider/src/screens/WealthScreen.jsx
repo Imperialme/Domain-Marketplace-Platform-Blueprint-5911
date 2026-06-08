@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
 import { LOAN_TIERS, SOVEREIGN_FUNDS, PLANETS_DATA, COMMODITIES } from '../constants';
+import { getTheme } from '../theme';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -458,6 +459,7 @@ function r2(n){return Math.round(n*100)/100;}
 export default function WealthScreen() {
   const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
   const d = D;
+  const TH = getTheme(d.darkMode);
   const [tab, setTab] = useState('portfolio');
   const [repayAmt, setRepayAmt] = useState('');
   const [transferAmt, setTransferAmt] = useState('');
@@ -483,8 +485,8 @@ export default function WealthScreen() {
   const tabs=[{id:'portfolio',l:'📊 Portfolio'},{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'planetfx',l:'🌐 FX'},{id:'log',l:'📋 Log'}];
 
   return (
-    <div style={{padding:'14px 14px 80px',background:'#060B14',minHeight:'100%'}}>
-      <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC',marginBottom:12}}>💰 Wealth Manager</div>
+    <div style={{padding:'14px 14px 80px',background:TH.bg,minHeight:'100%'}}>
+      <div style={{fontSize:18,fontWeight:900,color:TH.text,marginBottom:12}}>💰 Wealth Manager</div>
       <div style={{display:'flex',gap:4,marginBottom:14,overflowX:'auto',paddingBottom:4}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{...CS.tab(tab===t.id),flexShrink:0,padding:'9px 10px'}}>{t.l}</button>

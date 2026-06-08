@@ -3,14 +3,18 @@ import { useGame } from '../store/gameStore';
 import { BADGE_DEFS, PLANET_THRESHOLDS } from '../store/gameStore';
 import { fm } from '../utils';
 import { PLANETS_DATA } from '../constants';
+import { getTheme } from '../theme';
 
-const T = {
+// Default T for module-level helpers that need it (sub-components will use their own TH)
+const T_DEFAULT = {
   bg:'#030810', card:'#0A1628', raised:'#0F1E35',
   border:'rgba(255,255,255,0.08)',
   text:'#F1F5F9', sub:'#94A3B8', muted:'#475569',
   green:'#10B981', red:'#F43F5E', blue:'#3B82F6',
   amber:'#F59E0B', purple:'#8B5CF6', cyan:'#06B6D4',
 };
+// T will be overridden inside components; this is for static sub-helpers
+const T = T_DEFAULT;
 
 // ── TILE ───────────────────────────────────────────────────────
 function Tile({ico,label,sub,color,onClick}) {
@@ -635,16 +639,18 @@ function PanelWrapper({panel,onBack}) {
 // ── MAIN GALAXY SCREEN ─────────────────────────────────────────
 export default function GalaxyScreen() {
   const [panel,setPanel]=useState(null);
+  const { D } = useGame();
+  const TH = getTheme(D.darkMode);
 
   if(panel) return <PanelWrapper panel={panel} onBack={()=>setPanel(null)}/>;
 
   return (
-    <div style={{background:T.bg,minHeight:'100%',padding:'0 0 80px'}}>
+    <div style={{background:TH.bg,minHeight:'100%',padding:'0 0 80px'}}>
       {/* Header */}
-      <div style={{background:'linear-gradient(180deg,#050F20,#030810)',padding:'18px 16px 18px',borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-        <div style={{fontSize:11,color:T.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
-        <div style={{fontSize:24,fontWeight:900,color:T.text}}>🔭 Galaxy Hub</div>
-        <div style={{fontSize:12,color:T.muted,marginTop:4}}>Explore · Learn · Analyze</div>
+      <div style={{background:TH.isDark?'linear-gradient(180deg,#050F20,#030810)':TH.bg,padding:'18px 16px 18px',borderBottom:'1px solid '+TH.border}}>
+        <div style={{fontSize:11,color:TH.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
+        <div style={{fontSize:24,fontWeight:900,color:TH.text}}>🔭 Galaxy Hub</div>
+        <div style={{fontSize:12,color:TH.muted,marginTop:4}}>Explore · Learn · Analyze</div>
       </div>
 
       <div style={{padding:'14px 16px'}}>
