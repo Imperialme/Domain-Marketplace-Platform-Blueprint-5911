@@ -16,7 +16,15 @@
   </head>
   <body>
     <div id="root"></div>
-  <script>(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))r(i);new MutationObserver(i=>{for(const s of i)if(s.type==="childList")for(const l of s.addedNodes)l.tagName==="LINK"&&l.rel==="modulepreload"&&r(l)}).observe(document,{childList:!0,subtree:!0});function n(i){const s={};return i.integrity&&(s.integrity=i.integrity),i.referrerPolicy&&(s.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?s.credentials="include":i.crossOrigin==="anonymous"?s.credentials="omit":s.credentials="same-origin",s}function r(i){if(i.ep)return;i.ep=!0;const s=n(i);fetch(i.href,s)}})();function pu(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var Qa={exports:{}},ti={},Ja={exports:{}},re={};/**
+  <script>
+window.onerror=function(msg,src,line,col,err){
+  document.body.innerHTML='<div style="padding:20px;background:#1a0000;color:#ff4444;font-family:monospace;font-size:13px;min-height:100vh"><b>⚠️ Load Error</b><br><br>'+msg+'<br><br>Line: '+line+'<br><br>'+(err?err.stack:'')+'</div>';
+  return true;
+};
+window.onunhandledrejection=function(e){
+  document.body.innerHTML='<div style="padding:20px;background:#1a0000;color:#ff4444;font-family:monospace;font-size:13px;min-height:100vh"><b>⚠️ Promise Error</b><br><br>'+(e.reason||e)+'</div>';
+};
+</script><script type="text/javascript">(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))r(i);new MutationObserver(i=>{for(const s of i)if(s.type==="childList")for(const l of s.addedNodes)l.tagName==="LINK"&&l.rel==="modulepreload"&&r(l)}).observe(document,{childList:!0,subtree:!0});function n(i){const s={};return i.integrity&&(s.integrity=i.integrity),i.referrerPolicy&&(s.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?s.credentials="include":i.crossOrigin==="anonymous"?s.credentials="omit":s.credentials="same-origin",s}function r(i){if(i.ep)return;i.ep=!0;const s=n(i);fetch(i.href,s)}})();function pu(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var Qa={exports:{}},ti={},Ja={exports:{}},re={};/**
  * @license React
  * react.production.min.js
  *
