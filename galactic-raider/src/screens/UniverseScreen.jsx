@@ -6,12 +6,28 @@ import { PLANET_THRESHOLDS } from '../store/gameStore';
 import { getTheme } from '../theme';
 
 const CRYPTO_COINS = [
-  {id:'BTC', n:'Bitcoin', sym:'BTC', ico:'🟡', ip:65000, vol:.12, desc:'The original store of value. Earth-based. Institutional backing.', theme:'Digital Gold · Earth Network', unlock:null},
-  {id:'ETH', n:'Ethereum', sym:'ETH', ico:'🔷', ip:3200, vol:.16, desc:'Smart contract platform. Foundation for DeFi and NFTs across the solar system.', theme:'Universal Smart Contracts', unlock:null},
-  {id:'DOGE', n:'Dogecoin', sym:'DOGE', ico:'🐕', ip:0.35, vol:.28, desc:'"The Mars Currency." Backed by the Mars Colonisation Society. Elon declared it official Mars tender.', theme:'Mars Official Currency 🔴', unlock:null},
-  {id:'SOL', n:'SolCoin', sym:'SOL', ico:'☀️', ip:180, vol:.20, desc:'Solar-native cryptocurrency. Powers all interplanetary payment rails.', theme:'Solar Payment Network', unlock:null},
-  {id:'MRC', n:'MarsCoin', sym:'MRC', ico:'🔴', ip:12.50, vol:.35, desc:'Mars-native governance token. Used to vote on Martian infrastructure projects.', theme:'Mars Governance Token', unlock:'Mars'},
-  {id:'NTX', n:'NeptuniumX', sym:'NTX', ico:'💜', ip:8888, vol:.42, desc:'The most volatile asset in the solar system. Neptune deep research fund token.', theme:'Neptune Research Token', unlock:'Neptune'},
+  // Earth coins (unlocked)
+  {id:'BTC',n:'Bitcoin',sym:'BTC',ico:'🟡',ip:65000,vol:.12,desc:'The original store of value. Institutional-grade digital gold.',theme:'Digital Gold · Earth Network',unlock:null},
+  {id:'ETH',n:'Ethereum',sym:'ETH',ico:'🔷',ip:3200,vol:.16,desc:'Smart contract platform powering DeFi and NFTs across the solar system.',theme:'Universal Smart Contracts',unlock:null},
+  {id:'BNB',n:'BNB Chain',sym:'BNB',ico:'🟠',ip:600,vol:.18,desc:'Exchange-native token. Powers the largest DEX ecosystem by volume.',theme:'Exchange Ecosystem',unlock:null},
+  {id:'XRP',n:'XRP',sym:'XRP',ico:'💧',ip:0.60,vol:.22,desc:'Interplanetary payment protocol. Sub-second settlements between planet economies.',theme:'Interplanetary Payments',unlock:null},
+  {id:'ADA',n:'Cardano',sym:'ADA',ico:'🔵',ip:0.45,vol:.24,desc:'Proof-of-stake blockchain with academic research foundation.',theme:'Research-Driven PoS',unlock:null},
+  {id:'SOL',n:'Solana',sym:'SOL',ico:'☀️',ip:180,vol:.20,desc:'High-speed blockchain. Powers solar-native payment rails at 65,000 TPS.',theme:'Solar Payment Network',unlock:null},
+  {id:'DOGE',n:'Dogecoin',sym:'DOGE',ico:'🐕',ip:0.35,vol:.28,desc:'"The Mars Currency." Backed by the Mars Colonisation Society. Declared official Mars tender.',theme:'Mars Official Currency 🔴',unlock:null},
+  {id:'AVAX',n:'Avalanche',sym:'AVAX',ico:'🏔️',ip:35,vol:.25,desc:'Sub-second finality. Preferred chain for interplanetary smart contracts.',theme:'Fast Finality Chain',unlock:null},
+  {id:'LTC',n:'Litecoin',sym:'LTC',ico:'⚪',ip:85,vol:.18,desc:"Silver to Bitcoin's gold. Faster, lighter, proven 15-year track record.",theme:'Digital Silver',unlock:null},
+  {id:'LINK',n:'Chainlink',sym:'LINK',ico:'🔗',ip:18,vol:.22,desc:'Decentralised oracle network. Connects smart contracts to real-world data.',theme:'Oracle Infrastructure',unlock:null},
+  {id:'DOT',n:'Polkadot',sym:'DOT',ico:'🔴',ip:8,vol:.20,desc:'Multi-chain architecture. Enables all blockchains to communicate.',theme:'Cross-Chain Protocol',unlock:null},
+  {id:'MATIC',n:'Polygon',sym:'MATIC',ico:'🟣',ip:0.90,vol:.25,desc:'Ethereum scaling solution. 100× cheaper transactions for Earth DeFi.',theme:'Ethereum Scaling Layer',unlock:null},
+  {id:'TON',n:'Toncoin',sym:'TON',ico:'💎',ip:5.50,vol:.20,desc:'Telegram-native blockchain. Billions of users, instant micro-payments.',theme:'Mass Adoption Chain',unlock:null},
+  {id:'UNI',n:'Uniswap',sym:'UNI',ico:'🦄',ip:10,vol:.22,desc:'Largest decentralised exchange. Governance token for the DeFi revolution.',theme:'DeFi Governance',unlock:null},
+  // Planet coins (locked)
+  {id:'MRC',n:'MarsCoin',sym:'MRC',ico:'🔴',ip:12.50,vol:.35,desc:'Mars-native governance token. Used to vote on Martian infrastructure projects.',theme:'Mars Governance Token',unlock:'Mars'},
+  {id:'NTX',n:'NeptuniumX',sym:'NTX',ico:'💜',ip:8888,vol:.42,desc:'The most volatile asset in the solar system. Neptune deep research fund token.',theme:'Neptune Research Token',unlock:'Neptune'},
+  {id:'VNS',n:'VenusCreds',sym:'VNS',ico:'🟡',ip:2.5,vol:.30,desc:'Venus automated economy credit. Backed by solar energy exports.',theme:'Venus Energy Credits',unlock:'Venus'},
+  {id:'JFS',n:'Jupiter Fusion Token',sym:'JFS',ico:'🟠',ip:45,vol:.38,desc:"Powers Jupiter's fusion reactor network. Storm events cause price spikes.",theme:'Jupiter Energy Network',unlock:'Jupiter'},
+  {id:'SRZ',n:'SaturnRyz Token',sym:'SRZ',ico:'🪐',ip:120,vol:.45,desc:'Backed by the Ryzolith monopoly. Scarcity increases every 100 turns.',theme:'Saturn Ryzolith Reserve',unlock:'Saturn'},
+  {id:'MCY',n:'MercuryCoin',sym:'MCY',ico:'☿',ip:35,vol:.32,desc:"Solar crystal backed currency. Mercury's 24× solar intensity powers the network.",theme:'Mercury Solar Economy',unlock:'Mercury'},
 ];
 
 const T = {
@@ -749,7 +765,9 @@ function CryptoTab() {
       <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#FCD34D',lineHeight:1.5}}>
         ⚡ Crypto is highly volatile — prices can swing ±40% per turn. Flat 30% tax on profits.
       </div>
-      {CRYPTO_COINS.map(coin=>{
+      <div style={{fontSize:11,fontWeight:800,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:8,marginTop:4}}>🌍 Earth Coins</div>
+      {CRYPTO_COINS.filter(c=>c.unlock===null).concat(CRYPTO_COINS.filter(c=>c.unlock!==null)).map((coin,idx,arr)=>{
+        const isFirstPlanet=coin.unlock!==null&&(idx===0||arr[idx-1].unlock===null);
         const price=d.cryptoPrices?.[coin.id]||coin.ip;
         const held=d.cryptoHoldings?.[coin.id]||0;
         const avgCost=d.cryptoAvgCost?.[coin.id]||price;
@@ -759,7 +777,9 @@ function CryptoTab() {
         const hist=d.cryptoHist?.[coin.id]||[price];
         const isLocked=coin.unlock&&!d.planetUnlocks?.[coin.unlock];
         return (
-          <div key={coin.id} style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+T.border,marginBottom:8,position:'relative',overflow:'hidden'}}>
+          <div key={coin.id}>
+          {isFirstPlanet&&<div style={{fontSize:11,fontWeight:800,color:T.muted,textTransform:'uppercase',letterSpacing:1.5,marginBottom:8,marginTop:8}}>🪐 Planet Tokens (Locked)</div>}
+          <div style={{background:T.card,borderRadius:16,padding:14,border:'1px solid '+T.border,marginBottom:8,position:'relative',overflow:'hidden'}}>
             {isLocked&&(
               <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.75)',borderRadius:16,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2}}>
                 <div style={{fontSize:28,marginBottom:6}}>🔒</div>
@@ -795,6 +815,7 @@ function CryptoTab() {
                 <button onClick={()=>openSell(coin)} disabled={held<=0} style={{padding:'11px 0',background:held>0?'linear-gradient(135deg,#DC2626,#7F1D1D)':'rgba(0,0,0,0.3)',color:held>0?'#fff':'#374151',border:'none',borderRadius:10,fontWeight:700,fontSize:13,cursor:held>0?'pointer':'default'}}>Sell</button>
               </div>
             )}
+          </div>
           </div>
         );
       })}

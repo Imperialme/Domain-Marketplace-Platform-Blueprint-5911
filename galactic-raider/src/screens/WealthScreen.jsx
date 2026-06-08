@@ -604,9 +604,12 @@ export default function WealthScreen() {
             />
             <div style={{display:'flex',gap:8,marginBottom:8}}>
               <input value={repayAmt} onChange={e=>setRepayAmt(e.target.value)} placeholder="Amount to repay" style={{flex:1,background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:12,outline:'none'}}/>
-              <button onClick={()=>{repayLoan(parseFloat(repayAmt)||0);setRepayAmt('');showMsg('Repaid');}} style={{background:'#DC2626',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Repay</button>
+              <button onClick={()=>{const err=repayLoan(parseFloat(repayAmt)||0);if(err)showMsg('❌ '+err);else{showMsg('✅ Repaid');setRepayAmt('');}}} style={{background:'#DC2626',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Repay</button>
             </div>
-            <button onClick={()=>{repayLoan(d.activeLoan.outstanding);showMsg('Loan fully repaid!');}} style={{width:'100%',background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #DC2626',borderRadius:10,padding:'10px 0',fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            <button onClick={()=>{
+              const err=repayLoan(d.activeLoan.outstanding);
+              if(err) showMsg('❌ '+err); else showMsg('✅ Loan fully repaid!');
+            }} style={{width:'100%',background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #DC2626',borderRadius:10,padding:'10px 0',fontWeight:700,fontSize:13,cursor:'pointer'}}>
               Repay All — {fm(d.activeLoan.outstanding)}
             </button>
           </div>

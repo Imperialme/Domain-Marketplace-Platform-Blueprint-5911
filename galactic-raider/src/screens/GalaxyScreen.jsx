@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { BADGE_DEFS, PLANET_THRESHOLDS } from '../store/gameStore';
 import { fm } from '../utils';
@@ -38,6 +38,22 @@ function PanelHeader({title,onBack}) {
   );
 }
 
+// ── AVATAR DEFINITIONS ────────────────────────────────────────
+const SPACE_AVATARS = [
+  { id:'🚀', label:'Pioneer',      color:'#3B82F6', glow:'#60A5FA', anim:'float',   bg:'linear-gradient(135deg,#1e3a8a,#1e40af)' },
+  { id:'👨‍🚀', label:'Astronaut',    color:'#94A3B8', glow:'#CBD5E1', anim:'breathe', bg:'linear-gradient(135deg,#1e293b,#334155)' },
+  { id:'🛸', label:'Commander',    color:'#10B981', glow:'#34D399', anim:'pulse',   bg:'linear-gradient(135deg,#064e3b,#065f46)' },
+  { id:'⚡', label:'Flash Trader', color:'#F59E0B', glow:'#FCD34D', anim:'zap',    bg:'linear-gradient(135deg,#78350f,#92400e)' },
+  { id:'🌌', label:'Galaxy Chief', color:'#8B5CF6', glow:'#A78BFA', anim:'nebula', bg:'linear-gradient(135deg,#4c1d95,#5b21b6)' },
+  { id:'💫', label:'Starborn',     color:'#EC4899', glow:'#F472B6', anim:'twinkle',bg:'linear-gradient(135deg,#831843,#9d174d)' },
+  { id:'🤖', label:'CosmoBot',     color:'#06B6D4', glow:'#67E8F9', anim:'scan',   bg:'linear-gradient(135deg,#0c4a6e,#075985)' },
+  { id:'👑', label:'Space Baron',  color:'#F59E0B', glow:'#FDE68A', anim:'shimmer',bg:'linear-gradient(135deg,#713f12,#92400e)' },
+  { id:'🔭', label:'The Watcher',  color:'#6366F1', glow:'#818CF8', anim:'orbit',  bg:'linear-gradient(135deg,#1e1b4b,#312e81)' },
+  { id:'🌙', label:'Moon Sentinel',color:'#94A3B8', glow:'#E2E8F0', anim:'glow',   bg:'linear-gradient(135deg,#1e293b,#0f172a)' },
+  { id:'☄️', label:'Comet Raider', color:'#EF4444', glow:'#FCA5A5', anim:'streak', bg:'linear-gradient(135deg,#7f1d1d,#991b1b)' },
+  { id:'🪐', label:'Ring Master',  color:'#7C3AED', glow:'#C4B5FD', anim:'ring',   bg:'linear-gradient(135deg,#4c1d95,#2e1065)' },
+];
+
 // ── INSIGHTS PANEL ─────────────────────────────────────────────
 const PLANET_INFO = {
   Earth:{ico:'🌍',color:'#2E7D32'},Mars:{ico:'🔴',color:'#C62828'},Venus:{ico:'🟡',color:'#F57F17'},
@@ -71,6 +87,30 @@ function InsightsPanel({onBack}) {
   const d=D;
   const [subTab,setSubTab]=useState('profile');
   const stats=d.stats||{};
+
+  React.useEffect(() => {
+    const id = 'avatar-anim-styles';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      @keyframes cc-float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-6px) scale(1.05)} }
+      @keyframes cc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+      @keyframes cc-pulse { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 0 8px transparent} }
+      @keyframes cc-zap { 0%{filter:brightness(1)} 25%{filter:brightness(1.8)} 50%{filter:brightness(1)} 75%{filter:brightness(1.6)} 100%{filter:brightness(1)} }
+      @keyframes cc-nebula { 0%{opacity:1;transform:scale(1) rotate(0deg)} 50%{opacity:.85;transform:scale(1.06) rotate(3deg)} 100%{opacity:1;transform:scale(1) rotate(0deg)} }
+      @keyframes cc-twinkle { 0%,100%{filter:brightness(1) drop-shadow(0 0 2px #F472B6)} 50%{filter:brightness(1.5) drop-shadow(0 0 12px #F472B6)} }
+      @keyframes cc-scan { 0%{filter:hue-rotate(0deg) brightness(1)} 50%{filter:hue-rotate(180deg) brightness(1.3)} 100%{filter:hue-rotate(360deg) brightness(1)} }
+      @keyframes cc-shimmer { 0%,100%{filter:brightness(1)} 33%{filter:brightness(1.4)} 66%{filter:brightness(.9)} }
+      @keyframes cc-orbit { 0%,100%{transform:translateX(0) scale(1)} 25%{transform:translateX(3px) scale(1.02)} 75%{transform:translateX(-3px) scale(.98)} }
+      @keyframes cc-glow { 0%,100%{filter:drop-shadow(0 0 3px #94A3B8)} 50%{filter:drop-shadow(0 0 14px #E2E8F0)} }
+      @keyframes cc-streak { 0%{transform:translateX(-2px) skewX(0deg)} 50%{transform:translateX(2px) skewX(-5deg)} 100%{transform:translateX(-2px) skewX(0deg)} }
+      @keyframes cc-ring { 0%,100%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.05) rotate(5deg)} }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
+  const avatarDef = SPACE_AVATARS.find(a => a.id === (d.playerAvatar || '🚀'));
 
   const stockVal=Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0);
   const etfVal=(d.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0);
@@ -111,9 +151,15 @@ function InsightsPanel({onBack}) {
       <div style={{padding:'12px 16px'}}>
         {subTab==='profile'&&(
           <div>
-            <div style={{background:T.card,borderRadius:14,padding:16,border:'1px solid '+T.border,marginBottom:12,textAlign:'center'}}>
-              <div style={{fontSize:48,marginBottom:8}}>{d.playerAvatar||'🚀'}</div>
+            <div style={{background: avatarDef ? avatarDef.bg : T.card,borderRadius:14,padding:16,border:`1px solid ${avatarDef ? avatarDef.glow+'55' : T.border}`,marginBottom:12,textAlign:'center',boxShadow: avatarDef ? `0 0 24px ${avatarDef.glow}33` : 'none'}}>
+              <div style={{
+                fontSize:48,
+                marginBottom:8,
+                display:'inline-block',
+                animation: avatarDef ? `cc-${avatarDef.anim} 2.5s ease-in-out infinite` : 'none',
+              }}>{d.playerAvatar||'🚀'}</div>
               <div style={{fontSize:20,fontWeight:900,color:T.text}}>{d.playerName||'Raider'}</div>
+              {avatarDef && <div style={{fontSize:11,color:avatarDef.glow,fontWeight:700,marginTop:2}}>{avatarDef.label}</div>}
               <div style={{fontSize:12,color:T.muted,marginTop:4}}>Turn {d.turn} · {(d.badges||[]).length} badges earned</div>
             </div>
             {[['Net Worth',fm(totalPortfolio),T.green],['Peak NW',fm(stats.peakNetWorth||totalPortfolio),T.green],['Trades Won',stats.tradesWon||0,T.green],['Trades Lost',stats.tradesLost||0,T.red],['Tax Paid',fm(stats.totalTaxPaid||0),T.amber],['GSF Income',fm(stats.totalGSFIncome||0),T.cyan],['Savings Int.',fm(stats.totalSavingsInterest||0),T.blue],['Donations','$'+fm(d.totalDonated||0),T.purple]].map(([l,v,c])=>(
@@ -513,28 +559,36 @@ function BadgesPanel({onBack}) {
 }
 
 // ── SETTINGS PANEL ─────────────────────────────────────────────
-const SPACE_AVATARS = [
-  {id:'🚀', label:'Pioneer'},
-  {id:'👨‍🚀', label:'Astronaut'},
-  {id:'🛸', label:'Commander'},
-  {id:'⚡', label:'Flash Trader'},
-  {id:'🌌', label:'Galaxy Chief'},
-  {id:'💫', label:'Starborn'},
-  {id:'🤖', label:'CosmoBot'},
-  {id:'👑', label:'Space Baron'},
-  {id:'🔭', label:'The Watcher'},
-  {id:'☄️', label:'Meteor'},
-  {id:'🌠', label:'Star Chaser'},
-  {id:'🪐', label:'Planet Maker'},
-];
-
 function SettingsPanelGalaxy({onBack}) {
   const {D,setPlayerAvatar,setPlayerName}=useGame();
   const d=D;
+  const TH = getTheme(D.darkMode);
   const [name,setName]=useState(d.playerName||'Raider');
   const [msg,setMsg]=useState('');
   const [currentAvatar,setCurrentAvatar]=useState(d.playerAvatar||'🚀');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+
+  React.useEffect(() => {
+    const id = 'avatar-anim-styles';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      @keyframes cc-float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-6px) scale(1.05)} }
+      @keyframes cc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+      @keyframes cc-pulse { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 0 8px transparent} }
+      @keyframes cc-zap { 0%{filter:brightness(1)} 25%{filter:brightness(1.8)} 50%{filter:brightness(1)} 75%{filter:brightness(1.6)} 100%{filter:brightness(1)} }
+      @keyframes cc-nebula { 0%{opacity:1;transform:scale(1) rotate(0deg)} 50%{opacity:.85;transform:scale(1.06) rotate(3deg)} 100%{opacity:1;transform:scale(1) rotate(0deg)} }
+      @keyframes cc-twinkle { 0%,100%{filter:brightness(1) drop-shadow(0 0 2px #F472B6)} 50%{filter:brightness(1.5) drop-shadow(0 0 12px #F472B6)} }
+      @keyframes cc-scan { 0%{filter:hue-rotate(0deg) brightness(1)} 50%{filter:hue-rotate(180deg) brightness(1.3)} 100%{filter:hue-rotate(360deg) brightness(1)} }
+      @keyframes cc-shimmer { 0%,100%{filter:brightness(1)} 33%{filter:brightness(1.4)} 66%{filter:brightness(.9)} }
+      @keyframes cc-orbit { 0%,100%{transform:translateX(0) scale(1)} 25%{transform:translateX(3px) scale(1.02)} 75%{transform:translateX(-3px) scale(.98)} }
+      @keyframes cc-glow { 0%,100%{filter:drop-shadow(0 0 3px #94A3B8)} 50%{filter:drop-shadow(0 0 14px #E2E8F0)} }
+      @keyframes cc-streak { 0%{transform:translateX(-2px) skewX(0deg)} 50%{transform:translateX(2px) skewX(-5deg)} 100%{transform:translateX(-2px) skewX(0deg)} }
+      @keyframes cc-ring { 0%,100%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.05) rotate(5deg)} }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   const saveName=()=>{setPlayerName(name);showMsg('Name saved!');};
   const saveAvatar=(avatar)=>{setPlayerAvatar(avatar.id);setCurrentAvatar(avatar.id);showMsg('Avatar set: '+avatar.label+'!');};
@@ -553,13 +607,38 @@ function SettingsPanelGalaxy({onBack}) {
             <button onClick={saveName} style={{background:T.blue,color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontWeight:700,fontSize:12,cursor:'pointer'}}>Save</button>
           </div>
           <div style={{fontSize:11,color:T.muted,marginBottom:10}}>Choose Avatar</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-            {SPACE_AVATARS.map(avatar=>{
-              const selected=currentAvatar===avatar.id;
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+            {SPACE_AVATARS.map(avatar => {
+              const selected = currentAvatar === avatar.id;
+              const animName = `cc-${avatar.anim}`;
               return (
-                <button key={avatar.id} onClick={()=>saveAvatar(avatar)} style={{background:selected?'rgba(59,130,246,0.15)':'rgba(0,0,0,0.3)',border:'2px solid '+(selected?T.blue:T.border),borderRadius:12,padding:'10px 4px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
-                  <div style={{fontSize:24,marginBottom:4}}>{avatar.id}</div>
-                  <div style={{fontSize:9,color:selected?T.blue:T.muted,fontWeight:700,lineHeight:1.2}}>{avatar.label}</div>
+                <button key={avatar.id} onClick={() => saveAvatar(avatar)}
+                  style={{
+                    background: selected ? avatar.bg : TH.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                    border: `2px solid ${selected ? avatar.glow : T.border}`,
+                    borderRadius: 16,
+                    padding: '14px 8px 10px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all .2s',
+                    boxShadow: selected ? `0 0 18px ${avatar.glow}55` : 'none',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}>
+                  {selected && <div style={{position:'absolute',inset:0,background:`radial-gradient(circle at 50% 50%, ${avatar.glow}18, transparent 70%)`,pointerEvents:'none'}}/>}
+                  <div style={{
+                    fontSize: 32,
+                    marginBottom: 6,
+                    animation: selected ? `${animName} ${avatar.anim==='scan'?'2s':avatar.anim==='zap'?'1.5s':avatar.anim==='twinkle'?'1.8s':'2.5s'} ease-in-out infinite` : 'none',
+                    display: 'inline-block',
+                    lineHeight: 1,
+                  }}>
+                    {avatar.id}
+                  </div>
+                  <div style={{fontSize: 9, color: selected ? '#fff' : T.muted, fontWeight: 700, lineHeight: 1.2, letterSpacing: .3}}>
+                    {avatar.label}
+                  </div>
+                  {selected && <div style={{position:'absolute',top:4,right:6,fontSize:8,color:avatar.glow,fontWeight:800}}>✓</div>}
                 </button>
               );
             })}
