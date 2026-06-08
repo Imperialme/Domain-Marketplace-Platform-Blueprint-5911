@@ -41,8 +41,8 @@ function AppShell() {
   const showBadge = pendingCEO > 0 && hasBoardAccess;
 
   // Wealth notification: check if any position held
-  const stockVal = Object.entries(D.stockHoldings||{}).reduce((x,[t,n])=>{
-    const co=D.companies?.find(c=>c.t===t); return x+(co?co.price*n:0);},0);
+  const stockVal = Object.entries(D.stockHoldings||{}).reduce((x,[tk,n])=>{
+    const co=D.companies?.find(c=>c.t===tk); return x+(co?co.price*n:0);},0);
   const etfVal = (D.etfs||[]).reduce((x,e)=>x+e.price*(e.units||0),0);
   const fundVal = Object.values(D.fundDeposits||{}).reduce((x,f)=>x+(f.deposit||0),0);
   const wealthHasGain = stockVal + etfVal + fundVal > 0;
@@ -56,13 +56,13 @@ function AppShell() {
   };
 
   return (
-    <div style={{ background: '#060B14', minHeight: '100dvh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#F1F5F9' }}>
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: TH.bg, minHeight: '100dvh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: TH.text }}>
       <div style={{ height: 'calc(100dvh - 64px)', overflowY: 'auto', overflowX: 'hidden' }}>
         {screens[activeTab]}
       </div>
 
       {/* Bottom Nav */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: 'rgba(6,11,20,0.97)', borderTop: '1px solid #1A2744', display: 'flex', height: 64, zIndex: 100 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 430, background: TH.navBg, borderTop: '1px solid '+TH.borderSolid, display: 'flex', height: 64, zIndex: 100 }}>
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px 2px', position: 'relative' }}>
             {activeTab === tab.id && (
@@ -74,13 +74,13 @@ function AppShell() {
                 <div style={{ position: 'absolute', top: -4, right: -6, background: '#EF4444', borderRadius: 10, minWidth: 14, height: 14, fontSize: 8, color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{pendingCEO}</div>
               )}
               {tab.id === 'wealth' && wealthHasGain && (
-                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#10B981', borderRadius: '50%', border: '1px solid #060B14' }} />
+                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#10B981', borderRadius: '50%', border: '1px solid '+TH.bg }} />
               )}
               {tab.id === 'home' && autoAdv && (
-                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%', border: '1px solid #060B14' }} />
+                <div style={{ position: 'absolute', top: -4, right: -6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%', border: '1px solid '+TH.bg }} />
               )}
             </div>
-            <span style={{ fontSize: 9, color: activeTab === tab.id ? '#93C5FD' : '#4B5563', fontWeight: activeTab === tab.id ? 700 : 400, letterSpacing: 0.3 }}>{tab.label}</span>
+            <span style={{ fontSize: 9, color: activeTab === tab.id ? '#93C5FD' : TH.dim, fontWeight: activeTab === tab.id ? 700 : 400, letterSpacing: 0.3 }}>{t('nav_'+tab.id)}</span>
           </button>
         ))}
       </div>

@@ -3,14 +3,8 @@ import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { TAX_ERAS } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
-
-const T = {
-  bg:'#030810', card:'#0A1628', raised:'#0F1E35',
-  border:'rgba(255,255,255,0.08)', borderHi:'rgba(255,255,255,0.14)',
-  text:'#F1F5F9', sub:'#94A3B8', muted:'#475569',
-  green:'#10B981', red:'#F43F5E', blue:'#3B82F6',
-  amber:'#F59E0B', purple:'#8B5CF6', cyan:'#06B6D4',
-};
+import { getTheme } from '../theme';
+import { getT } from '../i18n';
 
 const pill = (c,bg,txt) => ({
   display:'inline-block', background:bg||c+'22', color:c,
@@ -18,7 +12,7 @@ const pill = (c,bg,txt) => ({
   border:'1px solid '+c+'44',
 });
 
-const GEO_IMPACT_COLOR = { positive:T.green, negative:T.red, mixed:T.amber, neutral:T.muted };
+const GEO_IMPACT_COLOR_DARK = { positive:'#10B981', negative:'#F43F5E', mixed:'#F59E0B', neutral:'#475569' };
 
 const PLANET_ORDER = [
   {name:'Earth', ico:'🌍', color:'#2E7D32'},
@@ -109,6 +103,9 @@ function SettingsModal({ onClose }) {
 export default function HomeScreen({ onNavigate, autoAdv, setAutoAdv, autoSpeed, setAutoSpeed }) {
   const { D, advanceTurn } = useGame();
   const d = D;
+  const TH = getTheme(d.darkMode);
+  const T = TH;
+  const GEO_IMPACT_COLOR = { positive:T.green, negative:T.red, mixed:T.amber, neutral:T.muted };
   const era = TAX_ERAS[d.eraIdx];
   const [showSettings, setShowSettings] = useState(false);
 

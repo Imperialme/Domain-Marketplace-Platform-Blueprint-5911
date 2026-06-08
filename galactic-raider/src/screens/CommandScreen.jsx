@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
 import { PHI_CATS, WHEEL_SEGMENTS } from '../constants';
+import { getTheme } from '../theme';
+import { getT, LANGS } from '../i18n';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -521,26 +523,119 @@ function PhilTab() {
   );
 }
 
+// ── SETTINGS TAB ───────────────────────────────────────────────
+function SettingsTab({ TH, t }) {
+  const { D, setDarkMode, setLanguage, saveGame, loadGame, S } = useGame();
+  const [msg, setMsg] = useState('');
+  const [confirmReset, setConfirmReset] = useState(false);
+  const showMsg = m => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const card = { background:TH.card, borderRadius:16, padding:16, border:'1px solid '+TH.borderSolid, marginBottom:12 };
+  const lbl = { fontSize:10, color:TH.dim, textTransform:'uppercase', letterSpacing:1.5, marginBottom:10 };
+
+  return (
+    <div>
+      {msg && <div style={{background:TH.card,border:'1px solid '+TH.borderSolid,borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
+
+      {/* Appearance */}
+      <div style={card}>
+        <div style={lbl}>{t('settings_theme')}</div>
+        <div style={{display:'flex',gap:8}}>
+          <button
+            onClick={() => setDarkMode(true)}
+            style={{flex:1,padding:'12px 0',borderRadius:12,border:'2px solid '+(D.darkMode!==false?'#7C3AED':TH.borderSolid),background:D.darkMode!==false?'rgba(124,58,237,0.15)':TH.raised,color:D.darkMode!==false?'#C4B5FD':TH.sub,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            🌙 {t('settings_dark')}
+          </button>
+          <button
+            onClick={() => setDarkMode(false)}
+            style={{flex:1,padding:'12px 0',borderRadius:12,border:'2px solid '+(D.darkMode===false?'#F59E0B':TH.borderSolid),background:D.darkMode===false?'rgba(245,158,11,0.15)':TH.raised,color:D.darkMode===false?'#F59E0B':TH.sub,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            ☀️ {t('settings_light')}
+          </button>
+        </div>
+      </div>
+
+      {/* Language */}
+      <div style={card}>
+        <div style={lbl}>{t('settings_language')}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {LANGS.map(lang => (
+            <button
+              key={lang.code}
+              onClick={() => setLanguage(lang.code)}
+              style={{padding:'10px 12px',borderRadius:10,border:'2px solid '+(D.language===lang.code?'#3B82F6':TH.borderSolid),background:D.language===lang.code?'rgba(59,130,246,0.15)':TH.raised,display:'flex',alignItems:'center',gap:8,cursor:'pointer',textAlign:'left'}}>
+              <span style={{fontSize:20}}>{lang.flag}</span>
+              <span style={{fontSize:12,fontWeight:700,color:D.language===lang.code?'#93C5FD':TH.text}}>{lang.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Save Slots */}
+      <div style={card}>
+        <div style={lbl}>{t('settings_save_slots')}</div>
+        {['slot1','slot2','slot3'].map((slot,i) => (
+          <div key={slot} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+            <div style={{fontSize:12,color:TH.sub,width:50}}>Slot {i+1}</div>
+            <button onClick={() => { const err=saveGame(slot); showMsg(err||'✅ Saved to slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:'#059669',color:'#fff',border:'none',borderRadius:8,fontWeight:700,fontSize:11,cursor:'pointer'}}>{t('settings_save')}</button>
+            <button onClick={() => { const err=loadGame(slot); showMsg(err||'✅ Loaded slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:TH.card,color:TH.sub,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,fontSize:11,cursor:'pointer'}}>{t('settings_load')}</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Reset */}
+      <div style={card}>
+        <div style={lbl}>{t('settings_reset')}</div>
+        {!confirmReset ? (
+          <button onClick={() => setConfirmReset(true)} style={{width:'100%',padding:'12px 0',background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #991B1B',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            ⚠️ {t('settings_reset')}
+          </button>
+        ) : (
+          <div>
+            <div style={{fontSize:12,color:'#FCA5A5',marginBottom:10,lineHeight:1.5}}>{t('settings_reset_confirm')}</div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={() => setConfirmReset(false)} style={{flex:1,padding:'10px 0',background:TH.card,color:TH.sub,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,cursor:'pointer'}}>{t('btn_cancel')}</button>
+              <button onClick={() => { S.current = null; localStorage.clear(); window.location.reload(); }} style={{flex:2,padding:'10px 0',background:'#991B1B',color:'#fff',border:'none',borderRadius:8,fontWeight:800,cursor:'pointer'}}>🗑️ {t('settings_reset')}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN COMMAND SCREEN ────────────────────────────────────────
 export default function CommandScreen() {
   const { D } = useGame();
+  const TH = getTheme(D.darkMode);
+  const t = getT(D.language);
+  const CS_T = {
+    card: { background:TH.card, borderRadius:16, padding:14, border:'1px solid '+TH.borderSolid, marginBottom:10 },
+    tab: (a) => ({ flex:1, padding:'9px 0', fontSize:11, fontWeight:700, border:'none', borderRadius:10, cursor:'pointer', background:a?'#7C3AED':TH.card, color:a?'#fff':TH.dim }),
+    label: { fontSize:10, color:TH.dim, textTransform:'uppercase', letterSpacing:1.5, marginBottom:8 },
+  };
   const pending = (D.pendingDecisions||[]).length;
   const [tab, setTab] = useState('ceo');
-  const tabs=[{id:'ceo',l:'👔 CEO'},{id:'wheel',l:'🎡 Wheel'},{id:'phil',l:'🤲 Donate'}];
+  const tabs=[
+    {id:'ceo', l:t('tab_ceo')},
+    {id:'wheel', l:t('tab_wheel')},
+    {id:'phil', l:t('tab_donate')},
+    {id:'settings', l:t('tab_settings')},
+  ];
   return (
-    <div style={{padding:'14px 14px 80px',background:'#060B14',minHeight:'100%'}}>
-      <div style={{fontSize:18,fontWeight:900,color:'#F8FAFC',marginBottom:12}}>🎯 Command Center</div>
+    <div style={{padding:'14px 14px 80px',background:TH.bg,minHeight:'100%'}}>
+      <div style={{fontSize:18,fontWeight:900,color:TH.text,marginBottom:12}}>🎯 Command Center</div>
       <div style={{display:'flex',gap:6,marginBottom:14}}>
-        {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{...CS.tab(tab===t.id),position:'relative'}}>
-            {t.l}
-            {t.id==='ceo'&&pending>0&&<span style={{position:'absolute',top:2,right:4,background:'#EF4444',color:'#fff',borderRadius:10,fontSize:8,fontWeight:800,padding:'1px 4px'}}>{pending}</span>}
+        {tabs.map(tb=>(
+          <button key={tb.id} onClick={()=>setTab(tb.id)} style={{...CS_T.tab(tab===tb.id),position:'relative'}}>
+            {tb.l}
+            {tb.id==='ceo'&&pending>0&&<span style={{position:'absolute',top:2,right:4,background:'#EF4444',color:'#fff',borderRadius:10,fontSize:8,fontWeight:800,padding:'1px 4px'}}>{pending}</span>}
           </button>
         ))}
       </div>
       {tab==='ceo'&&<CEOTab/>}
       {tab==='wheel'&&<WheelTab/>}
       {tab==='phil'&&<PhilTab/>}
+      {tab==='settings'&&<SettingsTab TH={TH} t={t}/>}
     </div>
   );
 }
