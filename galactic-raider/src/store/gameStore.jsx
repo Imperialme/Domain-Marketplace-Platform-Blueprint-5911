@@ -117,6 +117,9 @@ function buildInitialState() {
     commodityHoldings: {},
     commodityAvgCost: {},
     commodityHist: Object.fromEntries(COMMODITIES.map(c => [c.id, [c.ip]])),
+    // Preferences
+    darkMode: true,
+    language: 'en',
     // Philanthropy / Redemption
     totalDebt: 0,
     redeemPts: 0,
@@ -1159,6 +1162,16 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, logTx, earnBadge]);
 
+  const setDarkMode = useCallback((val) => {
+    S.current.darkMode = val;
+    refresh();
+  }, [refresh]);
+
+  const setLanguage = useCallback((code) => {
+    S.current.language = code;
+    refresh();
+  }, [refresh]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1192,6 +1205,7 @@ export function GameProvider({ children }) {
     addNews, earnBadge,
     BADGE_DEFS,
     COMMODITIES,
+    setDarkMode, setLanguage,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

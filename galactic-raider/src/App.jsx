@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameProvider, useGame } from './store/gameStore';
 import { C } from './utils';
+import { getTheme } from './theme';
+import { getT } from './i18n';
 import HomeScreen from './screens/HomeScreen';
 import UniverseScreen from './screens/UniverseScreen';
 import WealthScreen from './screens/WealthScreen';
@@ -21,6 +23,9 @@ function AppShell() {
   const [autoSpeed, setAutoSpeed] = useState(3);
   const autoRef = useRef(null);
   const { D, advanceTurn } = useGame();
+  const TH = getTheme(D.darkMode);
+  const t = getT(D.language);
+  const isRTL = D.language === 'ar';
 
   // Auto-advance lives at App level — persists across tab changes
   useEffect(() => {
