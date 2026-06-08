@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Component } from 'react';
 import { GameProvider, useGame } from './store/gameStore';
 import { C } from './utils';
 import { getTheme } from './theme';
@@ -8,6 +8,21 @@ import UniverseScreen from './screens/UniverseScreen';
 import WealthScreen from './screens/WealthScreen';
 import CommandScreen from './screens/CommandScreen';
 import GalaxyScreen from './screens/GalaxyScreen';
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(e) { return { err: e }; }
+  render() {
+    if (this.state.err) return (
+      <div style={{ padding: 24, background: '#1a0a0a', color: '#ff6b6b', fontFamily: 'monospace', minHeight: '100vh' }}>
+        <div style={{ fontSize: 20, marginBottom: 12 }}>⚠️ Game Error</div>
+        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{String(this.state.err)}</pre>
+        <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '8px 16px', background: '#333', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Reload</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 const TABS = [
   { id: 'home',     label: 'Home',    ico: '🏠' },
@@ -56,8 +71,8 @@ function AppShell() {
   };
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: TH.bg, minHeight: '100dvh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: TH.text }}>
-      <div style={{ height: 'calc(100dvh - 64px)', overflowY: 'auto', overflowX: 'hidden' }}>
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: TH.bg, minHeight: '100vh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: TH.text }}>
+      <div style={{ height: 'calc(100vh - 64px)', overflowY: 'auto', overflowX: 'hidden' }}>
         {screens[activeTab]}
       </div>
 
@@ -90,8 +105,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <GameProvider>
-      <AppShell />
-    </GameProvider>
+    <ErrorBoundary>
+      <GameProvider>
+        <AppShell />
+      </GameProvider>
+    </ErrorBoundary>
   );
 }
