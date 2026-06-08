@@ -671,6 +671,29 @@ export default function GalaxyScreen() {
   const { D } = useGame();
   const TH = getTheme(D.darkMode);
   const t = getT(D.language);
+  const avatarDef = SPACE_AVATARS.find(a => a.id === (D.playerAvatar || '🚀'));
+
+  React.useEffect(() => {
+    const id = 'avatar-anim-styles';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      @keyframes cc-float { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-6px) scale(1.05)} }
+      @keyframes cc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+      @keyframes cc-pulse { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 0 8px transparent} }
+      @keyframes cc-zap { 0%{filter:brightness(1)} 25%{filter:brightness(1.8)} 50%{filter:brightness(1)} 75%{filter:brightness(1.6)} 100%{filter:brightness(1)} }
+      @keyframes cc-nebula { 0%{opacity:1;transform:scale(1) rotate(0deg)} 50%{opacity:.85;transform:scale(1.06) rotate(3deg)} 100%{opacity:1;transform:scale(1) rotate(0deg)} }
+      @keyframes cc-twinkle { 0%,100%{filter:brightness(1) drop-shadow(0 0 2px #F472B6)} 50%{filter:brightness(1.5) drop-shadow(0 0 12px #F472B6)} }
+      @keyframes cc-scan { 0%{filter:hue-rotate(0deg) brightness(1)} 50%{filter:hue-rotate(180deg) brightness(1.3)} 100%{filter:hue-rotate(360deg) brightness(1)} }
+      @keyframes cc-shimmer { 0%,100%{filter:brightness(1)} 33%{filter:brightness(1.4)} 66%{filter:brightness(.9)} }
+      @keyframes cc-orbit { 0%,100%{transform:translateX(0) scale(1)} 25%{transform:translateX(3px) scale(1.02)} 75%{transform:translateX(-3px) scale(.98)} }
+      @keyframes cc-glow { 0%,100%{filter:drop-shadow(0 0 3px #94A3B8)} 50%{filter:drop-shadow(0 0 14px #E2E8F0)} }
+      @keyframes cc-streak { 0%{transform:translateX(-2px) skewX(0deg)} 50%{transform:translateX(2px) skewX(-5deg)} 100%{transform:translateX(-2px) skewX(0deg)} }
+      @keyframes cc-ring { 0%,100%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.05) rotate(5deg)} }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   if(panel) return <PanelWrapper panel={panel} onBack={()=>setPanel(null)}/>;
 
@@ -678,9 +701,22 @@ export default function GalaxyScreen() {
     <div style={{background:TH.bg,minHeight:'100%',padding:'0 0 80px'}}>
       {/* Header */}
       <div style={{background:TH.isDark?'linear-gradient(180deg,#050F20,#030810)':TH.bg,padding:'18px 16px 18px',borderBottom:'1px solid '+TH.border}}>
-        <div style={{fontSize:11,color:TH.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
-        <div style={{fontSize:24,fontWeight:900,color:TH.text}}>🔭 Galaxy Hub</div>
-        <div style={{fontSize:12,color:TH.muted,marginTop:4}}>Explore · Learn · Analyze</div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontSize:11,color:TH.muted,letterSpacing:3,textTransform:'uppercase',marginBottom:2}}>Cosmos Capital</div>
+            <div style={{fontSize:24,fontWeight:900,color:TH.text}}>🔭 Galaxy Hub</div>
+            <div style={{fontSize:12,color:TH.muted,marginTop:4}}>Explore · Learn · Analyze</div>
+          </div>
+          <div onClick={()=>setPanel('settings')} style={{cursor:'pointer',textAlign:'center',padding:'8px 12px',background: avatarDef ? avatarDef.bg : 'rgba(255,255,255,0.06)',borderRadius:16,border:`1px solid ${avatarDef ? avatarDef.glow+'44' : TH.border}`,boxShadow: avatarDef ? `0 0 16px ${avatarDef.glow}33` : 'none'}}>
+            <div style={{
+              fontSize:32,
+              display:'inline-block',
+              animation: avatarDef ? `cc-${avatarDef.anim} 2.5s ease-in-out infinite` : 'none',
+              lineHeight:1,
+            }}>{D.playerAvatar||'🚀'}</div>
+            <div style={{fontSize:9,color: avatarDef ? avatarDef.glow : TH.muted,fontWeight:700,marginTop:4,letterSpacing:.3}}>{D.playerName||'Raider'}</div>
+          </div>
+        </div>
       </div>
 
       <div style={{padding:'14px 16px'}}>
