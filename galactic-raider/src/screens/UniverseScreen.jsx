@@ -4,6 +4,7 @@ import { fm } from '../utils';
 import { PLANETS_DATA, IPOS, COMMODITIES } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
 import { getTheme } from '../theme';
+import { getT } from '../i18n';
 
 const CRYPTO_COINS = [
   // Earth coins (unlocked)
@@ -1022,12 +1023,12 @@ function CommoditiesTab() {
 }
 
 // ── MAIN SCREEN ────────────────────────────────────────────────
-const TABS=[{id:'earth',ico:'🌍',l:'Earth'},{id:'planets',ico:'🪐',l:'Planets'},{id:'etf',ico:'📊',l:'ETFs'},{id:'ipo',ico:'🚀',l:'IPOs'},{id:'bonds',ico:'🏦',l:'Bonds'},{id:'crypto',ico:'₿',l:'Crypto'},{id:'commodities',ico:'⛏️',l:'Raw Mats'}];
-
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
   const { D } = useGame();
   const TH = getTheme(D.darkMode);
+  const t = getT(D.language);
+  const TABS=[{id:'earth',ico:'🌍',l:t('tab_earth')},{id:'planets',ico:'🪐',l:t('tab_planets')},{id:'etf',ico:'📊',l:t('tab_etf')},{id:'ipo',ico:'🚀',l:t('tab_ipo')},{id:'bonds',ico:'🏦',l:t('tab_bonds')},{id:'crypto',ico:'₿',l:t('tab_crypto')},{id:'commodities',ico:'⛏️',l:t('tab_rawmats')}];
   return (
     <div style={{background:TH.bg,minHeight:'100%'}}>
       <div style={{background:TH.isDark?'linear-gradient(180deg,#050F20,#030810)':TH.bg,padding:'18px 16px 0',borderBottom:'1px solid '+TH.border}}>

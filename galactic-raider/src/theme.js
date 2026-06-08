@@ -9,12 +9,12 @@ export const DARK = {
 };
 
 export const LIGHT = {
-  bg:'#E8EDF3', card:'#F4F7FB', raised:'#EEF2F7',
-  border:'rgba(0,0,0,0.10)', borderHi:'rgba(0,0,0,0.16)', borderSolid:'#D1D9E6',
-  text:'#0F172A', sub:'#334155', muted:'#64748B', dim:'#94A3B8',
+  bg:'#C8D3DF', card:'#D8E2ED', raised:'#CFDAE6',
+  border:'rgba(0,0,0,0.13)', borderHi:'rgba(0,0,0,0.20)', borderSolid:'#B8C5D6',
+  text:'#0F172A', sub:'#1E3050', muted:'#4A5C72', dim:'#7A8FA6',
   green:'#059669', red:'#DC2626', blue:'#2563EB',
   amber:'#D97706', purple:'#7C3AED', cyan:'#0891B2',
-  navBg:'rgba(232,237,243,0.97)', inputBg:'#EEF2F7',
+  navBg:'rgba(200,211,223,0.97)', inputBg:'#C0CCDA',
   isDark:false,
 };
 

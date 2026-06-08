@@ -3,6 +3,7 @@ import { useGame } from '../store/gameStore';
 import { fm, C } from '../utils';
 import { LOAN_TIERS, SOVEREIGN_FUNDS, PLANETS_DATA, COMMODITIES } from '../constants';
 import { getTheme } from '../theme';
+import { getT } from '../i18n';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -460,6 +461,7 @@ export default function WealthScreen() {
   const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
   const d = D;
   const TH = getTheme(d.darkMode);
+  const t = getT(d.language);
   const [tab, setTab] = useState('portfolio');
   const [repayAmt, setRepayAmt] = useState('');
   const [transferAmt, setTransferAmt] = useState('');
@@ -482,7 +484,7 @@ export default function WealthScreen() {
     setActivePct(pct);
   };
 
-  const tabs=[{id:'portfolio',l:'📊 Portfolio'},{id:'wallets',l:'💰 Wallets'},{id:'loans',l:'🏦 Loans'},{id:'funds',l:'💎 Funds'},{id:'planetfx',l:'🌐 FX'},{id:'log',l:'📋 Log'}];
+  const tabs=[{id:'portfolio',l:'📊 '+t('tab_portfolio')},{id:'wallets',l:'💰 '+t('tab_wallets')},{id:'loans',l:'🏦 '+t('tab_loans')},{id:'funds',l:t('tab_funds')},{id:'planetfx',l:t('tab_fx')},{id:'log',l:t('tab_log')}];
 
   return (
     <div style={{padding:'14px 14px 80px',background:TH.bg,minHeight:'100%'}}>

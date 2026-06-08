@@ -11,7 +11,7 @@ const STRINGS = {
   en: {
     nav_home:'Home', nav_markets:'Markets', nav_wealth:'Wealth', nav_command:'Command', nav_galaxy:'Galaxy',
     tab_earth:'Earth', tab_planets:'Planets', tab_etf:'ETFs', tab_ipo:'IPOs', tab_bonds:'Bonds', tab_crypto:'Crypto', tab_rawmats:'Raw Mats',
-    tab_portfolio:'Portfolio', tab_wallets:'Wallets', tab_loans:'Loans', tab_savings:'Savings',
+    tab_portfolio:'Portfolio', tab_wallets:'Wallets', tab_loans:'Loans', tab_savings:'Savings', tab_funds:'💎 Funds', tab_fx:'🌐 FX', tab_log:'📋 Log',
     tab_ceo:'👔 CEO', tab_wheel:'🎡 Wheel', tab_donate:'🤲 Donate', tab_settings:'⚙️ Settings',
     btn_buy:'BUY', btn_sell:'SELL', btn_confirm:'Confirm', btn_cancel:'Cancel', btn_next_turn:'Next Turn', btn_auto:'Auto', btn_save:'Save', btn_load:'Load', btn_donate:'Donate', btn_spin:'Spin',
     settings_title:'⚙️ Settings', settings_theme:'Appearance', settings_dark:'Dark Mode', settings_light:'Light Mode', settings_language:'Language',
@@ -30,7 +30,7 @@ const STRINGS = {
   zh: {
     nav_home:'主页', nav_markets:'市场', nav_wealth:'财富', nav_command:'指挥', nav_galaxy:'星系',
     tab_earth:'地球', tab_planets:'星球', tab_etf:'基金', tab_ipo:'新股', tab_bonds:'债券', tab_crypto:'加密', tab_rawmats:'原材料',
-    tab_portfolio:'投资组合', tab_wallets:'钱包', tab_loans:'贷款', tab_savings:'储蓄',
+    tab_portfolio:'投资组合', tab_wallets:'钱包', tab_loans:'贷款', tab_savings:'储蓄', tab_funds:'💎 基金', tab_fx:'🌐 外汇', tab_log:'📋 日志',
     tab_ceo:'👔 董事会', tab_wheel:'🎡 幸运轮', tab_donate:'🤲 捐赠', tab_settings:'⚙️ 设置',
     btn_buy:'买入', btn_sell:'卖出', btn_confirm:'确认', btn_cancel:'取消', btn_next_turn:'下一回合', btn_auto:'自动', btn_save:'保存', btn_load:'读取', btn_donate:'捐赠', btn_spin:'旋转',
     settings_title:'⚙️ 设置', settings_theme:'外观', settings_dark:'深色模式', settings_light:'浅色模式', settings_language:'语言',
@@ -49,7 +49,7 @@ const STRINGS = {
   ja: {
     nav_home:'ホーム', nav_markets:'マーケット', nav_wealth:'資産', nav_command:'コマンド', nav_galaxy:'銀河',
     tab_earth:'地球', tab_planets:'惑星', tab_etf:'ETF', tab_ipo:'IPO', tab_bonds:'債券', tab_crypto:'暗号通貨', tab_rawmats:'原材料',
-    tab_portfolio:'ポートフォリオ', tab_wallets:'ウォレット', tab_loans:'ローン', tab_savings:'貯蓄',
+    tab_portfolio:'ポートフォリオ', tab_wallets:'ウォレット', tab_loans:'ローン', tab_savings:'貯蓄', tab_funds:'💎 ファンド', tab_fx:'🌐 FX', tab_log:'📋 履歴',
     tab_ceo:'👔 取締役会', tab_wheel:'🎡 ホイール', tab_donate:'🤲 寄付', tab_settings:'⚙️ 設定',
     btn_buy:'購入', btn_sell:'売却', btn_confirm:'確認', btn_cancel:'キャンセル', btn_next_turn:'次のターン', btn_auto:'自動', btn_save:'保存', btn_load:'ロード', btn_donate:'寄付', btn_spin:'スピン',
     settings_title:'⚙️ 設定', settings_theme:'外観', settings_dark:'ダークモード', settings_light:'ライトモード', settings_language:'言語',
@@ -68,7 +68,7 @@ const STRINGS = {
   ar: {
     nav_home:'الرئيسية', nav_markets:'الأسواق', nav_wealth:'الثروة', nav_command:'القيادة', nav_galaxy:'المجرة',
     tab_earth:'الأرض', tab_planets:'الكواكب', tab_etf:'صناديق', tab_ipo:'اكتتاب', tab_bonds:'سندات', tab_crypto:'تشفير', tab_rawmats:'مواد خام',
-    tab_portfolio:'المحفظة', tab_wallets:'المحافظ', tab_loans:'القروض', tab_savings:'المدخرات',
+    tab_portfolio:'المحفظة', tab_wallets:'المحافظ', tab_loans:'القروض', tab_savings:'المدخرات', tab_funds:'💎 صناديق', tab_fx:'🌐 عملات', tab_log:'📋 السجل',
     tab_ceo:'👔 مجلس الإدارة', tab_wheel:'🎡 العجلة', tab_donate:'🤲 تبرع', tab_settings:'⚙️ الإعدادات',
     btn_buy:'شراء', btn_sell:'بيع', btn_confirm:'تأكيد', btn_cancel:'إلغاء', btn_next_turn:'الدور التالي', btn_auto:'تلقائي', btn_save:'حفظ', btn_load:'تحميل', btn_donate:'تبرع', btn_spin:'دوران',
     settings_title:'⚙️ الإعدادات', settings_theme:'المظهر', settings_dark:'الوضع الداكن', settings_light:'الوضع الفاتح', settings_language:'اللغة',
@@ -87,7 +87,7 @@ const STRINGS = {
   de: {
     nav_home:'Start', nav_markets:'Märkte', nav_wealth:'Vermögen', nav_command:'Zentrale', nav_galaxy:'Galaxie',
     tab_earth:'Erde', tab_planets:'Planeten', tab_etf:'ETFs', tab_ipo:'IPOs', tab_bonds:'Anleihen', tab_crypto:'Krypto', tab_rawmats:'Rohstoffe',
-    tab_portfolio:'Portfolio', tab_wallets:'Geldbörsen', tab_loans:'Kredite', tab_savings:'Ersparnisse',
+    tab_portfolio:'Portfolio', tab_wallets:'Geldbörsen', tab_loans:'Kredite', tab_savings:'Ersparnisse', tab_funds:'💎 Fonds', tab_fx:'🌐 FX', tab_log:'📋 Log',
     tab_ceo:'👔 Vorstand', tab_wheel:'🎡 Rad', tab_donate:'🤲 Spenden', tab_settings:'⚙️ Einstellungen',
     btn_buy:'KAUFEN', btn_sell:'VERKAUFEN', btn_confirm:'Bestätigen', btn_cancel:'Abbrechen', btn_next_turn:'Nächste Runde', btn_auto:'Auto', btn_save:'Speichern', btn_load:'Laden', btn_donate:'Spenden', btn_spin:'Drehen',
     settings_title:'⚙️ Einstellungen', settings_theme:'Erscheinungsbild', settings_dark:'Dunkelmodus', settings_light:'Hellmodus', settings_language:'Sprache',
@@ -106,7 +106,7 @@ const STRINGS = {
   fr: {
     nav_home:'Accueil', nav_markets:'Marchés', nav_wealth:'Patrimoine', nav_command:'Centre', nav_galaxy:'Galaxie',
     tab_earth:'Terre', tab_planets:'Planètes', tab_etf:'ETF', tab_ipo:'IPO', tab_bonds:'Obligations', tab_crypto:'Crypto', tab_rawmats:'Matières',
-    tab_portfolio:'Portefeuille', tab_wallets:'Portefeuilles', tab_loans:'Emprunts', tab_savings:'Épargne',
+    tab_portfolio:'Portefeuille', tab_wallets:'Portefeuilles', tab_loans:'Emprunts', tab_savings:'Épargne', tab_funds:'💎 Fonds', tab_fx:'🌐 FX', tab_log:'📋 Journal',
     tab_ceo:'👔 PDG', tab_wheel:'🎡 Roue', tab_donate:'🤲 Don', tab_settings:'⚙️ Réglages',
     btn_buy:'ACHETER', btn_sell:'VENDRE', btn_confirm:'Confirmer', btn_cancel:'Annuler', btn_next_turn:'Tour suivant', btn_auto:'Auto', btn_save:'Sauvegarder', btn_load:'Charger', btn_donate:'Donner', btn_spin:'Tourner',
     settings_title:'⚙️ Réglages', settings_theme:'Apparence', settings_dark:'Mode sombre', settings_light:'Mode clair', settings_language:'Langue',
