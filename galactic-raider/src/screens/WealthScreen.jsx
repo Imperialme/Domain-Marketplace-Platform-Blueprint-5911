@@ -545,7 +545,7 @@ export default function WealthScreen() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div>
               <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>🛡️ Asset Protection Foundation</div>
-              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>Bankruptcy shield · 3% APR · $50K one-time fee</div>
+              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>Bankruptcy shield · 3% APR · $500M one-time fee (Trading Wallet)</div>
             </div>
             {d.foundationOpen&&<div style={{background:'#14532D',color:'#34D399',padding:'3px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>OPEN</div>}
           </div>
@@ -562,7 +562,7 @@ export default function WealthScreen() {
             </div>
           ):(
             <button onClick={()=>{const e=openFoundation();if(e)showMsg(e);else showMsg('Foundation opened!');}} style={{width:'100%',background:'#059669',color:'#fff',border:'none',borderRadius:10,padding:'12px 0',fontWeight:700,fontSize:14,cursor:'pointer'}}>
-              Open Foundation — $50K
+              Open Foundation — $500M
             </button>
           )}
         </div>

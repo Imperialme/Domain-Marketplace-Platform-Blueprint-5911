@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { EARTH_COMPANIES, CEO_DECISIONS, ETFS, IPOS, SOVEREIGN_FUNDS, TAX_ERAS, PLANETS_DATA, PE_BOUNDS, COMMODITIES } from '../constants';
-import { cl, r2 } from '../utils';
+import { cl, r2, fm } from '../utils';
 import { GEO_EVENTS } from '../events';
 
 const GameContext = createContext(null);
@@ -170,6 +170,8 @@ function buildInitialState() {
     badges: [],
     playerName: 'Raider',
     playerAvatar: '🚀',
+    shownMilestones: {},   // tier labels already celebrated — each milestone pops up only once
+    pendingMilestone: null, // set when a new wealth tier is first reached; cleared when the popup is dismissed
   };
 }
 
@@ -319,7 +321,9 @@ export function GameProvider({ children }) {
     COMMODITIES.forEach(com => {
       const hist = s.commodityHist[com.id] || [com.ip];
       const prev = hist[hist.length - 1] || com.ip;
-      let move = 1 + (Math.random() - 0.48) * com.vol * 1.8;
+      // Mean-reversion pulls price gently back toward its initial value, preventing runaway drift
+      const meanRevert = Math.pow(com.ip / prev, 0.02);
+      let move = (1 + (Math.random() - 0.5) * com.vol * 1.2) * meanRevert;
       // Gold/Silver safe-haven spike during negative geo events
       if ((com.id==='XAU'||com.id==='XAG') && s.geoEvents?.[0]?.impact==='negative') move *= 1 + Math.random()*0.05;
       // Oil geopolitical premium
@@ -331,12 +335,12 @@ export function GameProvider({ children }) {
       }
       // Jupiter storm wrecks hydrogen supply
       if (com.id==='JGAS' && s.planetCompanies?.Jupiter?.stormActive) move *= 0.55 + Math.random()*0.15;
-      // Ryzolith increases in scarcity over time
-      if (com.id==='SRYZ' && s.turn > 200) move *= 1 + (s.turn / 20000);
+      // Ryzolith increases in scarcity over time (capped contribution)
+      if (com.id==='SRYZ' && s.turn > 200) move *= 1 + Math.min(0.15, (s.turn / 20000));
       // Deep Field Minerals extreme volatility
       if (com.id==='NFLD' || com.id==='NWIN') move *= 1 + (Math.random()-0.5)*0.15;
-      // Floor at 5% of initial price — prevents zero-ing out
-      const next = Math.max(com.ip * 0.05, r2(prev * move));
+      // Clamp between 0.2× and 8× of initial price — prevents both zero-ing out and runaway spikes
+      const next = Math.max(com.ip * 0.2, Math.min(com.ip * 8, r2(prev * move)));
       s.commodityHist[com.id] = [...hist.slice(-48), next];
     });
 
@@ -500,11 +504,16 @@ export function GameProvider({ children }) {
       }
     });
 
-    // Wealth tier spin token bonuses
+    // Wealth tier spin token bonuses + one-time milestone celebration popup
+    if (!s.shownMilestones) s.shownMilestones = {};
     WEALTH_TIERS.forEach(tier => {
-      const prevNW = (s.stats.nwHistory||[]).length > 1 ? (s.stats.nwHistory[s.stats.nwHistory.length-2]||[0,0])[1] : 0;
-      if (totalPortfolio >= tier.threshold && prevNW < tier.threshold) {
+      if (totalPortfolio >= tier.threshold && !s.shownMilestones[tier.label]) {
+        s.shownMilestones[tier.label] = true;
         s.spinTokens = (s.spinTokens||0) + 1;
+        // Queue a celebratory popup — only the highest newly-reached tier this turn will be shown
+        if (!s.pendingMilestone || tier.threshold > s.pendingMilestone.threshold) {
+          s.pendingMilestone = { label: tier.label, threshold: tier.threshold };
+        }
         addNews('💰', 'Wealth Milestone: '+tier.label+'!', 'Net worth crossed '+tier.label+'. +1 spin token awarded!', true);
         s.stats.unlockLog = [...(s.stats.unlockLog||[]), {turn:s.turn, desc:'Crossed '+tier.label+' milestone'}];
       }
@@ -671,10 +680,11 @@ export function GameProvider({ children }) {
   // ── FOUNDATION ───────────────────────────────────────────────
   const openFoundation = useCallback(() => {
     const s = S.current;
-    if (s.cashWallet < 50000) return 'Need $50K in Cash Wallet';
-    s.cashWallet = r2(s.cashWallet - 50000);
+    const FEE = 500000000; // $500M — late-game asset-protection vehicle
+    if (s.tradingWallet < FEE) return 'Need $500M in Trading Wallet';
+    s.tradingWallet = r2(s.tradingWallet - FEE);
     s.foundationOpen = true;
-    logTx('FOUNDATION', 'Cash', -50000, 'Foundation opened. $50K fee. Savings Wallet now protected.');
+    logTx('FOUNDATION', 'Trading', -FEE, 'Foundation opened. $500M fee. Savings Wallet now protected.');
     refresh();
     return null;
   }, [refresh, logTx]);
@@ -770,7 +780,7 @@ export function GameProvider({ children }) {
     const procUSD = r2(procLocal * pd.rate);
     const profit = Math.max(0, (co.price - (s.planetAvgCost[key]||co.price)) * qty) * pd.rate;
     const era = TAX_ERAS[s.eraIdx];
-    const cgt = r2(profit * (era.cgt || 0.20));
+    const cgt = r2(profit * (era.cgt || 0.20) * (1 - (s.taxRelief || 0)));
     s.tradingWallet = r2(s.tradingWallet + procUSD - cgt);
     s.planetHoldings[key] = held - qty;
     if (!s.planetHoldings[key]) delete s.planetHoldings[key];
@@ -822,7 +832,7 @@ export function GameProvider({ children }) {
     const proc = r2(units * e.price);
     const profit = Math.max(0, (e.price - e.avgCost) * units);
     const era = TAX_ERAS[s.eraIdx];
-    const cgt = r2(profit * (era.cgt || 0.20));
+    const cgt = r2(profit * (era.cgt || 0.20) * (1 - (s.taxRelief || 0)));
     s.tradingWallet = r2(s.tradingWallet + proc - cgt);
     e.units -= units;
 
@@ -871,11 +881,20 @@ export function GameProvider({ children }) {
     const s = S.current;
     const ipo = IPOS.find(x => x.id === ipoId);
     if (!ipo) return;
+    if (shares <= 0) return 'Enter a valid number of shares';
     const mid = (ipo.priceRange[0] + ipo.priceRange[1]) / 2;
+    // A single investor may book at most 10% of the total offer — no dumping unlimited capital into a small IPO
+    const maxBookValue = r2((ipo.offerSize || 400000000) * 0.10);
+    const maxShares = Math.floor(maxBookValue / mid);
+    const alreadyBooked = s.ipoBookings[ipoId] || 0;
+    if (alreadyBooked + shares > maxShares) {
+      const remaining = Math.max(0, maxShares - alreadyBooked);
+      return 'Allocation cap reached. Max '+maxShares.toLocaleString()+' shares (~'+fm(maxBookValue)+'). You can book '+remaining.toLocaleString()+' more.';
+    }
     const cost = r2(shares * mid);
     if (cost > s.tradingWallet) return 'Insufficient funds';
     s.tradingWallet = r2(s.tradingWallet - cost);
-    s.ipoBookings[ipoId] = (s.ipoBookings[ipoId] || 0) + shares;
+    s.ipoBookings[ipoId] = alreadyBooked + shares;
     logTx('IPO_BOOK', 'Trading', -cost, 'Booked '+shares.toLocaleString()+' shares in '+ipo.n+' IPO @ $'+mid.toFixed(2)+' midpoint');
     refresh();
     return null;
@@ -887,9 +906,9 @@ export function GameProvider({ children }) {
     const CATS = [{n:'Healthcare',ico:'🏥',rate:.20,dur:3,mult:1.3},{n:'Education',ico:'🎓',rate:.25,dur:5,mult:1.5},{n:'Environment',ico:'🌱',rate:.30,dur:7,mult:1.1},{n:'Infrastructure',ico:'🌉',rate:.15,dur:4,mult:1.0},{n:'Poverty',ico:'🤝',rate:.20,dur:3,mult:1.2},{n:'Science',ico:'🔬',rate:.25,dur:5,mult:1.0},{n:'Arts',ico:'🎨',rate:.10,dur:2,mult:1.0},{n:'Disaster',ico:'🚨',rate:.35,dur:8,mult:1.0}];
     const c = CATS[catIdx];
     if (!c) return;
-    if (amount < 1000000) return 'Minimum donation: $1M';
-    if (amount > s.tradingWallet) return 'Insufficient Trading Wallet funds';
-    s.tradingWallet = r2(s.tradingWallet - amount);
+    if (amount < 1000) return 'Minimum donation: $1,000';
+    if (amount > s.cashWallet) return 'Insufficient Cash Wallet funds';
+    s.cashWallet = r2(s.cashWallet - amount);
     s.totalDonated = r2((s.totalDonated||0) + amount);
     s.donCount = (s.donCount||0) + 1;
     const pts = Math.round(amount / 1000 * c.mult);
@@ -903,7 +922,7 @@ export function GameProvider({ children }) {
     }
     earnBadge('first_donation');
     addNews(c.ico, 'Donation: '+c.n, '$'+amount.toLocaleString()+' donated to '+c.n+'. Tax relief: '+Math.round(c.rate*100)+'% for '+c.dur+' turns. +'+pts+' redemption points.', true);
-    logTx('DONATE', 'Trading', -amount, 'Donation: $'+amount.toLocaleString()+' to '+c.n+'. +'+pts+' pts.');
+    logTx('DONATE', 'Cash', -amount, 'Donation: $'+amount.toLocaleString()+' to '+c.n+'. +'+pts+' pts.');
     refresh();
     return null;
   }, [refresh, addNews, logTx, earnBadge]);
@@ -1188,6 +1207,11 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  const clearMilestone = useCallback(() => {
+    S.current.pendingMilestone = null;
+    refresh();
+  }, [refresh]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1223,6 +1247,7 @@ export function GameProvider({ children }) {
     COMMODITIES,
     setDarkMode, setLanguage,
     setPlayerAvatar, setPlayerName,
+    clearMilestone,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

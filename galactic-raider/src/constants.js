@@ -116,7 +116,7 @@ export const LOAN_TIERS = [
 // ── PLANETS ───────────────────────────────────────────────────
 export const PLANETS_DATA = {
   Earth:   {id:'earth',   name:'Earth',   ico:'🌍',currency:'USD',rate:1.0, gdp:2.5,color:'#2E7D32',desc:'Base economy.',contagionDelay:0,contagionFactor:1,
-    companies:[{t:'SLKT',n:'Silk Road Tech',s:'Technology',ip:348.94,div:.8,b:1.8},{t:'TNPT',n:'Titan Petroleum',s:'Energy',ip:351.54,div:1.8,b:1.2},{t:'MDCR',n:'MediCore Group',s:'Healthcare',ip:198.40,div:1.2,b:.8},{t:'FRMN',n:'Frontier Mining',s:'Mining',ip:15.80,div:.5,b:1.6}]},
+    companies:[{t:'SLKT',n:'Silk Road Tech',s:'Technology',ip:348.94,div:.8,b:1.8},{t:'MRDB',n:'Meridian Bank',s:'Banking',ip:85.20,div:2.1,b:.9},{t:'FRMN',n:'Frontier Mining',s:'Mining',ip:15.80,div:.5,b:1.6},{t:'TNPT',n:'Titan Petroleum',s:'Energy',ip:351.54,div:1.8,b:1.2},{t:'MDCR',n:'MediCore Group',s:'Healthcare',ip:198.40,div:1.2,b:.8},{t:'UTLS',n:'Utility Systems',s:'Utilities',ip:58.40,div:4.2,b:.5},{t:'TLCM',n:'TeleCom Europe',s:'Telecom',ip:88.60,div:4.5,b:.6},{t:'RLST',n:'RealEstate Trust',s:'Real Estate',ip:44.20,div:3.8,b:.7},{t:'EMTS',n:'Emerging Tech',s:'Technology',ip:28.40,div:.2,b:2.0},{t:'AGRO',n:'AgroLatin Corp',s:'Agriculture',ip:42.18,div:2.5,b:1.1}]},
   Mars:    {id:'mars',    name:'Mars',    ico:'🔴',currency:'MCR',rate:.85,gdp:3.8,color:'#C62828',desc:'Mining economy. Contagion from Earth in 2 turns.',contagionDelay:2,contagionFactor:.5,stormRisk:false,
     companies:[{t:'MXMN',n:'Mars Extraction Co',s:'Mining',ip:42.50,div:.3,b:2.1},{t:'RDST',n:'RedDust Energy',s:'Energy',ip:18.20,div:.8,b:1.8},{t:'MROBOT',n:'Mars Robotics Corp',s:'Technology',ip:95.30,div:.1,b:2.5},{t:'MFOOD',n:'HydroFarm Mars',s:'Agriculture',ip:28.60,div:1.2,b:1.1}]},
   Venus:   {id:'venus',   name:'Venus',   ico:'🟡',currency:'VCR',rate:.75,gdp:2.1,color:'#F57F17',desc:'Automated energy economy. Contagion from Earth in 2 turns.',contagionDelay:2,contagionFactor:.67,
@@ -155,20 +155,21 @@ export const ETFS = [
 ];
 
 // ── IPOs ──────────────────────────────────────────────────────
+// offerSize = total raise. A single investor may book at most 10% of the offer (maxBook).
 export const IPOS = [
-  {id:'NVRA',n:'NovaMed Robotics', sector:'Healthcare',planet:'Earth',  priceRange:[18,22],oversubscribed:5.7,opens:50,
+  {id:'NVRA',n:'NovaMed Robotics', sector:'Healthcare',planet:'Earth',  priceRange:[18,22],oversubscribed:5.7,opens:50, offerSize:400000000,
    desc:'AI-powered surgical robots. 40 hospitals signed. Revenue $180M growing 85% YoY.',
    founder:'Dr. Kira Osei',analysts:[{firm:'OrbitRating',view:'STRONG BUY',target:28,note:'Disruptive. Surgical robot TAM $45B.'}]},
-  {id:'CLDB',n:'CloudBase Systems', sector:'Technology',planet:'Earth',  priceRange:[12,15],oversubscribed:1.8,opens:120,
+  {id:'CLDB',n:'CloudBase Systems', sector:'Technology',planet:'Earth',  priceRange:[12,15],oversubscribed:1.8,opens:120, offerSize:600000000,
    desc:'Edge computing infrastructure. 2,400 enterprise clients. Revenue $420M.',
    founder:'Aria Nkosi',analysts:[{firm:'VegaAnalytics',view:'BUY',target:18,note:'Growing fast. Edge computing structural trend.'}]},
-  {id:'GRNX',n:'GreenX Energy',    sector:'Energy',   planet:'Venus',  priceRange:[8,11], oversubscribed:.8, opens:200,
+  {id:'GRNX',n:'GreenX Energy',    sector:'Energy',   planet:'Venus',  priceRange:[8,11], oversubscribed:.8, opens:200, offerSize:250000000,
    desc:'Green hydrogen production across Venus orbital platforms. 12 government contracts.',
    founder:'Erik Vasquez',analysts:[{firm:'PlanetaryFunds',view:'SPECULATIVE BUY',target:14,note:'Hydrogen is the future. Near-term path to profit unclear.'}]},
-  {id:'LOGX',n:'LogiXpress Freight',sector:'Logistics',planet:'Mars',   priceRange:[24,28],oversubscribed:5.3,opens:300,
+  {id:'LOGX',n:'LogiXpress Freight',sector:'Logistics',planet:'Mars',   priceRange:[24,28],oversubscribed:5.3,opens:300, offerSize:1200000000,
    desc:'AI freight matching across inner planets. 18,000 transport partners. Revenue $890M profitable.',
    founder:'Marcus Adeyemi',analysts:[{firm:'OrbitRating',view:'STRONG BUY',target:35,note:'Profitable, growing, asset-light. Prime IPO.'}]},
-  {id:'RYZX',n:'Ryzolith Dynamics', sector:'Mining',   planet:'Saturn', priceRange:[45,55],oversubscribed:4.2,opens:400,
+  {id:'RYZX',n:'Ryzolith Dynamics', sector:'Mining',   planet:'Saturn', priceRange:[45,55],oversubscribed:4.2,opens:400, offerSize:900000000,
    desc:'Only private company licensed to mine Ryzolith outside the Saturn Sovereign Fund.',
    founder:'Yuki Tanaka',analysts:[{firm:'OuterRing Analytics',view:'STRONG BUY',target:75,note:'Monopoly-adjacent position. Generational opportunity.'}]},
 ];

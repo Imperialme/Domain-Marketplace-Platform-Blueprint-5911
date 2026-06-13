@@ -169,8 +169,10 @@ function DebtReliefWheel() {
     if (typeof res==='string') return;
     setSpinning(true); setResult(null);
     const segSize = 360/WHEEL_SEGMENTS.length;
-    const target = 360-(res.segIdx*segSize)-segSize/2;
-    const end = rotation + 1800 + target;
+    const target = 360-(res.segIdx*segSize)-segSize/2;        // desired final angle (mod 360) under the pointer
+    const currentMod = ((rotation % 360) + 360) % 360;
+    const delta = (((target - currentMod) % 360) + 360) % 360; // forward distance to the target from where we are
+    const end = rotation + 1800 + delta;                       // 5 full spins + delta → lands exactly on target
     const start = performance.now();
     const animate = (now) => {
       const t = Math.min((now-start)/4000,1);
@@ -287,8 +289,10 @@ function FortuneWheelTab() {
     if (typeof res==='string') { setResult('❌ '+res); return; }
     setSpinning(true); setResult(null);
     const segSize = 360/FORTUNE_SEGS.length;
-    const target = 360-(res.segIdx*segSize)-segSize/2;
-    const end = rotation + 1800 + target;
+    const target = 360-(res.segIdx*segSize)-segSize/2;        // desired final angle (mod 360) under the pointer
+    const currentMod = ((rotation % 360) + 360) % 360;
+    const delta = (((target - currentMod) % 360) + 360) % 360; // forward distance to the target from where we are
+    const end = rotation + 1800 + delta;                       // 5 full spins + delta → lands exactly on target
     const start = performance.now();
     const animate = (now) => {
       const t = Math.min((now-start)/4000,1);
@@ -436,9 +440,11 @@ function PhilTab() {
   const [msg, setMsg] = useState('');
   const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
 
+  const cashBal = d.cashWallet || 0;
+
   const handleDonate = () => {
     const a = parseFloat(amt);
-    if(isNaN(a)||a<1000000) return showMsg('Minimum $1M');
+    if(isNaN(a)||a<1000) return showMsg('Minimum $1,000');
     const err = donate(modal.idx, a);
     if(err) showMsg(err);
     else{showMsg('✅ Donated '+fm(a)+' to '+modal.cat.n+'!');setModal(null);setAmt('');}
@@ -448,7 +454,7 @@ function PhilTab() {
     <div>
       {msg&&<div style={{background:'#0D1B2E',border:'1px solid #1A2744',borderRadius:10,padding:'10px 14px',fontSize:12,color:'#93C5FD',marginBottom:10}}>{msg}</div>}
       <div style={{background:'#0A2010',border:'1px solid #16A34A',borderRadius:10,padding:'10px 14px',marginBottom:10,fontSize:11,color:'#34D399'}}>
-        💡 Donations earn Redemption Points + multi-turn CGT tax relief. Min $1M.
+        💡 Donations come from your <b>Cash Wallet</b> and earn Redemption Points + multi-turn CGT tax relief. Cash available: <b>{fm(cashBal)}</b>
       </div>
 
       {(d.phiBenefits||[]).length>0&&(
@@ -495,11 +501,17 @@ function PhilTab() {
                 <div style={{fontSize:11,color:'#4B5563'}}>-{Math.round(modal.cat.rate*100)}% CGT · {modal.cat.dur} turns · {modal.cat.mult}× pts</div>
               </div>
             </div>
-            <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Amount (min $1,000,000)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
-            {parseFloat(amt)>=1000000&&<div style={{background:'#0A2010',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#34D399'}}>+{Math.round(parseFloat(amt)/1000*modal.cat.mult).toLocaleString()} redemption pts</div>}
+            <div style={{fontSize:11,color:'#6B7280',marginBottom:8}}>Cash Wallet: <b style={{color:'#60A5FA'}}>{fm(cashBal)}</b></div>
+            <div style={{display:'flex',gap:6,marginBottom:10}}>
+              {[['5%',0.05],['10%',0.10],['20%',0.20],['All',1]].map(([lbl,pct])=>(
+                <button key={lbl} onClick={()=>setAmt(String(Math.floor(cashBal*pct)))} style={{flex:1,padding:'9px 0',background:'#060B14',border:'1px solid #1A2744',color:'#94A3B8',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>{lbl}</button>
+              ))}
+            </div>
+            <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Amount (min $1,000)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
+            {parseFloat(amt)>=1000&&<div style={{background:'#0A2010',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#34D399'}}>+{Math.round(parseFloat(amt)/1000*modal.cat.mult).toLocaleString()} redemption pts</div>}
             <div style={{display:'flex',gap:8}}>
               <button onClick={()=>{setModal(null);setAmt('');}} style={{flex:1,padding:'12px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:12,fontWeight:700,cursor:'pointer'}}>Cancel</button>
-              <button onClick={handleDonate} style={{flex:2,padding:'12px 0',background:'#059669',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>Donate {parseFloat(amt)>=1e6?fm(parseFloat(amt)):''}</button>
+              <button onClick={handleDonate} style={{flex:2,padding:'12px 0',background:'#059669',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>Donate {parseFloat(amt)>=1000?fm(parseFloat(amt)):''}</button>
             </div>
           </div>
         </div>
