@@ -1032,6 +1032,10 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
           <span class="ss-label">Volume</span>
           <input class="vol-slider" type="range" min="0" max="100" value="70" id="vol-slider" oninput="setVolume(this.value)">
         </div>
+        <div class="ss-item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+          <span class="ss-label">Ambient Track</span>
+          <div id="track-selector" style="display:flex;flex-wrap:wrap;gap:6px;width:100%;"></div>
+        </div>
       </div>
       <!-- Academy -->
       <div class="settings-section">
@@ -1255,6 +1259,10 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
 </div>
 <style>
 @keyframes rankPulse { 0%{transform:scale(0.5);opacity:0} 60%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+@keyframes planetSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.planet-icon-spin { animation: planetSpin 8s linear infinite; display:inline-block; }
+.planet-row-clickable { cursor:pointer; transition:background 0.15s; border-radius:8px; padding-left:4px !important; margin-left:-4px; }
+.planet-row-clickable:hover { background:rgba(255,200,0,0.07); }
 </style>
 
 <!-- Solar System Teaser -->
@@ -1274,6 +1282,25 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--dark); fo
   </div>
   <div style="font-size:13px;color:#78909C;margin-bottom:24px;">Solar System Phase coming in v2.0</div>
   <button onclick="closeSolarTeaser()" style="background:#F57F17;border:none;border-radius:12px;padding:16px 40px;font-size:14px;font-weight:700;color:#000;cursor:pointer;font-family:'Orbitron',sans-serif;">CONTINUE RAIDING →</button>
+</div>
+
+<!-- Planet Detail Modal -->
+<div class="overlay" id="modal-planet-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="pd-title">🌍 Earth</span>
+      <button class="btn-close" onclick="closeModal('modal-planet-detail')">×</button>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <div id="pd-icon" style="font-size:52px;margin-bottom:10px;animation:planetSpin 6s linear infinite;display:inline-block;"></div>
+      <div id="pd-status" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;"></div>
+      <div id="pd-threshold" style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:12px;"></div>
+      <div id="pd-progress-bar" style="height:5px;background:var(--border);border-radius:3px;margin-bottom:14px;overflow:hidden;"><div id="pd-progress-fill" style="height:5px;background:var(--gold);border-radius:3px;transition:width 0.5s;"></div></div>
+      <div id="pd-desc" style="font-size:12px;color:var(--text2);line-height:1.6;text-align:left;background:var(--panel2);border-radius:8px;padding:12px;margin-bottom:12px;"></div>
+      <div id="pd-unlocks" style="text-align:left;"></div>
+      <button onclick="closeModal('modal-planet-detail')" style="background:var(--accent);border:none;border-radius:10px;padding:12px;width:100%;font-size:13px;font-weight:700;color:#fff;cursor:pointer;margin-top:8px;">Got it</button>
+    </div>
+  </div>
 </div>
 
 <!-- Reset Confirmation Modal -->
@@ -1700,7 +1727,7 @@ let G = {
   spinExpiry: null,
   streak: 1,
   lastSaved: null,
-  settings: { music: true, sfx: true, volume: 70 },
+  settings: { music: true, sfx: true, volume: 70, track: 'earth' },
   speed: 'pause',
   speedTimer: null,
   currentAssetFilter: 'all',
@@ -1775,6 +1802,7 @@ function startGame() {
   buildMarkets();
   buildSaveSlots();
   buildFAQ();
+  renderTrackSelector();
   buildPhilanthropy();
   buildAchievements();
   buildWalletTransfer();
@@ -3966,6 +3994,7 @@ function buildSettings() {
   buildSaveSlots();
   document.getElementById('profile-avatar').textContent = G.player.avatar;
   document.getElementById('profile-name').textContent = G.player.name;
+  renderTrackSelector();
 }
 
 function buildSaveSlots() {
@@ -5214,7 +5243,11 @@ let musicUnlocked = false;
 function unlockAudio() {
   if(musicUnlocked) return;
   musicUnlocked = true;
-  if(G.settings.music) playMusic('earth');
+  if(G.settings.music) {
+    var activeKey = (G.settings && G.settings.track) || 'earth';
+    var cfg = TRACK_CONFIG.find(function(t){return t.key===activeKey;}) || TRACK_CONFIG[0];
+    playMusicTrack(cfg);
+  }
 }
 
 // Unlock on first user interaction
@@ -5222,19 +5255,9 @@ document.addEventListener('click', unlockAudio, {once: true});
 document.addEventListener('touchstart', unlockAudio, {once: true});
 
 function playMusic(track) {
-  if(!G.settings.music) return;
-  const src = MUSIC_TRACKS[track];
-  if(!src) return;
-  if(currentTrack === track && bgMusic && !bgMusic.paused) return;
-  if(bgMusic) { try { bgMusic.pause(); } catch(e){} }
-  try {
-    bgMusic = new Audio(src);
-    bgMusic.loop = true;
-    bgMusic.volume = Math.min(1, (G.settings.volume || 70) / 100 * 0.5);
-    const p = bgMusic.play();
-    if(p) p.catch(()=>{ musicUnlocked = false; }); // reset if autoplay blocked
-    currentTrack = track;
-  } catch(e) { console.log('Audio error:', e); }
+  var cfg = TRACK_CONFIG.find(function(t){return t.key===track;});
+  if(!cfg) cfg = TRACK_CONFIG[0];
+  playMusicTrack(cfg);
 }
 
 function stopMusic() {
@@ -5247,7 +5270,6 @@ function setVolume(v) {
   if(bgMusic) {
     try { bgMusic.volume = Math.min(1, parseInt(v) / 100 * 0.5); } catch(e){}
   }
-  // Update slider display
   const slider = document.getElementById('vol-slider');
   if(slider) slider.value = v;
 }
@@ -5258,7 +5280,9 @@ function toggleSetting(setting, el) {
   if(setting === 'music') {
     if(G.settings.music) {
       musicUnlocked = true;
-      playMusic(currentTrack || 'earth');
+      var activeKey = (G.settings && G.settings.track) || 'earth';
+      var cfg = TRACK_CONFIG.find(function(t){return t.key===activeKey;}) || TRACK_CONFIG[0];
+      playMusicTrack(cfg);
     } else {
       stopMusic();
     }
@@ -5509,15 +5533,137 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // INSIGHTS — completely new functions
 var PLANET_THRESH = {
-  earth:  {name:'Earth',  icon:'E', val:0,      always:true },
-  mars:   {name:'Mars',   icon:'M', val:5e9,    always:false},
-  venus:  {name:'Venus',  icon:'V', val:50e9,   always:false},
-  jupiter:{name:'Jupiter',icon:'J', val:200e9,  always:false},
-  saturn: {name:'Saturn', icon:'S', val:1e12,   always:false},
-  mercury:{name:'Mercury',icon:'Me',val:10e12,  always:false},
-  uranus: {name:'Uranus', icon:'U', val:100e12, always:false},
-  neptune:{name:'Neptune',icon:'N', val:500e12, always:false}
+  earth:  {name:'Earth',  icon:'🌍', val:0,      always:true },
+  mars:   {name:'Mars',   icon:'🔴', val:5e9,    always:false},
+  venus:  {name:'Venus',  icon:'🟡', val:50e9,   always:false},
+  jupiter:{name:'Jupiter',icon:'🟠', val:200e9,  always:false},
+  saturn: {name:'Saturn', icon:'🪐', val:1e12,   always:false},
+  mercury:{name:'Mercury',icon:'☿',  val:10e12,  always:false},
+  uranus: {name:'Uranus', icon:'🩵', val:100e12, always:false},
+  neptune:{name:'Neptune',icon:'🔵', val:500e12, always:false}
 };
+
+var PLANET_DETAIL = {
+  earth:  {
+    emoji:'🌍', color:'#4FC3F7',
+    desc:'Your home base. Earth is always active — no threshold required. Master stocks, bonds, the Galactic Savings Fund, and quarterly taxes here before venturing further.',
+    unlocks:['📈 Full stock & crypto market','💰 Galactic Savings Fund (GSF)','🏢 CEO mode (51% ownership)','📊 Bond & commodity trading','🎲 Lucky Spin wheel']
+  },
+  mars:   {
+    emoji:'🔴', color:'#FF6B6B',
+    desc:'The first milestone beyond Earth. Reaching Mars ($5B Real Net Worth) proves you can compound wealth at scale. New interplanetary assets and higher-risk instruments open up.',
+    unlocks:['🚀 Solar System phase unlocked','📡 Mars Habitat Corp (MARS) IPO','⚡ Advanced ETF instruments','🏦 Larger loan limits','🌌 Space exploration bonus events']
+  },
+  venus:  {
+    emoji:'🟡', color:'#FFD93D',
+    desc:'$50B — Venus is where fortunes are forged. CEO dividends from majority-owned companies become a primary income stream. Market volatility spikes, testing your risk management.',
+    unlocks:['💼 Enhanced CEO dividend multipliers','📉 Venus volatility events','🌋 High-yield bond tiers','🤝 Merger & acquisition events','🏆 Titan investor rank']
+  },
+  jupiter:{
+    emoji:'🟠', color:'#FFB347',
+    desc:'$200B — Jupiter\'s gravity bends markets. At this scale, your trades noticeably move prices. Leverage and forex become critical tools. One bad quarter can set you back billions.',
+    unlocks:['📊 Forex & currency pair trading','⚡ Market-maker price influence','🌪️ Jupiter storm volatility events','💱 Multi-currency portfolio tools','👑 Galactic Baron rank']
+  },
+  saturn: {
+    emoji:'🪐', color:'#C9B4FF',
+    desc:'$1 Trillion — Saturn\'s rings represent the trillion-dollar barrier. Less than 0.1% of players ever reach this. Portfolio diversification across all asset classes is now essential.',
+    unlocks:['💎 Trillion-club exclusive events','🪐 Ring of Saturn achievement badge','📈 Compound compounding bonuses','🌠 Comet market event (rare windfall)','🏅 Celestial Mogul rank']
+  },
+  mercury:{
+    emoji:'☿', color:'#B0BEC5',
+    desc:'$10 Trillion — Mercury, scorched by the sun, rewards those who have mastered every financial instrument. High-frequency micro-trade events unlock at this tier.',
+    unlocks:['⚡ Micro-trade speed bonuses','☿ Mercury arbitrage events','🔮 Predictive market oracle','💫 Elite dividend compounding','🌟 Solar Sovereign rank']
+  },
+  uranus: {
+    emoji:'🩵', color:'#80DEEA',
+    desc:'$100 Trillion — Uranus tilts on its axis, just as your portfolio strategies must tilt dramatically. Only the most disciplined wealth architects reach this level.',
+    unlocks:['🌀 Orbital wealth mechanics','🩵 Cryo-asset class unlock','📡 Deep-space commodity routes','🎯 Precision tax optimisation tools','👁️ Cosmic Architect rank']
+  },
+  neptune:{
+    emoji:'🔵', color:'#4FC3F7',
+    desc:'$500 Trillion — The final frontier. Neptune represents total galactic financial dominance. Reaching here means you have conquered every market, planet, and economic cycle.',
+    unlocks:['🌌 Galactic Exchange access','🏆 Neptune Champion trophy','🔵 Deep-space monopoly events','💰 Infinite compound interest mode','👑 Supreme Raider — ultimate rank']
+  }
+};
+
+function showPlanetDetail(key) {
+  var p = PLANET_THRESH[key];
+  var d = PLANET_DETAIL[key];
+  if(!p || !d) return;
+  var rNW = Math.max(0, (G.netWorth||0) - (G.loans||[]).reduce(function(s,l){return s+l.balance;},0));
+  var unlocked = p.always || rNW >= p.val;
+  var pct = p.always ? 100 : Math.min(100, (rNW/p.val)*100);
+
+  document.getElementById('pd-title').textContent = d.emoji + ' ' + p.name;
+  document.getElementById('pd-icon').textContent = d.emoji;
+  document.getElementById('pd-icon').style.color = d.color;
+
+  var statusEl = document.getElementById('pd-status');
+  statusEl.textContent = unlocked ? '✓ Unlocked' : '🔒 Locked';
+  statusEl.style.color = unlocked ? 'var(--green)' : 'var(--text3)';
+
+  var threshEl = document.getElementById('pd-threshold');
+  threshEl.textContent = p.always ? 'Starting Planet' : 'Requires: ' + fmt(p.val) + ' Real Net Worth';
+  threshEl.style.color = unlocked ? 'var(--green)' : d.color;
+
+  var barWrap = document.getElementById('pd-progress-bar');
+  var fill = document.getElementById('pd-progress-fill');
+  barWrap.style.display = p.always ? 'none' : 'block';
+  fill.style.width = pct.toFixed(1) + '%';
+  fill.style.background = unlocked ? 'var(--green)' : d.color;
+
+  document.getElementById('pd-desc').textContent = d.desc;
+
+  var unlockHtml = '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">What unlocks</div>' +
+    d.unlocks.map(function(u){ return '<div style="font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border);">'+u+'</div>'; }).join('');
+  document.getElementById('pd-unlocks').innerHTML = unlockHtml;
+
+  document.getElementById('modal-planet-detail').classList.add('active');
+}
+
+var TRACK_CONFIG = [
+  {key:'earth',   label:'🌍 Earth',   src:'earth',   rate:1.0},
+  {key:'mars',    label:'🔴 Mars',    src:'earth',   rate:0.88},
+  {key:'venus',   label:'🟡 Venus',   src:'ambient', rate:1.12},
+  {key:'jupiter', label:'🟠 Jupiter', src:'ambient', rate:0.82},
+  {key:'saturn',  label:'🪐 Saturn',  src:'earth',   rate:0.95}
+];
+
+function renderTrackSelector() {
+  var sel = document.getElementById('track-selector');
+  if (!sel) return;
+  var active = (G.settings && G.settings.track) || 'earth';
+  sel.innerHTML = TRACK_CONFIG.map(function(t){
+    var on = t.key === active;
+    return '<button onclick="setTrack(\''+t.key+'\')" style="padding:5px 9px;font-size:10px;border-radius:20px;border:1px solid '+(on?'var(--gold)':'var(--border)')+';background:'+(on?'rgba(245,179,0,0.15)':'var(--panel2)')+';color:'+(on?'var(--gold)':'var(--text2)')+';cursor:pointer;white-space:nowrap;">'+t.label+'</button>';
+  }).join('');
+}
+
+function setTrack(key) {
+  var cfg = TRACK_CONFIG.find(function(t){return t.key===key;});
+  if (!cfg) return;
+  G.settings.track = key;
+  currentTrack = null; // force reload
+  if (G.settings.music && musicUnlocked) {
+    playMusicTrack(cfg);
+  }
+  renderTrackSelector();
+}
+
+function playMusicTrack(cfg) {
+  var src = MUSIC_TRACKS[cfg.src];
+  if (!src) return;
+  if (bgMusic) { try { bgMusic.pause(); } catch(e){} }
+  try {
+    bgMusic = new Audio(src);
+    bgMusic.loop = true;
+    bgMusic.volume = Math.min(1, (G.settings.volume || 70) / 100 * 0.5);
+    bgMusic.playbackRate = cfg.rate || 1.0;
+    var p2 = bgMusic.play();
+    if (p2) p2.catch(function(){ musicUnlocked = false; });
+    currentTrack = cfg.key;
+  } catch(e) { console.log('Audio error:', e); }
+}
 
 function buildInsights() {
   if (!G.stats) G.stats = {};
@@ -5617,17 +5763,23 @@ function insTab(tab, el) {
       var p=PLANET_THRESH[key],unlocked=p.always||rNW>=p.val;
       var pct=p.always?100:Math.min(100,(rNW/p.val)*100);
       var rem=p.always?0:Math.max(0,p.val-rNW);
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);opacity:'+(unlocked?1:0.55)+';">'+
-        '<div style="width:32px;height:32px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0;">'+p.icon+'</div>'+
+      var spinSpeed = unlocked ? (p.always ? '6s' : '9s') : '16s';
+      return '<div class="planet-row-clickable" onclick="showPlanetDetail(\''+key+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);opacity:'+(unlocked?1:0.55)+';">'+
+        '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+          '<span class="planet-icon-spin" style="font-size:24px;animation-duration:'+spinSpeed+';animation-direction:'+(unlocked?'normal':'reverse')+';">'+p.icon+'</span>'+
+        '</div>'+
         '<div style="flex:1;min-width:0;">'+
           '<div style="font-size:12px;font-weight:700;color:'+(unlocked?'var(--text)':'var(--text2)')+';">'+p.name+'</div>'+
           (p.always?'<div style="font-size:10px;color:var(--green);">Active — starting planet</div>':
             '<div style="height:3px;background:var(--border);border-radius:2px;margin:4px 0;"><div style="height:3px;background:'+(unlocked?'var(--green)':'var(--gold)')+';width:'+pct.toFixed(1)+'%;border-radius:2px;transition:width 0.5s;"></div></div>'+
             '<div style="font-size:10px;color:var(--text2);">'+(unlocked?'Unlocked':'Need '+fmt(rem)+' more')+'</div>')+
         '</div>'+
-        '<div style="font-size:11px;font-weight:700;color:'+(unlocked?'var(--green)':'var(--text3)')+';">'+(unlocked?'OPEN':'LOCKED')+'</div></div>';
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">'+
+          '<div style="font-size:11px;font-weight:700;color:'+(unlocked?'var(--green)':'var(--text3)')+';">'+(unlocked?'OPEN':'LOCKED')+'</div>'+
+          '<div style="font-size:9px;color:var(--text3);">tap for info ›</div>'+
+        '</div></div>';
     }).join('');
-    body.innerHTML='<div class="card"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:4px;">Planet Progression</div><div style="font-size:10px;color:var(--text3);margin-bottom:10px;">Real NW only (loans excluded)</div>'+rows2+'</div>';
+    body.innerHTML='<div class="card"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:4px;">Planet Progression</div><div style="font-size:10px;color:var(--text3);margin-bottom:10px;">Real NW only (loans excluded) · Tap a planet for details</div>'+rows2+'</div>';
 
   } else if (tab==='finance'){
     var loans=G.loans||[];
