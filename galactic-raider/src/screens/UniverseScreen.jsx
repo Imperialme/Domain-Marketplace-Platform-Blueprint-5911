@@ -166,6 +166,23 @@ function EarthTab() {
             </div>
           ))}
         </div>
+        {/* 52-week range (last 52 turns of price history) */}
+        {(()=>{
+          const h=(co.hist||[co.price]).slice(-52);
+          const hi=Math.max(...h,co.price),lo=Math.min(...h,co.price);
+          const pos=hi>lo?((co.price-lo)/(hi-lo))*100:50;
+          return (
+            <div style={{marginTop:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <div style={{fontSize:9,color:T.muted,textTransform:'uppercase',letterSpacing:1}}>52-Week Range</div>
+                <div style={{fontSize:9,color:T.muted}}>L ${lo.toFixed(2)} · H ${hi.toFixed(2)}</div>
+              </div>
+              <div style={{position:'relative',height:6,background:'rgba(255,255,255,0.10)',borderRadius:3}}>
+                <div style={{position:'absolute',left:'calc('+pos+'% - 4px)',top:-2,width:8,height:10,borderRadius:2,background:(co.ch||0)>=0?T.green:T.red,boxShadow:'0 0 6px '+((co.ch||0)>=0?T.green:T.red)}}/>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {(d.stockHoldings?.[co.t]||0)>0&&(

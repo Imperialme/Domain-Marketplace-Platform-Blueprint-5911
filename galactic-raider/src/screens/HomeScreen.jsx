@@ -289,25 +289,47 @@ export default function HomeScreen({ onNavigate, autoAdv, setAutoAdv, autoSpeed,
           </div>
         </div>
 
-        {/* Geopolitical Events */}
-        {(d.geoEvents||[]).length>0&&(
-          <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border,marginBottom:12}}>
-            <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:12}}>🌐 World Intelligence</div>
-            {(d.geoEvents||[]).slice(0,4).map(ev=>(
-              <div key={ev.id} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                <div style={{width:3,borderRadius:2,flexShrink:0,background:GEO_IMPACT_COLOR[ev.impact]||T.muted,alignSelf:'stretch'}}/>
-                <div style={{flex:1}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                    <div style={{fontSize:10,color:T.muted}}>T{ev.t} · {ev.ico} {ev.region}</div>
-                    <div style={{fontSize:9,fontWeight:700,color:GEO_IMPACT_COLOR[ev.impact]||T.muted,background:(GEO_IMPACT_COLOR[ev.impact]||T.muted)+'18',padding:'2px 7px',borderRadius:6,textTransform:'uppercase'}}>{ev.impact}</div>
-                  </div>
-                  <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:2}}>{ev.ti}</div>
-                  <div style={{fontSize:11,color:T.sub,lineHeight:1.5}}>{ev.bo}</div>
-                </div>
+        {/* World Events showcase — featured latest event + recent feed */}
+        {(d.geoEvents||[]).length>0&&(()=>{
+          const events=d.geoEvents||[];
+          const feat=events[0];
+          const featColor=GEO_IMPACT_COLOR[feat.impact]||T.muted;
+          return (
+            <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border,marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                <div style={{fontSize:14,fontWeight:700,color:T.text}}>🌐 World Events</div>
+                <div style={{fontSize:10,color:T.muted}}>{events.length} live</div>
               </div>
-            ))}
-          </div>
-        )}
+              {/* Featured latest event */}
+              <div style={{background:`linear-gradient(135deg,${featColor}18,${featColor}06)`,border:`1px solid ${featColor}40`,borderRadius:14,padding:'14px 14px',marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:26}}>{feat.ico}</span>
+                    <div style={{fontSize:9,fontWeight:800,color:featColor,letterSpacing:1,textTransform:'uppercase'}}>Breaking · T{feat.t}</div>
+                  </div>
+                  <div style={{fontSize:9,fontWeight:700,color:featColor,background:featColor+'20',padding:'3px 9px',borderRadius:6,textTransform:'uppercase'}}>{feat.impact}</div>
+                </div>
+                <div style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:4}}>{feat.ti}</div>
+                <div style={{fontSize:12,color:T.sub,lineHeight:1.55,marginBottom:6}}>{feat.bo}</div>
+                <div style={{fontSize:10,color:T.muted}}>📍 {feat.region}{feat.affects?' · affects '+feat.affects:''}</div>
+              </div>
+              {/* Recent feed */}
+              {events.slice(1,9).map(ev=>(
+                <div key={ev.id} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                  <div style={{width:3,borderRadius:2,flexShrink:0,background:GEO_IMPACT_COLOR[ev.impact]||T.muted,alignSelf:'stretch'}}/>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <div style={{fontSize:10,color:T.muted}}>T{ev.t} · {ev.ico} {ev.region}</div>
+                      <div style={{fontSize:9,fontWeight:700,color:GEO_IMPACT_COLOR[ev.impact]||T.muted,background:(GEO_IMPACT_COLOR[ev.impact]||T.muted)+'18',padding:'2px 7px',borderRadius:6,textTransform:'uppercase'}}>{ev.impact}</div>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:2}}>{ev.ti}</div>
+                    <div style={{fontSize:11,color:T.sub,lineHeight:1.5}}>{ev.bo}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* News Feed */}
         <div style={{background:T.card,borderRadius:16,padding:'14px 16px',border:'1px solid '+T.border}}>

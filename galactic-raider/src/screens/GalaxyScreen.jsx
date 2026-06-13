@@ -122,9 +122,20 @@ function InsightsPanel({onBack}) {
     return x+(co&&pd?co.price*pd.rate*n:0);
   },0);
   const bondVal=(d.bondHoldings||[]).reduce((x,b)=>x+b.principal,0);
-  const totalPortfolio=walletVal+stockVal+etfVal+fundVal+planetVal+bondVal;
+  const cryptoVal=Object.entries(d.cryptoHoldings||{}).reduce((x,[id,qty])=>{
+    const hist=d.cryptoHist?.[id];const price=hist&&hist.length>0?hist[hist.length-1]:(d.cryptoPrices?.[id]||0);
+    return x+qty*price;
+  },0);
+  const commVal=Object.entries(d.commodityHoldings||{}).reduce((x,[id,qty])=>{
+    const hist=d.commodityHist?.[id];const price=hist&&hist.length>0?hist[hist.length-1]:0;
+    return x+qty*price;
+  },0);
+  const totalPortfolio=walletVal+stockVal+etfVal+fundVal+planetVal+bondVal+cryptoVal+commVal;
 
-  const SUBTABS=['Profile','Journey','Trades','Finance','Holdings','Unlocks','Planets'];
+  // Individual trade log pulled from the transaction history
+  const tradeLog=(d.txLog||[]).filter(tx=>['BUY','SELL','BUY_PLANET','SELL_PLANET','BUY_ETF','SELL_ETF','BUY_CRYPTO','SELL_CRYPTO','BUY_COMM','SELL_COMM','IPO_BOOK'].includes(tx.type));
+
+  const SUBTABS=['Profile','Journey','Trades','Finance','Holdings','Badges','Unlocks','Planets'];
 
   return (
     <div style={{background:T.bg,minHeight:'100%',paddingBottom:80}}>
@@ -205,6 +216,46 @@ function InsightsPanel({onBack}) {
             ))}
             {stats.biggestWinDesc&&<div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:10,padding:'10px 14px',marginTop:12,fontSize:11,color:T.green}}>{stats.biggestWinDesc}</div>}
             {stats.biggestLossDesc&&<div style={{background:'rgba(244,63,94,0.08)',border:'1px solid rgba(244,63,94,0.2)',borderRadius:10,padding:'10px 14px',marginTop:8,fontSize:11,color:T.red}}>{stats.biggestLossDesc}</div>}
+
+            {/* Full trade-by-trade history */}
+            <div style={{marginTop:14,fontSize:11,fontWeight:700,color:T.text,marginBottom:8}}>All Trades ({tradeLog.length})</div>
+            {tradeLog.length===0?(
+              <div style={{textAlign:'center',padding:'24px 16px',color:T.muted,fontSize:12}}>No trades yet — buy your first asset in Markets</div>
+            ):(
+              tradeLog.slice(0,100).map((tx,i)=>{
+                const isBuy=tx.type.startsWith('BUY')||tx.type==='IPO_BOOK';
+                return (
+                  <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.3)'}}>
+                    <div style={{width:4,borderRadius:2,flexShrink:0,background:isBuy?T.blue:T.green,alignSelf:'stretch'}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                        <span style={{fontSize:10,fontWeight:700,color:isBuy?T.blue:T.green}}>{tx.type.replace('_',' ')}</span>
+                        <span style={{fontSize:10,color:T.muted,flexShrink:0}}>T{tx.turn}</span>
+                      </div>
+                      <div style={{fontSize:11,color:T.sub,marginTop:2,lineHeight:1.4}}>{tx.desc}</div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {subTab==='badges'&&(
+          <div>
+            <div style={{fontSize:11,color:T.muted,marginBottom:10}}>{(d.badges||[]).length} of {BADGE_DEFS.length} earned</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {BADGE_DEFS.map(b=>{
+                const earned=(d.badges||[]).includes(b.id);
+                return (
+                  <div key={b.id} style={{background:earned?'rgba(251,191,36,0.10)':T.card,borderRadius:12,padding:'12px 10px',border:'1px solid '+(earned?'rgba(251,191,36,0.4)':T.border),textAlign:'center',opacity:earned?1:0.5}}>
+                    <div style={{fontSize:30,marginBottom:6,filter:earned?'none':'grayscale(1)'}}>{earned?b.ico:'🔒'}</div>
+                    <div style={{fontSize:12,fontWeight:800,color:earned?'#FBBF24':T.muted}}>{b.label}</div>
+                    <div style={{fontSize:9,color:T.muted,marginTop:3,lineHeight:1.3}}>{b.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -221,7 +272,7 @@ function InsightsPanel({onBack}) {
 
         {subTab==='holdings'&&(
           <div>
-            {[['Cash Wallets',walletVal,'#60A5FA'],['Earth Stocks',stockVal,'#A78BFA'],['Planet Stocks',planetVal,'#06B6D4'],['ETFs',etfVal,'#34D399'],['Sov. Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24']].map(([l,v,c])=>(
+            {[['Cash Wallets',walletVal,'#60A5FA'],['Earth Stocks',stockVal,'#A78BFA'],['Planet Stocks',planetVal,'#06B6D4'],['ETFs',etfVal,'#34D399'],['Sov. Funds',fundVal,'#F472B6'],['Bonds',bondVal,'#FBBF24'],['Crypto',cryptoVal,'#F59E0B'],['Commodities',commVal,'#10B981']].map(([l,v,c])=>(
               <div key={l}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
                   <span style={{fontSize:12,color:T.sub}}>{l}</span>
@@ -293,14 +344,70 @@ function InsightsPanel({onBack}) {
 
 // ── SPACE GUIDE PANEL ──────────────────────────────────────────
 const PLANET_SCIENCE = {
-  Earth: {dist:'1 AU (150M km)',temp:'-88°C to 58°C',atm:'Nitrogen 78%, Oxygen 21%',fact:'Only known planet with life',ico:'🌍',color:'#2E7D32',econ:'GDP $100T · USD · 10 companies · Low risk'},
-  Mars: {dist:'1.52 AU (228M km)',temp:'-125°C to 20°C',atm:'CO2 95%, thin',fact:'Olympus Mons — tallest volcano in solar system',ico:'🔴',color:'#C62828',econ:'GDP growing · MCR currency · 4 companies · Medium risk'},
-  Venus: {dist:'0.72 AU (108M km)',temp:'462°C average',atm:'CO2 96%, crushing pressure',fact:'Rotates backwards, day longer than year',ico:'🟡',color:'#F57F17',econ:'Automated energy · VCR currency · 3 companies · Medium risk'},
-  Jupiter: {dist:'5.2 AU (778M km)',temp:'-110°C cloud tops',atm:'Hydrogen & Helium gas giant',fact:'Great Red Spot: storm lasting 350+ years',ico:'🟠',color:'#E65100',econ:'Robotic economy · JCR · 3 companies · High risk (storms)'},
-  Saturn: {dist:'9.5 AU (1.4B km)',temp:'-140°C',atm:'Hydrogen & Helium',fact:'Least dense planet — would float on water',ico:'🪐',color:'#7B1FA2',econ:'Ryzolith mining · STC currency · 3 companies · High risk'},
-  Mercury: {dist:'0.39 AU (58M km)',temp:'-180°C to 430°C',atm:'Virtually none',fact:'Solar day = 176 Earth days',ico:'☿',color:'#455A64',econ:'Solar energy · MRC currency · 3 companies · Very high risk'},
-  Uranus: {dist:'19.2 AU (2.9B km)',temp:'-195°C',atm:'Methane gives blue color',fact:'Rotates on its side — 98° axial tilt',ico:'🔵',color:'#0277BD',econ:'Ice mining · URU currency · 3 companies · Extreme risk'},
-  Neptune: {dist:'30.1 AU (4.5B km)',temp:'-200°C',atm:'Methane, hydrogen, helium',fact:'Fastest winds in solar system: 2,100 km/h',ico:'💜',color:'#4527A0',econ:'Deep research · NPT currency · 3 companies · Extreme risk'},
+  Earth: {dist:'1 AU (150M km)',temp:'-88°C to 58°C',atm:'Nitrogen 78%, Oxygen 21%',fact:'Only known planet with life',ico:'🌍',color:'#2E7D32',econ:'GDP $100T · USD · 10 companies · Low risk',
+    area:'510 million km² surface · 71% ocean',gov:'Federated planetary markets governed by the Earth Exchange Commission. Stable rule of law, deep liquidity, transparent reporting.',
+    resources:'Diversified — technology, banking, energy, healthcare, mining, agriculture and real estate. The most balanced economy in the system.',
+    paras:[
+      'Earth is the financial heart of the solar system and your home base. With the deepest, most liquid markets and the lowest volatility, it is where most players build their first fortune before venturing outward.',
+      'The Earth economy spans ten public companies across seven sectors, from Silk Road Tech to AgroLatin Corp. Prices are anchored by the Economic Governor, which keeps valuations within realistic price-to-earnings bounds, so crashes and bubbles are gentler here than anywhere else.',
+      'Investment thesis: Earth is your low-risk core. Use blue chips (SLKT, MRDB, TNPT) and the Global Equity ETF to compound steadily, then redeploy gains into higher-risk planetary plays as your net worth grows.'
+    ]},
+  Mars: {dist:'1.52 AU (228M km)',temp:'-125°C to 20°C',atm:'CO2 95%, thin',fact:'Olympus Mons — tallest volcano in solar system',ico:'🔴',color:'#C62828',econ:'GDP growing · MCR currency · 4 companies · Medium risk',
+    area:'145 million km² · roughly Earth\'s land area',gov:'Corporate-colonial charter economy. The Mars Colonisation Society administers mining rights and the MCR currency. Light regulation, fast growth.',
+    resources:'Ultra-pure lithium (3× Earth grade), red-dust iron, perchlorates for fuel and life support. The supply backbone of the solar EV industry.',
+    paras:[
+      'Mars is the first frontier — unlocking at $5B net worth. Its economy is built on extraction: the lithium and iron that power robotics and construction across the inner planets.',
+      'The Martian market runs on the MCR currency at roughly 0.85 USD. Because Mars trades close to Earth, contagion from Earth shocks arrives within two turns but at half intensity — a useful diversifier without being fully decoupled.',
+      'Investment thesis: Mars rewards growth investors. Mining and robotics names carry high beta, so position sizes should be moderate. Holding MCR before buying gives a fee discount on stock purchases.'
+    ]},
+  Venus: {dist:'0.72 AU (108M km)',temp:'462°C average',atm:'CO2 96%, crushing pressure',fact:'Rotates backwards, day longer than year',ico:'🟡',color:'#F57F17',econ:'Automated energy · VCR currency · 3 companies · Medium risk',
+    area:'460 million km² · nearly Earth-sized',gov:'Fully automated economy run by autonomous industrial collectives. No human surface presence; governance is algorithmic and energy-export driven.',
+    resources:'Solar energy at scale, sulfuric industrial compounds, and atmospheric carbon for composite manufacturing.',
+    paras:[
+      'Venus unlocks at $50B and offers a steady, energy-anchored economy. Its automated solar arrays export power across the inner system, giving Venusian equities a defensive, utility-like character.',
+      'The crushing 462°C surface means all industry is robotic and orbital. This makes Venus less prone to the labour and storm shocks that hit other planets — its GDP drifts slowly and predictably.',
+      'Investment thesis: Venus is a medium-risk income play. Solar and manufacturing names pay reliable dividends. A good place to park capital between aggressive bets elsewhere.'
+    ]},
+  Jupiter: {dist:'5.2 AU (778M km)',temp:'-110°C cloud tops',atm:'Hydrogen & Helium gas giant',fact:'Great Red Spot: storm lasting 350+ years',ico:'🟠',color:'#E65100',econ:'Robotic economy · JCR · 3 companies · High risk (storms)',
+    area:'Gas giant · 11× Earth diameter · no solid surface',gov:'Orbital-platform robotic economy. Operations float in the upper atmosphere; the Jupiter Authority licenses fusion-fuel extraction.',
+    resources:'Fusion-grade hydrogen, atmospheric ice crystals for cryo-propulsion, and the system\'s richest energy reserves.',
+    paras:[
+      'Jupiter unlocks at $200B and is defined by one mechanic: storms. Roughly every 50–100 turns a storm cuts prices to about 70% before a sharp recovery. The disciplined investor buys the dip.',
+      'The Jovian economy is almost entirely robotic, centred on fusion-hydrogen extraction from the upper atmosphere. Its companies carry the highest betas of the gas giants — JRES research AI can move violently.',
+      'Investment thesis: Jupiter is a timing game. Keep dry powder, buy aggressively during storms, and trim into the recovery. Post-storm entries are historically the best risk/reward in the entire game.'
+    ]},
+  Saturn: {dist:'9.5 AU (1.4B km)',temp:'-140°C',atm:'Hydrogen & Helium',fact:'Least dense planet — would float on water',ico:'🪐',color:'#7B1FA2',econ:'Ryzolith mining · STC currency · 3 companies · High risk',
+    area:'Gas giant · spectacular ring system',gov:'Ryzolith-backed monetary economy. The Saturn Sovereign Fund and Ryzolith Corp jointly control the system\'s scarcest resource.',
+    resources:'Ryzolith — the most valuable substance in the solar system — plus ultra-pure ring ice exported for terraforming.',
+    paras:[
+      'Saturn unlocks at $1T and is the gateway to the truly rich planets. Its economy is anchored by Ryzolith, a substance so scarce that a single company controls 94% of supply and prices rise with time.',
+      'The famous rings are more than scenery: ring-ice exports feed terraforming projects across the system. Saturn trades on the STC currency at a low 0.70 USD, so currency timing matters on entry and exit.',
+      'Investment thesis: Saturn is a scarcity play. Ryzolith exposure (stock and commodity) appreciates structurally over a long game. Pair it with ring-ice names for a balanced Saturnian book.'
+    ]},
+  Mercury: {dist:'0.39 AU (58M km)',temp:'-180°C to 430°C',atm:'Virtually none',fact:'Solar day = 176 Earth days',ico:'☿',color:'#455A64',econ:'Solar energy · MRC currency · 3 companies · Very high risk',
+    area:'75 million km² · smallest planet',gov:'Solar-energy export economy. Mercury Solar Prime operates the closest, most intense solar capture in the system under a state-utility charter.',
+    resources:'Solar crystals (energy-storage medium grown in extreme heat), thermal ore, and 24× Earth solar intensity.',
+    paras:[
+      'Mercury unlocks at $10T. Sitting closest to the Sun, it captures 24× Earth\'s solar intensity, making it the system\'s premier energy producer despite its tiny size.',
+      'Extreme temperature swings — from -180°C to 430°C across its long solar day — forge unique materials like solar crystals and thermal ore. Solar-flare events can boost output and prices sharply.',
+      'Investment thesis: Mercury is very high risk with strong energy upside. Mercury Solar Prime pays a solid dividend and anchors the book; thermal and robotics names add volatility for the aggressive investor.'
+    ]},
+  Uranus: {dist:'19.2 AU (2.9B km)',temp:'-195°C',atm:'Methane gives blue color',fact:'Rotates on its side — 98° axial tilt',ico:'🔵',color:'#0277BD',econ:'Ice mining · URU currency · 3 companies · Extreme risk',
+    area:'Ice giant · 4× Earth diameter',gov:'Long-cycle cryogenic economy. Governance adapts to 42-year seasons; the Uranus Research Base coordinates ice extraction and cryo-tech.',
+    resources:'Cryo-methane fuel and diamond-hard "Uranian ice" used in space-drilling technology.',
+    paras:[
+      'Uranus unlocks at $50T and operates on a uniquely long horizon. Its 98° axial tilt produces 42-year seasons, creating predictable multi-decade supply cycles rather than the fast shocks seen elsewhere.',
+      'The ice giant\'s signature exports are cryo-methane fuel and diamond-ice crystals so hard they tip the system\'s best mining drills. Activity is sparse but structurally valuable.',
+      'Investment thesis: Uranus is an extreme-risk, patient-capital planet. Its low currency (0.55 USD) and thin liquidity reward long holds. Best suited to late-game players diversifying a trillion-dollar book.'
+    ]},
+  Neptune: {dist:'30.1 AU (4.5B km)',temp:'-200°C',atm:'Methane, hydrogen, helium',fact:'Fastest winds in solar system: 2,100 km/h',ico:'💜',color:'#4527A0',econ:'Deep research · NPT currency · 3 companies · Extreme risk',
+    area:'Ice giant · most distant economy',gov:'Frontier research economy. The Neptune Deep Research consortium operates with minimal oversight at the edge of the system — highest risk, highest potential.',
+    resources:'Deep-field minerals of unknown composition and wind-energy crystals formed by 2,100 km/h winds — the most efficient energy storage ever discovered.',
+    paras:[
+      'Neptune unlocks at $100T — the final and richest frontier. As the most distant economy, it is the most volatile and the most rewarding, built around deep-field research and extraction.',
+      'Its 2,100 km/h winds — the fastest in the solar system — forge wind-energy crystals of unmatched efficiency, while deep-field mineral sites yield materials of unknown, extreme value.',
+      'Investment thesis: Neptune is pure high-conviction speculation. NRES research carries the highest beta in the game and the Neptune Sovereign Fund offers the system\'s top APR (28.4%). Size positions for survivability — the swings are brutal.'
+    ]},
 };
 
 function SpaceGuidePanel({onBack}) {
@@ -342,13 +449,25 @@ function SpaceGuidePanel({onBack}) {
 
               {isOpen&&(
                 <div>
+                  {/* Multi-paragraph briefing */}
+                  {(sci.paras||[]).map((p,i)=>(
+                    <div key={i} style={{fontSize:12,color:'rgba(255,255,255,0.82)',lineHeight:1.65,marginBottom:10}}>{p}</div>
+                  ))}
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                    {[['Temperature',sci.temp],['Atmosphere',sci.atm]].map(([l,v])=>(
+                    {[['Temperature',sci.temp],['Atmosphere',sci.atm],['Size',sci.area],['Distance',sci.dist]].map(([l,v])=>(
                       <div key={l} style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10}}>
                         <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>{l}</div>
                         <div style={{fontSize:11,color:'rgba(255,255,255,0.8)',fontWeight:600}}>{v}</div>
                       </div>
                     ))}
+                  </div>
+                  <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10,marginBottom:10}}>
+                    <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>Governance</div>
+                    <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',lineHeight:1.5}}>{sci.gov}</div>
+                  </div>
+                  <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10,marginBottom:10}}>
+                    <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>Key Resources</div>
+                    <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',lineHeight:1.5}}>{sci.resources}</div>
                   </div>
                   <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10,marginBottom:10}}>
                     <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>Amazing Fact</div>
@@ -394,6 +513,38 @@ const CHAPTERS = [
    content:'Each planet has its own currency, GDP, risk level, and company set. Currency rates affect USD returns when you buy/sell. Higher-risk planets (Neptune, Uranus) offer bigger swings but extreme volatility. Planetary unlock thresholds gate access by net worth — Mars opens at $5B, Neptune requires $100T. Post-storm on Jupiter is historically the best buying opportunity in the game. Sovereign funds compound daily and offer some of the highest APRs available.'},
   {n:8,title:'Building a Trillion-Dollar Empire',desc:'End-game strategies: tax optimization, planet diversification, and the road to $1T.',
    content:'Late-game strategy: 1) Maximize planet diversification — all 8 planets active. 2) Time large sells during Capital Gains tax eras. 3) Stack philanthropy donations for 75% CGT relief. 4) Deposit into high-yield sovereign funds (Neptune: 28.4% APR). 5) Use bonds as low-risk base — Cosmic bonds yield 18-35%. 6) Own 50%+ in key companies for CEO control. 7) Complete 7-turn streaks for spin tokens. The path from $100B to $1T is through compound growth — let time work for you.'},
+  {n:9,title:'The Power of Compounding',desc:'Why time in the market beats timing the market — the eighth wonder of the world.',
+   content:'Compounding is earning returns on your returns. $1M growing at 12% becomes $3.1M in 10 turns-of-years, $9.6M in 20, and $29M in 30 — the curve bends upward because each period builds on a larger base. In Cosmos Capital, sovereign funds compound daily, savings accrue interest, and reinvested gains snowball. The lesson: start early, reinvest everything, and avoid interrupting compounding with unnecessary taxable sells. The biggest fortunes come from patience, not frantic trading.'},
+  {n:10,title:'Dollar-Cost Averaging',desc:'How buying in steady increments tames volatility and removes emotion.',
+   content:'Dollar-cost averaging (DCA) means investing a fixed amount at regular intervals regardless of price. When prices are low you buy more units; when high, fewer. Over time your average cost smooths out, and you avoid the trap of dumping everything at a peak. In a volatile game like this — where planet stocks and crypto swing hard — DCA into positions across several turns rather than all at once. It protects you from bad timing and from your own fear and greed.'},
+  {n:11,title:'Risk Management & Position Sizing',desc:'The single most important skill: never let one bet sink the ship.',
+   content:'Position sizing is deciding how much to put into any single trade. A common rule: never risk more than you can afford to lose on one position. High-beta names (JRES, NRES, crypto) should be small slices; stable blue chips and bonds can be larger. Diversify across asset classes and planets so no single shock is fatal. The Foundation protects your Savings Wallet as a last line of defense. Survival first — you cannot compound if you are wiped out.'},
+  {n:12,title:'Asset Allocation',desc:'Splitting capital across stocks, bonds, funds, crypto and commodities.',
+   content:'Asset allocation is the mix of asset types in your portfolio, and it drives most of your long-run results. A balanced Cosmos Capital portfolio might hold growth stocks for upside, bonds and sovereign funds for stable yield, commodities (gold) as a crisis hedge, and a small crypto sleeve for asymmetric bets. Rebalance periodically — sell what has grown too large, add to what has lagged — to keep your risk where you want it. Allocation matters more than individual stock picks.'},
+  {n:13,title:'Market Cycles: Bull & Bear',desc:'Recognizing the rhythm of greed and fear, expansion and recession.',
+   content:'Markets move in cycles. Bull markets — rising prices, positive GDP, optimism — eventually give way to bear markets — falling prices, negative GDP, fear. Geopolitical events and storms can trigger turns. The skilled investor accumulates during fear (buy the dip), trims during euphoria, and never assumes a trend lasts forever. Watch the GDP indicator and the world-events feed: persistent negative readings warn of a coming downturn, while recovery signals an entry point.'},
+  {n:14,title:'Behavioral Finance',desc:'Your worst enemy is often the investor in the mirror.',
+   content:'Behavioral finance studies the psychological biases that cost investors money: FOMO (chasing pumps), loss aversion (refusing to sell losers), recency bias (assuming the last trend continues), and overconfidence (over-sizing bets after a win). The Fortune Wheel is a perfect test — gambling feels exciting but the math favors patience. Build rules, follow them, and let discipline beat emotion. The market rewards the calm and punishes the impulsive.'},
+  {n:15,title:'Cryptocurrency',desc:'Digital assets, volatility, and the 30% flat tax.',
+   content:'Crypto in Cosmos Capital spans 14 Earth coins (BTC, ETH and more) plus locked planet tokens. Prices are highly volatile with gentle mean-reversion toward their anchors. Crypto profits are taxed at a flat 30% — higher than most stock eras — so factor that into your exits. Treat crypto as a small, high-risk sleeve: position sizes should be modest, and never invest money you need. Planet tokens unlock as you reach their worlds, adding speculative upside late game.'},
+  {n:16,title:'Commodities & Hard Assets',desc:'Gold, oil, lithium and the raw materials that move with the real economy.',
+   content:'Commodities are physical goods — gold, silver, oil, copper, lithium and more, plus exotic planetary materials. Gold and silver spike during crises (a classic hedge), oil reacts to geopolitical events, and lithium tracks the Martian economy. Commodity gains are taxed at a flat 15%. Prices mean-revert and are clamped to realistic bands, so they trend rather than explode. Use commodities to hedge equity risk and to express macro views on the real economy.'},
+  {n:17,title:'Foreign Exchange (FX)',desc:'Currencies, exchange rates, and why holding local money matters.',
+   content:'Each planet trades in its own currency at a USD exchange rate that fluctuates each turn. When you buy planet stocks, your USD is converted at the prevailing rate — so currency moves affect your returns. Holding local currency before buying gives a fee discount. A weakening planet currency erodes USD gains; a strengthening one boosts them. Advanced players watch FX rates and exchange when rates are favorable, treating currency as its own source of profit and risk.'},
+  {n:18,title:'Bonds In Depth',desc:'Fixed income, yields, maturity and the risk ladder.',
+   content:'Bonds are loans you make to governments or corporations in exchange for fixed interest plus principal at maturity. Yield reflects risk: safe Earth government bonds pay modest rates; corporate bonds pay more; Cosmic bonds (Mars, Jupiter, Neptune) yield 18–35% but require planet unlocks. Maturity is measured in turns — longer bonds lock your capital but pay more. Bonds anchor a portfolio with predictable income and lower volatility than equities. Ladder maturities to balance liquidity and yield.'},
+  {n:19,title:'Sovereign Funds',desc:'High-yield, daily-compounding state funds — the lazy investor\'s friend.',
+   content:'Planet Sovereign Funds are state-run investment vehicles that compound daily and pay interest straight into your Trading Wallet every turn. APRs range from Earth\'s 12.5% to Neptune\'s 28.4%, with a 2% entry fee. Higher rates reflect higher planetary risk. Funds are ideal for capital you want growing passively without active trading. A core allocation to sovereign funds provides a steady income stream that fuels new investments elsewhere.'},
+  {n:20,title:'Philanthropy & Tax Relief',desc:'Doing good while legally slashing your capital gains tax.',
+   content:'Donations from your Cash Wallet earn Redemption Points and multi-turn CGT relief — stacking up to a 75% reduction. Different causes offer different relief rates and durations: Disaster relief gives 35% for 8 turns, Education 25% for 5 turns with a points multiplier. Time donations before large profitable sells to minimize tax. Donations also count toward the Wheel of Fortune requirements. Generosity is genuinely profitable here — a rare win-win.'},
+  {n:21,title:'CEO Control & Board Power',desc:'Buy enough of a company and you start running it.',
+   content:'Ownership unlocks governance. Hold 10%+ of a company for a board seat (vote on dividends), 25%+ to propose strategy, and 50%+ to replace the CEO. Board decisions appear in the Command Center and carry real price and reputation impacts — and ignored decisions auto-resolve to the worst option, so stay engaged. Controlling key companies lets you steer their fortunes, but concentration is risk: a controlled company that stumbles hits your portfolio hard.'},
+  {n:22,title:'Reading Analyst Ratings',desc:'STRONG BUY to SELL — what the targets really mean.',
+   content:'Each Earth company carries analyst ratings with price targets and notes. STRONG BUY and BUY signal conviction upside; HOLD means fairly valued; SELL warns of downside. But analysts disagree, and targets are opinions, not guarantees. Use ratings as one input among many — combine them with the P/E, beta, dividend yield and the world-events feed. A SELL on a stock you understand may be a contrarian opportunity; a STRONG BUY at a stretched P/E may be a trap.'},
+  {n:23,title:'Storms, Events & Timing',desc:'Turning chaos — geopolitics, disasters and Jovian storms — into opportunity.',
+   content:'Random world events shift markets every few turns: geopolitical tensions, natural disasters, tech breakthroughs and corporate scandals each tilt prices. Jupiter storms cut its prices to ~70% before recovery. The world-intelligence feed on the Home screen is your early-warning system. Negative events often create the best entry points if you have dry powder. The disciplined investor treats volatility as a sale, not a threat — buying quality when others panic.'},
+  {n:24,title:'The Endgame: Diversified Dominance',desc:'Putting it all together for a resilient trillion-dollar empire.',
+   content:'A mature empire is diversified across every dimension: all eight planets active, every asset class represented, income streams from funds, bonds and dividends, and tax minimized through era timing and philanthropy. Keep a cash reserve for storm dips, control a few key companies, and let compounding do the heavy lifting. The final lesson of Cosmos Capital mirrors real investing: survive the downturns, stay diversified, keep costs and taxes low, and give time the room to make you rich.'},
 ];
 
 function AcademyPanel({onBack}) {
@@ -435,11 +586,11 @@ function AcademyPanel({onBack}) {
       <PanelHeader title="🎓 Academy" onBack={onBack}/>
       <div style={{padding:'14px 16px'}}>
         <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:11,color:'#6EE7B7'}}>
-          Complete chapters to earn knowledge points. 8 chapters · 50 pts each.
+          Complete chapters to earn knowledge points. {CHAPTERS.length} chapters · 50 pts each.
         </div>
-        <div style={{fontSize:12,color:T.muted,marginBottom:10}}>{completed.length}/8 completed</div>
+        <div style={{fontSize:12,color:T.muted,marginBottom:10}}>{completed.length}/{CHAPTERS.length} completed</div>
         <div style={{background:T.border,borderRadius:4,height:6,overflow:'hidden',marginBottom:16}}>
-          <div style={{width:(completed.length/8*100)+'%',height:'100%',background:T.green,borderRadius:4}}/>
+          <div style={{width:(completed.length/CHAPTERS.length*100)+'%',height:'100%',background:T.green,borderRadius:4}}/>
         </div>
         {CHAPTERS.map(ch=>{
           const done=completed.includes(ch.n);
@@ -498,6 +649,68 @@ const GLOSSARY_TERMS = [
   {t:'Cost Basis',d:'The original price paid for an investment, used to calculate capital gains when selling.'},
   {t:'Unrealized Gain',d:'Profit on a position you still hold — the paper gain that exists but hasn\'t been taxed yet.'},
   {t:'Realized Gain',d:'Profit from a completed sale. This is what gets taxed by CGT in the current tax era.'},
+  {t:'Compounding',d:'Earning returns on your previous returns. The core engine of long-term wealth — sovereign funds compound daily in-game.'},
+  {t:'Dollar-Cost Averaging',d:'Investing a fixed amount at regular intervals to smooth out your average entry price and reduce timing risk.'},
+  {t:'Asset Allocation',d:'How you split capital across asset classes (stocks, bonds, funds, crypto, commodities). Drives most of your long-run results.'},
+  {t:'Diversification',d:'Spreading investments across many assets and planets so no single shock can sink your portfolio.'},
+  {t:'Rebalancing',d:'Periodically selling what has grown too large and buying what has lagged to keep your risk mix on target.'},
+  {t:'Position Sizing',d:'Deciding how much capital to put into a single trade. High-risk assets warrant smaller positions.'},
+  {t:'Expense Ratio',d:'The annual fee an ETF charges, deducted from returns. Lower is better — it compounds against you over time.'},
+  {t:'APR',d:'Annual Percentage Rate — the yearly interest rate on a loan or the yearly yield on a fund or savings account.'},
+  {t:'Compound Interest',d:'Interest calculated on both the principal and accumulated interest. Sovereign funds use daily compounding.'},
+  {t:'Principal',d:'The original amount invested or borrowed, before any interest or returns are added.'},
+  {t:'Capital Gain',d:'The profit when you sell an asset for more than its cost basis. Subject to CGT in Cosmos Capital.'},
+  {t:'Capital Loss',d:'The loss when you sell an asset for less than its cost basis. No tax is owed on a loss.'},
+  {t:'Dividend Tax',d:'Tax applied to dividend income, set by the current tax era. Separate from capital gains tax.'},
+  {t:'Tax Relief',d:'A reduction in your capital gains tax earned by donating to philanthropic causes — stacks up to 75%.'},
+  {t:'Redemption Points',d:'Points earned from donations, used to qualify for the Debt Relief Wheel and other rewards.'},
+  {t:'Trading Wallet',d:'Your active investing account. Most buys and sells draw from and return to this wallet.'},
+  {t:'Savings Wallet',d:'A protected account that earns interest and is shielded by the Foundation. Dividends are credited here.'},
+  {t:'Cash Wallet',d:'Liquid spending money. Donations are drawn from here. Transfer between wallets in the Wealth tab.'},
+  {t:'Foundation',d:'A $500M asset-protection vehicle that shields your Savings Wallet and earns 3% APR.'},
+  {t:'Beta Coefficient',d:'A precise measure of how much an asset moves relative to the market. Beta 2.0 swings twice as hard.'},
+  {t:'Alpha',d:'Returns above what the market or a benchmark would predict — the value added by skilled investing.'},
+  {t:'Sharpe Ratio',d:'Return earned per unit of risk taken. Higher Sharpe means better risk-adjusted performance.'},
+  {t:'Max Drawdown',d:'The largest peak-to-trough drop an asset has experienced. A gauge of worst-case pain.'},
+  {t:'Risk Premium',d:'The extra return demanded for taking on more risk. Outer planets carry large risk premia.'},
+  {t:'Risk-Adjusted Return',d:'Return measured against the risk taken to achieve it — not just raw gains.'},
+  {t:'Defensive Stock',d:'A stable, low-beta company (like utilities) that holds up better in downturns.'},
+  {t:'Cyclical Stock',d:'A company whose fortunes rise and fall with the economic cycle — mining and energy, for example.'},
+  {t:'Growth Stock',d:'A company expected to grow earnings rapidly. Higher P/E, higher beta, higher potential and risk.'},
+  {t:'Value Stock',d:'A company trading cheaply relative to fundamentals. Lower P/E, often higher dividend.'},
+  {t:'Earnings',d:'A company\'s profit. Rising earnings push prices up; misses push them down.'},
+  {t:'EPS',d:'Earnings Per Share — a company\'s profit divided by its shares outstanding. The "E" in P/E.'},
+  {t:'Revenue',d:'A company\'s total sales before costs. Growing revenue signals expanding business.'},
+  {t:'Margin',d:'The percentage of revenue left as profit after costs. Higher margins mean a more efficient business.'},
+  {t:'Oversubscription',d:'When IPO demand exceeds shares available. Heavily oversubscribed IPOs allocate only part of your booking.'},
+  {t:'Allocation',d:'The number of shares you actually receive in an IPO, often less than booked if oversubscribed.'},
+  {t:'Offer Size',d:'The total value an IPO raises. A single investor may book at most 10% of the offer in Cosmos Capital.'},
+  {t:'FX Rate',d:'The exchange rate between USD and a planet currency. It fluctuates each turn and affects your returns.'},
+  {t:'Currency Risk',d:'The chance that a planet currency moves against you, reducing your USD gains on local holdings.'},
+  {t:'Safe Haven',d:'An asset that holds or gains value during crises. Gold is the classic safe haven in-game.'},
+  {t:'Storm Event',d:'A Jupiter-specific shock that cuts prices to ~70% before recovery — a prime buying opportunity.'},
+  {t:'Contagion',d:'How an Earth market shock spreads to other planets, with a delay and reduced intensity per planet.'},
+  {t:'Mean Reversion',d:'The tendency of prices to drift back toward an average over time. Commodities and crypto use it in-game.'},
+  {t:'Speculation',d:'High-risk investing aimed at large, uncertain gains — outer-planet stocks and crypto, for example.'},
+  {t:'Drawdown',d:'A decline from a recent peak in your portfolio value. Managing drawdowns is key to survival.'},
+  {t:'Stop Loss',d:'A discipline of exiting a position once losses hit a set level, to protect capital from larger drops.'},
+  {t:'Dry Powder',d:'Cash kept in reserve to deploy when opportunities — like storm dips — appear.'},
+  {t:'Bagholder',d:'An investor stuck holding an asset that has fallen sharply, hoping in vain for recovery.'},
+  {t:'FOMO',d:'Fear Of Missing Out — the emotional urge to chase a rising asset, often near its peak.'},
+  {t:'Loss Aversion',d:'The bias of feeling losses more strongly than equivalent gains, leading to poor selling decisions.'},
+  {t:'Recency Bias',d:'Assuming recent trends will continue indefinitely — a common and costly mistake.'},
+  {t:'Compounding Frequency',d:'How often interest is added. Daily compounding (sovereign funds) beats annual at the same rate.'},
+  {t:'Yield Curve',d:'The relationship between bond yields and their maturities. Longer bonds usually pay more.'},
+  {t:'Coupon',d:'The periodic interest a bond pays, expressed as a percentage of principal.'},
+  {t:'Default Risk',d:'The chance a borrower fails to repay a bond. Higher-yield Cosmic bonds carry more of it.'},
+  {t:'Sovereign Wealth',d:'State-owned investment capital. The planet Sovereign Funds compound it daily for depositors.'},
+  {t:'Tax Era',d:'One of 8 rotating tax regimes cycling every 60 turns, setting CGT and dividend rates.'},
+  {t:'Capital Preservation',d:'A strategy prioritizing protecting your money over growing it — useful in high-tax or bear eras.'},
+  {t:'Total Return',d:'Your full gain including price appreciation plus dividends and interest, after taxes and fees.'},
+  {t:'Benchmark',d:'A standard (like the Global Equity ETF) against which you measure your own performance.'},
+  {t:'Concentration Risk',d:'The danger of having too much wealth in one position or planet. Diversification is the cure.'},
+  {t:'Liquidation',d:'Selling assets to raise cash, sometimes forced — for example, to repay a loan.'},
+  {t:'Insolvency',d:'When liabilities exceed assets. The Foundation shields your Savings Wallet against this scenario.'},
 ];
 
 function GlossaryPanel({onBack}) {
