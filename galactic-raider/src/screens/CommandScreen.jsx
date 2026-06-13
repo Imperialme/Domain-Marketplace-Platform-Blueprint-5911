@@ -444,7 +444,7 @@ function PhilTab() {
 
   const handleDonate = () => {
     const a = parseFloat(amt);
-    if(isNaN(a)||a<1000) return showMsg('Minimum $1,000');
+    if(isNaN(a)||a<100000) return showMsg('Minimum $100,000');
     const err = donate(modal.idx, a);
     if(err) showMsg(err);
     else{showMsg('✅ Donated '+fm(a)+' to '+modal.cat.n+'!');setModal(null);setAmt('');}
@@ -507,11 +507,11 @@ function PhilTab() {
                 <button key={lbl} onClick={()=>setAmt(String(Math.floor(cashBal*pct)))} style={{flex:1,padding:'9px 0',background:'#060B14',border:'1px solid #1A2744',color:'#94A3B8',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>{lbl}</button>
               ))}
             </div>
-            <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Amount (min $1,000)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
-            {parseFloat(amt)>=1000&&<div style={{background:'#0A2010',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#34D399'}}>+{Math.round(parseFloat(amt)/1000*modal.cat.mult).toLocaleString()} redemption pts</div>}
+            <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Amount (min $100,000)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
+            {parseFloat(amt)>=100000&&<div style={{background:'#0A2010',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'#34D399'}}>+{Math.round(parseFloat(amt)/1000*modal.cat.mult).toLocaleString()} redemption pts</div>}
             <div style={{display:'flex',gap:8}}>
               <button onClick={()=>{setModal(null);setAmt('');}} style={{flex:1,padding:'12px 0',background:'#060B14',border:'1px solid #1A2744',color:'#6B7280',borderRadius:12,fontWeight:700,cursor:'pointer'}}>Cancel</button>
-              <button onClick={handleDonate} style={{flex:2,padding:'12px 0',background:'#059669',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>Donate {parseFloat(amt)>=1000?fm(parseFloat(amt)):''}</button>
+              <button onClick={handleDonate} style={{flex:2,padding:'12px 0',background:'#059669',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>Donate {parseFloat(amt)>=100000?fm(parseFloat(amt)):''}</button>
             </div>
           </div>
         </div>

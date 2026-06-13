@@ -321,6 +321,143 @@ function PortfolioTab({ d }) {
   );
 }
 
+// ── EARTH FX TAB ──────────────────────────────────────────────
+const FX_PAIRS = [
+  {pair:'EURUSD',base:'EUR',quote:'USD',flag:'🇪🇺',name:'Euro'},
+  {pair:'GBPUSD',base:'GBP',quote:'USD',flag:'🇬🇧',name:'British Pound'},
+  {pair:'JPYUSD',base:'JPY',quote:'USD',flag:'🇯🇵',name:'Japanese Yen'},
+  {pair:'CHFUSD',base:'CHF',quote:'USD',flag:'🇨🇭',name:'Swiss Franc'},
+  {pair:'CADUSD',base:'CAD',quote:'USD',flag:'🇨🇦',name:'Canadian Dollar'},
+  {pair:'AUDUSD',base:'AUD',quote:'USD',flag:'🇦🇺',name:'Australian Dollar'},
+  {pair:'CNYUSD',base:'CNY',quote:'USD',flag:'🇨🇳',name:'Chinese Yuan'},
+  {pair:'MXNUSD',base:'MXN',quote:'USD',flag:'🇲🇽',name:'Mexican Peso'},
+  {pair:'INRUSD',base:'INR',quote:'USD',flag:'🇮🇳',name:'Indian Rupee'},
+  {pair:'BRLUSD',base:'BRL',quote:'USD',flag:'🇧🇷',name:'Brazilian Real'},
+  {pair:'ZARUSD',base:'ZAR',quote:'USD',flag:'🇿🇦',name:'South African Rand'},
+  {pair:'SGDUSD',base:'SGD',quote:'USD',flag:'🇸🇬',name:'Singapore Dollar'},
+];
+
+function EarthFXTab({ d, showMsg }) {
+  const { openFxPosition, closeFxPosition } = useGame();
+  const [selected, setSelected] = useState(null);
+  const [dir, setDir] = useState('long');
+  const [usdSize, setUsdSize] = useState('');
+
+  const positions = d.fxPositions || [];
+  const fxRates = d.fxRates || {};
+  const fxHist = d.fxHist || {};
+
+  const openPos = () => {
+    const size = parseFloat(usdSize);
+    if (!selected || !size) return showMsg('Select a pair and enter amount');
+    const err = openFxPosition(selected, dir, size);
+    if (err) showMsg('❌ ' + err);
+    else { showMsg('✅ Opened ' + dir.toUpperCase() + ' ' + selected); setUsdSize(''); }
+  };
+
+  const totalOpenPnl = positions.reduce((x, pos) => {
+    const cur = fxRates[pos.pair] || pos.entryRate;
+    const priceMoveRatio = pos.dir === 'long'
+      ? (cur - pos.entryRate) / pos.entryRate
+      : (pos.entryRate - cur) / pos.entryRate;
+    return x + pos.size * priceMoveRatio;
+  }, 0);
+
+  return (
+    <div>
+      <div style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:12,padding:'10px 14px',marginBottom:12,fontSize:11,color:'#93C5FD',lineHeight:1.5}}>
+        🌐 Earth FX — Trade major world currency pairs. Go LONG (bet rate rises) or SHORT (bet rate falls) using USD from your Trading Wallet.
+      </div>
+
+      {positions.length > 0 && (
+        <div style={{background:'#0D1B2E',borderRadius:14,padding:12,border:'1px solid #1A2744',marginBottom:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div style={{fontSize:11,color:'#4B5563',fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>Open Positions</div>
+            <div style={{fontSize:13,fontWeight:800,color:totalOpenPnl>=0?'#34D399':'#EF4444',fontFamily:'monospace'}}>{totalOpenPnl>=0?'+':''}{fm(totalOpenPnl)} P&L</div>
+          </div>
+          {positions.map(pos => {
+            const cur = fxRates[pos.pair] || pos.entryRate;
+            const priceMoveRatio = pos.dir === 'long'
+              ? (cur - pos.entryRate) / pos.entryRate
+              : (pos.entryRate - cur) / pos.entryRate;
+            const pnl = pos.size * priceMoveRatio;
+            const pnlPct = priceMoveRatio * 100;
+            const pairInfo = FX_PAIRS.find(p => p.pair === pos.pair);
+            return (
+              <div key={pos.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+                <div style={{fontSize:18}}>{pairInfo?.flag || '🌐'}</div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <span style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{pos.pair}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:pos.dir==='long'?'#34D399':'#EF4444',background:pos.dir==='long'?'rgba(52,211,153,0.12)':'rgba(239,68,68,0.12)',padding:'1px 6px',borderRadius:6}}>{pos.dir.toUpperCase()}</span>
+                  </div>
+                  <div style={{fontSize:9,color:'#4B5563'}}>Entry: {pos.entryRate.toFixed(6)} · Now: {cur.toFixed(6)} · Size: {fm(pos.size)}</div>
+                </div>
+                <div style={{textAlign:'right',marginRight:8}}>
+                  <div style={{fontSize:12,fontWeight:800,color:pnl>=0?'#34D399':'#EF4444',fontFamily:'monospace'}}>{pnl>=0?'+':''}{fm(pnl)}</div>
+                  <div style={{fontSize:9,color:pnl>=0?'#34D399':'#EF4444'}}>{pnlPct>=0?'+':''}{pnlPct.toFixed(2)}%</div>
+                </div>
+                <button onClick={()=>{ closeFxPosition(pos.id); showMsg('Position closed'); }} style={{background:'#7F1D1D',color:'#FCA5A5',border:'1px solid #DC2626',borderRadius:8,padding:'6px 10px',fontSize:11,fontWeight:700,cursor:'pointer'}}>✕</button>
+              </div>
+            );
+          })}
+          {d.fxPnlRealized !== 0 && (
+            <div style={{fontSize:10,color:'#6B7280',marginTop:6}}>Realized P&L: <span style={{color:d.fxPnlRealized>=0?'#34D399':'#EF4444',fontWeight:700}}>{d.fxPnlRealized>=0?'+':''}{fm(d.fxPnlRealized)}</span></div>
+          )}
+        </div>
+      )}
+
+      <div style={{background:'#0D1B2E',borderRadius:14,padding:12,border:'1px solid #1A2744',marginBottom:12}}>
+        <div style={{fontSize:11,color:'#4B5563',fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:10}}>New Position</div>
+        <div style={{display:'flex',gap:6,marginBottom:10}}>
+          <button onClick={()=>setDir('long')} style={{flex:1,padding:'10px 0',background:dir==='long'?'#059669':'#060B14',border:'1px solid '+(dir==='long'?'#059669':'#1A2744'),color:dir==='long'?'#fff':'#6B7280',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>📈 LONG</button>
+          <button onClick={()=>setDir('short')} style={{flex:1,padding:'10px 0',background:dir==='short'?'#DC2626':'#060B14',border:'1px solid '+(dir==='short'?'#DC2626':'#1A2744'),color:dir==='short'?'#fff':'#6B7280',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>📉 SHORT</button>
+        </div>
+        <div style={{display:'flex',gap:5,marginBottom:10}}>
+          {[100,500,1000,5000].map(v=>(
+            <button key={v} onClick={()=>setUsdSize(String(v))} style={{flex:1,padding:'7px 0',background:usdSize==v?'#1D4ED8':'#060B14',border:'1px solid '+(usdSize==v?'#3B82F6':'#1A2744'),color:usdSize==v?'#fff':'#6B7280',borderRadius:9,fontSize:10,fontWeight:700,cursor:'pointer'}}>${v>=1000?(v/1000)+'K':v}</button>
+          ))}
+        </div>
+        <input type="number" value={usdSize} onChange={e=>setUsdSize(e.target.value)} placeholder="USD size (min $100)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:13,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+        <div style={{fontSize:9,color:'#4B5563',marginBottom:8}}>Trading Wallet: {fm(d.tradingWallet||0)} · Select pair below then click Open</div>
+        {selected && (
+          <button onClick={openPos} style={{width:'100%',padding:'12px 0',background:dir==='long'?'#059669':'#DC2626',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:14,cursor:'pointer',marginBottom:10}}>
+            Open {dir.toUpperCase()} {selected} — {usdSize?fm(parseFloat(usdSize)||0):'$0'}
+          </button>
+        )}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {FX_PAIRS.map(({pair,base,flag,name}) => {
+          const rate = fxRates[pair] || 0;
+          const hist = fxHist[pair] || [rate];
+          const prev = hist.length > 1 ? hist[hist.length-2] : rate;
+          const ch = prev > 0 ? (rate - prev) / prev * 100 : 0;
+          const isSelected = selected === pair;
+          return (
+            <div key={pair} onClick={()=>setSelected(isSelected ? null : pair)}
+              style={{background:isSelected?'rgba(59,130,246,0.12)':'#0D1B2E',borderRadius:12,padding:'12px 14px',border:'1px solid '+(isSelected?'#3B82F6':'#1A2744'),cursor:'pointer',transition:'all 0.15s'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <span style={{fontSize:22}}>{flag}</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>{pair}</div>
+                    <div style={{fontSize:10,color:'#4B5563'}}>{name}</div>
+                  </div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:14,fontWeight:800,color:'#F8FAFC',fontFamily:'monospace'}}>{rate.toFixed(6)}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:ch>=0?'#34D399':'#EF4444'}}>{ch>=0?'+':''}{ch.toFixed(3)}%</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── PLANET FX TAB ─────────────────────────────────────────────
 function PlanetFXTab({ d, showMsg }) {
   const { exchangeToLocal, exchangeToUSD } = useGame();
@@ -484,7 +621,7 @@ export default function WealthScreen() {
     setActivePct(pct);
   };
 
-  const tabs=[{id:'portfolio',l:'📊 '+t('tab_portfolio')},{id:'wallets',l:'💰 '+t('tab_wallets')},{id:'loans',l:'🏦 '+t('tab_loans')},{id:'funds',l:t('tab_funds')},{id:'planetfx',l:t('tab_fx')},{id:'log',l:t('tab_log')}];
+  const tabs=[{id:'portfolio',l:'📊 '+t('tab_portfolio')},{id:'wallets',l:'💰 '+t('tab_wallets')},{id:'loans',l:'🏦 '+t('tab_loans')},{id:'funds',l:t('tab_funds')},{id:'earthfx',l:'🌐 FX'},{id:'planetfx',l:'🪐 PlanetFX'},{id:'log',l:t('tab_log')}];
 
   return (
     <div style={{padding:'14px 14px 80px',background:TH.bg,minHeight:'100%'}}>
@@ -660,6 +797,9 @@ export default function WealthScreen() {
           />
         ))}
       </>}
+
+      {/* EARTH FX */}
+      {tab==='earthfx'&&<EarthFXTab d={d} showMsg={showMsg}/>}
 
       {/* PLANET FX */}
       {tab==='planetfx'&&<PlanetFXTab d={d} showMsg={showMsg}/>}

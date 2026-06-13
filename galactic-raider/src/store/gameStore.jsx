@@ -170,6 +170,19 @@ function buildInitialState() {
     badges: [],
     playerName: 'Raider',
     playerAvatar: '🚀',
+    // Earth FX positions
+    fxRates: {
+      EURUSD:1.0850, GBPUSD:1.2700, JPYUSD:0.006680, CHFUSD:1.1200,
+      CADUSD:0.7400, AUDUSD:0.6500, CNYUSD:0.1380, MXNUSD:0.05900,
+      INRUSD:0.01200, BRLUSD:0.2000, ZARUSD:0.05400, SGDUSD:0.7500,
+    },
+    fxHist: {
+      EURUSD:[1.0850], GBPUSD:[1.2700], JPYUSD:[0.006680], CHFUSD:[1.1200],
+      CADUSD:[0.7400], AUDUSD:[0.6500], CNYUSD:[0.1380], MXNUSD:[0.05900],
+      INRUSD:[0.01200], BRLUSD:[0.2000], ZARUSD:[0.05400], SGDUSD:[0.7500],
+    },
+    fxPositions: [],  // [{id,pair,dir,entryRate,size,usdCost,turn}]
+    fxPnlRealized: 0,
     shownMilestones: {},   // tier labels already celebrated — each milestone pops up only once
     pendingMilestone: null, // set when a new wealth tier is first reached; cleared when the popup is dismissed
   };
@@ -342,6 +355,24 @@ export function GameProvider({ children }) {
       // Clamp between 0.2× and 8× of initial price — prevents both zero-ing out and runaway spikes
       const next = Math.max(com.ip * 0.2, Math.min(com.ip * 8, r2(prev * move)));
       s.commodityHist[com.id] = [...hist.slice(-48), next];
+    });
+
+    // Earth FX rate fluctuation — small ±1.5% per turn with mean-reversion to initial
+    const FX_IP = {
+      EURUSD:1.0850,GBPUSD:1.2700,JPYUSD:0.006680,CHFUSD:1.1200,
+      CADUSD:0.7400,AUDUSD:0.6500,CNYUSD:0.1380,MXNUSD:0.05900,
+      INRUSD:0.01200,BRLUSD:0.2000,ZARUSD:0.05400,SGDUSD:0.7500,
+    };
+    if (!s.fxRates) s.fxRates = { ...FX_IP };
+    if (!s.fxHist) s.fxHist = Object.fromEntries(Object.entries(FX_IP).map(([k,v])=>[k,[v]]));
+    Object.keys(FX_IP).forEach(pair => {
+      const prev = s.fxRates[pair] || FX_IP[pair];
+      const ip = FX_IP[pair];
+      const mr = Math.pow(ip / prev, 0.015);
+      const move = (1 + (Math.random()-0.5)*0.03) * mr;
+      const next = Math.max(ip*0.5, Math.min(ip*2.0, r2(prev * move)));
+      s.fxRates[pair] = next;
+      s.fxHist[pair] = [...(s.fxHist[pair]||[ip]).slice(-48), next];
     });
 
     // Planet currency rate fluctuation — small ±2% shift each turn
@@ -883,8 +914,8 @@ export function GameProvider({ children }) {
     if (!ipo) return;
     if (shares <= 0) return 'Enter a valid number of shares';
     const mid = (ipo.priceRange[0] + ipo.priceRange[1]) / 2;
-    // A single investor may book at most 10% of the total offer — no dumping unlimited capital into a small IPO
-    const maxBookValue = r2((ipo.offerSize || 400000000) * 0.10);
+    // A single investor may book at most 20% of the total offer
+    const maxBookValue = r2((ipo.offerSize || 400000000) * 0.20);
     const maxShares = Math.floor(maxBookValue / mid);
     const alreadyBooked = s.ipoBookings[ipoId] || 0;
     if (alreadyBooked + shares > maxShares) {
@@ -906,7 +937,7 @@ export function GameProvider({ children }) {
     const CATS = [{n:'Healthcare',ico:'🏥',rate:.20,dur:3,mult:1.3},{n:'Education',ico:'🎓',rate:.25,dur:5,mult:1.5},{n:'Environment',ico:'🌱',rate:.30,dur:7,mult:1.1},{n:'Infrastructure',ico:'🌉',rate:.15,dur:4,mult:1.0},{n:'Poverty',ico:'🤝',rate:.20,dur:3,mult:1.2},{n:'Science',ico:'🔬',rate:.25,dur:5,mult:1.0},{n:'Arts',ico:'🎨',rate:.10,dur:2,mult:1.0},{n:'Disaster',ico:'🚨',rate:.35,dur:8,mult:1.0}];
     const c = CATS[catIdx];
     if (!c) return;
-    if (amount < 1000) return 'Minimum donation: $1,000';
+    if (amount < 100000) return 'Minimum donation: $100,000';
     if (amount > s.cashWallet) return 'Insufficient Cash Wallet funds';
     s.cashWallet = r2(s.cashWallet - amount);
     s.totalDonated = r2((s.totalDonated||0) + amount);
@@ -965,6 +996,42 @@ export function GameProvider({ children }) {
     refresh();
     return { segIdx, msg };
   }, [refresh, addNews, earnBadge]);
+
+  // ── EARTH FX TRADING ─────────────────────────────────────────
+  const openFxPosition = useCallback((pair, dir, usdSize) => {
+    const s = S.current;
+    if (!pair || !dir || !usdSize || usdSize <= 0) return 'Invalid input';
+    if (usdSize > s.tradingWallet) return 'Insufficient Trading Wallet funds';
+    if (usdSize < 100) return 'Minimum position: $100';
+    const rate = s.fxRates?.[pair];
+    if (!rate) return 'Pair not found';
+    s.tradingWallet = r2(s.tradingWallet - usdSize);
+    s.fxPositions = [...(s.fxPositions||[]), {
+      id: Math.random().toString(36).slice(2),
+      pair, dir, entryRate: rate, size: usdSize, usdCost: usdSize, turn: s.turn,
+    }];
+    logTx('FX_OPEN', 'Trading', -usdSize, dir.toUpperCase()+' '+pair+' @ '+rate.toFixed(6)+' · $'+usdSize.toFixed(2));
+    refresh();
+    return null;
+  }, [refresh, logTx]);
+
+  const closeFxPosition = useCallback((posId) => {
+    const s = S.current;
+    if (!s.fxPositions) return;
+    const pos = s.fxPositions.find(p => p.id === posId);
+    if (!pos) return;
+    const currentRate = s.fxRates?.[pos.pair] || pos.entryRate;
+    const priceMoveRatio = pos.dir === 'long'
+      ? (currentRate - pos.entryRate) / pos.entryRate
+      : (pos.entryRate - currentRate) / pos.entryRate;
+    const pnl = r2(pos.size * priceMoveRatio);
+    const payout = r2(pos.size + pnl);
+    s.tradingWallet = r2(s.tradingWallet + Math.max(0, payout));
+    s.fxPnlRealized = r2((s.fxPnlRealized||0) + pnl);
+    s.fxPositions = s.fxPositions.filter(p => p.id !== posId);
+    logTx('FX_CLOSE', 'Trading', Math.max(0, payout), 'Closed '+pos.dir.toUpperCase()+' '+pos.pair+' · PnL: '+(pnl>=0?'+':'')+fm(pnl));
+    refresh();
+  }, [refresh, logTx]);
 
   // ── FORTUNE WHEEL ────────────────────────────────────────────
   const FORTUNE_SEGS = [
@@ -1241,6 +1308,7 @@ export function GameProvider({ children }) {
     buyCrypto, sellCrypto,
     buyCommodity, sellCommodity,
     exchangeToLocal, exchangeToUSD,
+    openFxPosition, closeFxPosition,
     saveGame, loadGame,
     addNews, earnBadge,
     BADGE_DEFS,
