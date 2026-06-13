@@ -29,7 +29,9 @@ let base = html
   .replace(/<script[^>]+src="[^"]*\.js"[^>]*><\/script>/g, '')
   .replace(/<link[^>]*\/>/g, '');
 
-const standalone = base.replace('</body>', errorTrap + '\n<script type="text/javascript">' + js + '</script>\n</body>');
+// Use function replacement to prevent $& / $' / $` in js from being expanded
+const inlineBlock = errorTrap + '\n<script type="text/javascript">' + js + '</script>\n</body>';
+const standalone = base.replace('</body>', () => inlineBlock);
 fs.writeFileSync(path.join(root, 'cosmos-capital.html'), standalone);
 console.log('Wrote cosmos-capital.html', Math.round(standalone.length / 1024) + 'KB');
 
@@ -47,6 +49,7 @@ document.addEventListener('click',function(){if(!_mPlaying&&!_mAudio.dataset.tri
 
 const deployDir = path.join(root, 'cosmos-deploy');
 if (!fs.existsSync(deployDir)) fs.mkdirSync(deployDir);
-const deployHtml = standalone.replace('</body>', musicBlock + '</body>');
+const musicEndBlock = musicBlock + '</body>';
+const deployHtml = standalone.replace('</body>', () => musicEndBlock);
 fs.writeFileSync(path.join(deployDir, 'index.html'), deployHtml);
 console.log('Wrote cosmos-deploy/index.html', Math.round(deployHtml.length / 1024) + 'KB');
