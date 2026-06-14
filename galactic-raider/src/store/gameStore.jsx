@@ -185,6 +185,7 @@ function buildInitialState() {
     fxPnlRealized: 0,
     shownMilestones: {},   // tier labels already celebrated — each milestone pops up only once
     pendingMilestone: null, // set when a new wealth tier is first reached; cleared when the popup is dismissed
+    navTarget: null, // cross-screen navigation intent {screen, tab, ticker, planet, id}
   };
 }
 
@@ -257,7 +258,7 @@ export function GameProvider({ children }) {
         const evts = [
           { ico:'💰', ti:'Earnings Beat', bo:c.n+' beat estimates. Revenue +12% YoY.', g:true, mult:1.04 },
           { ico:'📉', ti:'Earnings Miss', bo:c.n+' disappointed. Guidance cut.', g:false, mult:.96 },
-          { ico:'📰', ti:'Analyst Upgrade', bo:c.n+' upgraded by '+c.analysts[0].firm+'.', g:true, mult:1.02 },
+          { ico:'📰', ti:'Analyst Upgrade', bo:c.n+' upgraded by '+(c.analysts?.[0]?.firm || 'a leading research desk')+'.', g:true, mult:1.02 },
           { ico:'🤝', ti:'Partnership', bo:c.n+' signs strategic partnership.', g:true, mult:1.03 },
         ];
         const ev = evts[Math.floor(Math.random() * evts.length)];
@@ -429,7 +430,7 @@ export function GameProvider({ children }) {
           s.stockHoldings[ipo.id] = (s.stockHoldings[ipo.id]||0) + allocation;
           s.avgCostBasis[ipo.id] = midpoint;
           if (!s.companies.find(c=>c.t===ipo.id)) {
-            s.companies.push({ t:ipo.id, n:ipo.n, s:ipo.sector||'Technology', price:listPrice, pe:18, ch:0, hist:[listPrice,listPrice], div:0.5, b:1.5, yr:2020, emp:5000, hq:ipo.planet||'Earth', ip:listPrice, pe0:18, analysts:[], origin:'IPO listing.' });
+            s.companies.push({ t:ipo.id, n:ipo.n, s:ipo.sector||'Technology', price:listPrice, pe:18, ch:0, hist:[listPrice,listPrice], div:0.5, b:1.5, yr:2020, emp:5000, hq:ipo.planet||'Earth', ip:listPrice, pe0:18, analysts:[], founder:ipo.founder||'Founder', ceo:ipo.founder||'Founder', ceoProfile:{ rep:75, tenure:0, style:'Founder-led', track:'Newly public' }, origin:ipo.desc||'IPO listing.' });
           }
           addNews('🚀', 'IPO LISTED: '+ipo.n, ipo.n+' listed at $'+listPrice.toFixed(2)+'. Your '+allocation.toLocaleString()+' shares allocated at $'+midpoint.toFixed(2)+'. Now tradeable in Markets.', true);
         } else {
@@ -1279,6 +1280,16 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  const navigateTo = useCallback((target) => {
+    S.current.navTarget = target; // {screen, tab, ticker, planet, id}
+    refresh();
+  }, [refresh]);
+
+  const clearNavTarget = useCallback(() => {
+    S.current.navTarget = null;
+    refresh();
+  }, [refresh]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1316,6 +1327,7 @@ export function GameProvider({ children }) {
     setDarkMode, setLanguage,
     setPlayerAvatar, setPlayerName,
     clearMilestone,
+    navigateTo, clearNavTarget,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

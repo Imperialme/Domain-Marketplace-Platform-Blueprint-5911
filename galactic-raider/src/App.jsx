@@ -68,7 +68,7 @@ function AppShell() {
   const [autoAdv, setAutoAdv] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(3);
   const autoRef = useRef(null);
-  const { D, advanceTurn, clearMilestone } = useGame();
+  const { D, advanceTurn, clearMilestone, navigateTo, clearNavTarget } = useGame();
   const TH = getTheme(D.darkMode);
   const t = getT(D.language);
   const isRTL = D.language === 'ar';
@@ -82,6 +82,13 @@ function AppShell() {
     }
     return () => clearInterval(autoRef.current);
   }, [autoAdv, autoSpeed, advanceTurn, D.pendingMilestone]);
+
+  // React to cross-screen navigation intents set via navigateTo()
+  useEffect(() => {
+    if (D.navTarget?.screen && D.navTarget.screen !== activeTab) {
+      setActiveTab(D.navTarget.screen);
+    }
+  }, [D.navTarget, activeTab]);
 
   const pendingCEO = (D.pendingDecisions || []).length;
   const hasBoardAccess = Object.values(D.companyOwnership || {}).some(pct => pct >= 10);

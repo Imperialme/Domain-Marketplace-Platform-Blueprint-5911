@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../store/gameStore';
 import { fm } from '../utils';
 import { PLANETS_DATA, IPOS, COMMODITIES } from '../constants';
@@ -130,12 +130,22 @@ function Toast({msg}) {
 
 // ── EARTH MARKETS ──────────────────────────────────────────────
 function EarthTab() {
-  const {D,buyStock,sellStock}=useGame();
+  const {D,buyStock,sellStock,clearNavTarget}=useGame();
   const d=D;
   const [selected,setSelected]=useState(null);
   const [modal,setModal]=useState(false);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Auto-select a ticker when navigated from portfolio
+  useEffect(()=>{
+    const nt=D.navTarget;
+    if(nt&&nt.screen==='markets'&&nt.tab==='earth'&&nt.ticker){
+      setSelected(nt.ticker);
+      setModal(false);
+      clearNavTarget();
+    }
+  },[D.navTarget,clearNavTarget]);
 
   const co=selected?d.companies?.find(c=>c.t===selected):null;
 
@@ -286,12 +296,21 @@ function EarthTab() {
 
 // ── PLANETS ────────────────────────────────────────────────────
 function PlanetsTab() {
-  const {D,buyPlanetStock,sellPlanetStock}=useGame();
+  const {D,buyPlanetStock,sellPlanetStock,clearNavTarget}=useGame();
   const d=D;
   const [planet,setPlanet]=useState(null);
   const [modal,setModal]=useState(null);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Auto-navigate to a planet when navigated from portfolio
+  useEffect(()=>{
+    const nt=D.navTarget;
+    if(nt&&nt.screen==='markets'&&nt.tab==='planets'&&nt.planet){
+      setPlanet(nt.planet);
+      clearNavTarget();
+    }
+  },[D.navTarget,clearNavTarget]);
 
   const totalPortfolio = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0)+
     Object.entries(d.stockHoldings||{}).reduce((x,[t,n])=>{const co=d.companies?.find(c=>c.t===t);return x+(co?co.price*n:0);},0)+
@@ -552,7 +571,7 @@ function IPOItem({ipo,d,onBook,walletBalance}) {
           </div>
         ))}
       </div>
-      {ipo.analysts.map((a,i)=>(
+      {(ipo.analysts||[]).map((a,i)=>(
         <div key={i} style={{background:T.bg,borderRadius:8,padding:'8px 10px',marginBottom:6}}>
           <div style={{fontSize:11,fontWeight:700,color:ANALYST_COLOR[a.view]||T.amber}}>{a.firm} · {a.view} · Target ${a.target}</div>
           <div style={{fontSize:10,color:T.sub,marginTop:3,lineHeight:1.4}}>{a.note}</div>
@@ -734,7 +753,7 @@ function BondsTab() {
 
 // ── CRYPTO TAB ─────────────────────────────────────────────────
 function CryptoTab() {
-  const {D,buyCrypto,sellCrypto}=useGame();
+  const {D,buyCrypto,sellCrypto,clearNavTarget}=useGame();
   const d=D;
   const [modal,setModal]=useState(null); // {coin, mode:'buy'|'sell'}
   const [buyAmt,setBuyAmt]=useState('');
@@ -745,6 +764,16 @@ function CryptoTab() {
 
   const openBuy=(coin)=>{setModal({coin,mode:'buy'});setBuyAmt('');};
   const openSell=(coin)=>{setModal({coin,mode:'sell'});setSellQty('');setSellPct('');};
+
+  // Auto-open buy modal when navigated from portfolio
+  useEffect(()=>{
+    const nt=D.navTarget;
+    if(nt&&nt.screen==='markets'&&nt.tab==='crypto'&&nt.ticker){
+      const coin=CRYPTO_COINS.find(c=>c.id===nt.ticker);
+      if(coin){openBuy(coin);}
+      clearNavTarget();
+    }
+  },[D.navTarget,clearNavTarget]);
 
   const doClose=()=>setModal(null);
 
@@ -898,12 +927,22 @@ const CAT_COLORS = {Earth:'#2E7D32',Mars:'#C62828',Venus:'#F57F17',Jupiter:'#E65
 const CAT_ICOS   = {Earth:'🌍',Mars:'🔴',Venus:'🟡',Jupiter:'🟠',Saturn:'🪐',Mercury:'☿',Uranus:'🔵',Neptune:'💜'};
 
 function CommoditiesTab() {
-  const {D,buyCommodity,sellCommodity}=useGame();
+  const {D,buyCommodity,sellCommodity,clearNavTarget}=useGame();
   const d=D;
   const [modal,setModal]=useState(null); // {type:'buy'|'sell', com}
   const [qty,setQty]=useState('');
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Auto-open buy modal when navigated from portfolio
+  useEffect(()=>{
+    const nt=D.navTarget;
+    if(nt&&nt.screen==='markets'&&nt.tab==='commodities'&&nt.id){
+      const com=COMMODITIES.find(c=>c.id===nt.id);
+      if(com){setModal({type:'buy',com});setQty('');}
+      clearNavTarget();
+    }
+  },[D.navTarget,clearNavTarget]);
 
   const getPrice=comId=>{const h=d.commodityHist?.[comId];return h&&h.length>0?h[h.length-1]:(COMMODITIES.find(c=>c.id===comId)?.ip||0);};
   const getPrev =comId=>{const h=d.commodityHist?.[comId];return h&&h.length>1?h[h.length-2]:getPrice(comId);};
@@ -1042,10 +1081,23 @@ function CommoditiesTab() {
 // ── MAIN SCREEN ────────────────────────────────────────────────
 export default function UniverseScreen() {
   const [tab,setTab]=useState('earth');
-  const { D } = useGame();
+  const { D, clearNavTarget } = useGame();
   const TH = getTheme(D.darkMode);
   const t = getT(D.language);
   const TABS=[{id:'earth',ico:'🌍',l:t('tab_earth')},{id:'planets',ico:'🪐',l:t('tab_planets')},{id:'etf',ico:'📊',l:t('tab_etf')},{id:'ipo',ico:'🚀',l:t('tab_ipo')},{id:'bonds',ico:'🏦',l:t('tab_bonds')},{id:'crypto',ico:'₿',l:t('tab_crypto')},{id:'commodities',ico:'⛏️',l:t('tab_rawmats')}];
+
+  // Switch to the correct sub-tab when navigated from portfolio
+  useEffect(()=>{
+    const nt=D.navTarget;
+    if(nt&&nt.screen==='markets'&&nt.tab){
+      setTab(nt.tab);
+      // clearNavTarget is called by the sub-tab after it consumes ticker/id
+      // For tabs without deep-selection, clear here
+      if(!nt.ticker&&!nt.id&&!nt.planet){
+        clearNavTarget();
+      }
+    }
+  },[D.navTarget,clearNavTarget]);
   return (
     <div style={{background:TH.bg,minHeight:'100%'}}>
       <div style={{background:TH.isDark?'linear-gradient(180deg,#050F20,#030810)':TH.bg,padding:'18px 16px 0',borderBottom:'1px solid '+TH.border}}>

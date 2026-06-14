@@ -69,6 +69,7 @@ function FundItem({ fund, d, walletBalance, onDeposit, onWithdraw }) {
 
 // ── PORTFOLIO TAB ─────────────────────────────────────────────
 function PortfolioTab({ d }) {
+  const { navigateTo } = useGame();
   const totalWallets = (d.cashWallet||0)+(d.savingsWallet||0)+(d.tradingWallet||0)+(d.foundationBalance||0);
   const stockEntries = Object.entries(d.stockHoldings||{}).filter(([,n])=>n>0);
   const etfEntries = (d.etfs||[]).filter(e=>e.units>0);
@@ -146,14 +147,17 @@ function PortfolioTab({ d }) {
             const avgCost=d.avgCostBasis?.[ticker]||co.price;
             const pnl=(co.price-avgCost)/avgCost*100;
             return (
-              <div key={ticker} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+              <div key={ticker} onClick={()=>navigateTo({screen:'markets',tab:'earth',ticker})} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)',cursor:'pointer'}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{ticker}</div>
                   <div style={{fontSize:10,color:'#4B5563'}}>{n.toLocaleString()} shares · avg ${avgCost.toFixed(2)}</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
-                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                  </div>
+                  <div style={{fontSize:16,color:'#4B5563'}}>›</div>
                 </div>
               </div>
             );
@@ -174,14 +178,17 @@ function PortfolioTab({ d }) {
             const avgCost=d.planetAvgCost?.[key]||co.price;
             const pnl=(co.price-avgCost)/avgCost*100;
             return (
-              <div key={key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+              <div key={key} onClick={()=>navigateTo({screen:'markets',tab:'planets',planet:pName,ticker})} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)',cursor:'pointer'}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{ticker} <span style={{fontSize:10,color:'#4B5563'}}>· {pName}</span></div>
                   <div style={{fontSize:10,color:'#4B5563'}}>{n.toLocaleString()} shares · {pd.currency} {avgCost.toFixed(2)} avg</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
-                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                  </div>
+                  <div style={{fontSize:16,color:'#4B5563'}}>›</div>
                 </div>
               </div>
             );
@@ -197,14 +204,17 @@ function PortfolioTab({ d }) {
             const val=e.price*e.units;
             const gain=e.units>0?(e.price-e.avgCost)/e.avgCost*100:0;
             return (
-              <div key={e.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+              <div key={e.id} onClick={()=>navigateTo({screen:'markets',tab:'etf',id:e.id})} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)',cursor:'pointer'}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{e.id}</div>
                   <div style={{fontSize:10,color:'#4B5563'}}>{e.units.toLocaleString()} units · avg ${e.avgCost?.toFixed(2)}</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
-                  <div style={{fontSize:10,fontWeight:700,color:gain>=0?'#34D399':'#EF4444'}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
+                <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:gain>=0?'#34D399':'#EF4444'}}>{gain>=0?'+':''}{gain.toFixed(1)}%</div>
+                  </div>
+                  <div style={{fontSize:16,color:'#4B5563'}}>›</div>
                 </div>
               </div>
             );
@@ -266,14 +276,17 @@ function PortfolioTab({ d }) {
             const avgCost=d.cryptoAvgCost?.[id]||price;
             const pnl=avgCost>0?(price-avgCost)/avgCost*100:0;
             return (
-              <div key={id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+              <div key={id} onClick={()=>navigateTo({screen:'markets',tab:'crypto',ticker:id})} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)',cursor:'pointer'}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{id}</div>
                   <div style={{fontSize:10,color:'#4B5563'}}>{qty.toFixed(6)} coins · avg ${avgCost.toFixed(4)}</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
-                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                  </div>
+                  <div style={{fontSize:16,color:'#4B5563'}}>›</div>
                 </div>
               </div>
             );
@@ -295,14 +308,17 @@ function PortfolioTab({ d }) {
             const pnl=avg>0?(price-avg)/avg*100:0;
             const fmtP=p=>p>=1000?(p/1000).toFixed(1)+'K':p>=1?p.toFixed(2):p.toFixed(4);
             return (
-              <div key={id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)'}}>
+              <div key={id} onClick={()=>navigateTo({screen:'markets',tab:'commodities',id})} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(0,0,0,0.2)',cursor:'pointer'}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:800,color:'#F8FAFC'}}>{com.ico} {com.n}</div>
                   <div style={{fontSize:10,color:'#4B5563'}}>{qty.toLocaleString(undefined,{maximumFractionDigits:4})} {com.unit} · avg ${fmtP(avg)}</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
-                  <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'#F8FAFC',fontFamily:'monospace'}}>{fm(val)}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:pnl>=0?'#34D399':'#EF4444'}}>{pnl>=0?'+':''}{pnl.toFixed(1)}%</div>
+                  </div>
+                  <div style={{fontSize:16,color:'#4B5563'}}>›</div>
                 </div>
               </div>
             );
