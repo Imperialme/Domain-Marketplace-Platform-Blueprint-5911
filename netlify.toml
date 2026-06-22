@@ -1,0 +1,14 @@
+[build]
+  command   = "npm run build"
+  publish   = "dist"
+
+# Edge function for visitor geo detection (uses Netlify's built-in geo context)
+[[edge_functions]]
+  path     = "/api/geo"
+  function = "geo"
+
+# SPA fallback — all routes serve index.html (required for React Router)
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

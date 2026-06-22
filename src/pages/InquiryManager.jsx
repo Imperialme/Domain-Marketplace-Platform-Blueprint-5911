@@ -4,6 +4,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useInquiries } from '../context/InquiryContext';
 import { useVisitor } from '../context/VisitorContext';
+import { getPurchasingPower, countryFlag } from '../utils/geo';
 import AdminLayout from '../components/AdminLayout';
 
 const {
@@ -348,18 +349,38 @@ const InquiryManager = () => {
                   <p className="text-xs text-gray-500 font-medium mb-2 uppercase tracking-wide">Visitor Info</p>
                   <div className="bg-blue-50 rounded-xl p-4 grid sm:grid-cols-2 gap-3 text-sm">
                     {[
+                      ['IP Address', selectedInquiry.session.ip || '—'],
+                      ['Location', [
+                        selectedInquiry.session.country ? `${countryFlag(selectedInquiry.session.country)} ${selectedInquiry.session.countryName || selectedInquiry.session.country}` : null,
+                        selectedInquiry.session.city,
+                      ].filter(Boolean).join(', ') || '—'],
                       ['Source', selectedInquiry.session.referrerSource],
                       ['Device', selectedInquiry.session.device],
                       ['Browser', selectedInquiry.session.browser],
-                      ['Language', selectedInquiry.session.language],
-                      ['UTM Campaign', selectedInquiry.session.utmCampaign || '—'],
+                      ['Timezone', selectedInquiry.session.timezone || '—'],
+                      ['Currency', selectedInquiry.session.currency || '—'],
                       ['Referrer URL', selectedInquiry.session.referrer || 'Direct'],
                     ].map(([label, val]) => (
                       <div key={label}>
                         <p className="text-xs text-blue-600 font-medium">{label}</p>
-                        <p className="text-blue-900 text-sm truncate">{val}</p>
+                        <p className="text-blue-900 text-sm">{val}</p>
                       </div>
                     ))}
+                    {selectedInquiry.session.country && (() => {
+                      const p = getPurchasingPower(selectedInquiry.session.country);
+                      return (
+                        <div className="col-span-2">
+                          <p className="text-xs text-blue-600 font-medium mb-1">Purchasing Power</p>
+                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${p.bg}`}>
+                            <span>{p.stars}</span>
+                            <div>
+                              <span className={`text-sm font-bold ${p.color}`}>{p.label}</span>
+                              <span className={`text-xs ${p.color} opacity-75 ml-2`}>— {p.hint}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

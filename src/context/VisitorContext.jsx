@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { fetchGeoData } from '../utils/geo';
 
 const VisitorContext = createContext();
 
@@ -103,6 +104,17 @@ export const VisitorProvider = ({ children }) => {
       device,
       screenWidth: window.screen.width,
       language: navigator.language || 'en',
+      // geo fields — filled in async after session is created
+      ip: null,
+      country: null,
+      countryName: null,
+      city: null,
+      region: null,
+      timezone: null,
+      currency: null,
+      isp: null,
+      latitude: null,
+      longitude: null,
       // prices the visitor typed in the offer field (even without submitting)
       pricesTyped: [],
       lastPriceTyped: null,
@@ -118,6 +130,21 @@ export const VisitorProvider = ({ children }) => {
       const updated = [...prev, session];
       persistSessions(updated);
       return updated;
+    });
+
+    // Fetch geo data asynchronously — updates session once resolved
+    fetchGeoData().then(geo => {
+      if (!geo || !Object.keys(geo).length) return;
+      setSessions(prev => {
+        const updated = prev.map(s =>
+          s.sessionId === sessionId ? { ...s, ...geo } : s
+        );
+        persistSessions(updated);
+        return updated;
+      });
+      setCurrentSession(prev =>
+        prev?.sessionId === sessionId ? { ...prev, ...geo } : prev
+      );
     });
 
     return sessionId;
