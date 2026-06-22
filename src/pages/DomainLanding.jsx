@@ -8,8 +8,7 @@ import { useInquiries } from '../context/InquiryContext';
 import { useVisitor } from '../context/VisitorContext';
 import {
   submitToNetlify,
-  sendAdminNotification,
-  sendBuyerConfirmation,
+  sendEmailNotifications,
 } from '../services/emailService';
 
 const {
@@ -175,9 +174,9 @@ const DomainLanding = () => {
       referrerSource: session?.referrerSource,
     };
 
-    // Fire all three channels in parallel — none block the UI
+    // Fire both channels in parallel — neither blocks the UI
     await Promise.allSettled([
-      // 1. Netlify Forms: captured + emailed to you by Netlify (free)
+      // 1. Netlify Forms: zero-config capture + email from Netlify
       submitToNetlify({
         domain_name:      displayDomain,
         buyer_name:       formData.name,
@@ -192,10 +191,8 @@ const DomainLanding = () => {
         visitor_source:   session?.referrerSource || 'Direct',
         visitor_device:   session?.device || '',
       }),
-      // 2. EmailJS → YOU: instant notification email with full buyer details
-      sendAdminNotification(emailData),
-      // 3. EmailJS → BUYER: confirmation so they don't ghost
-      sendBuyerConfirmation(emailData),
+      // 2. Mailgun (via Netlify Function): admin notification + buyer confirmation
+      sendEmailNotifications(emailData),
     ]);
 
     // Save to local admin panel regardless of email status
