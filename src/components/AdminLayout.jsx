@@ -88,10 +88,10 @@ const AdminLayout = ({ children }) => {
             </button>
             <div className="flex items-center space-x-4">
               <Link
-                to="/"
+                to="/domain/preview"
                 className="text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
-                View Site
+                Preview Landing
               </Link>
               <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">A</span>

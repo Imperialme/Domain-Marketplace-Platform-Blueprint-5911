@@ -53,12 +53,23 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setLoading(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const foundUser = mockUsers.find(u => u.email === email && u.password === password);
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // Check for password override set via Settings page
+      const savedEmail = localStorage.getItem('dm_admin_email');
+      const savedPassword = localStorage.getItem('dm_admin_password');
+      const effectiveEmail = savedEmail || 'admin@netzone.me';
+      const effectivePassword = savedPassword || 'admin123';
+
+      // Admin login (single admin only)
+      let foundUser = null;
+      if (email === effectiveEmail && password === effectivePassword) {
+        foundUser = { ...mockUsers[0], email: effectiveEmail };
+      } else {
+        foundUser = mockUsers.find(u => u.email === email && u.password === password);
+      }
       
       if (!foundUser) {
         throw new Error('Invalid email or password');

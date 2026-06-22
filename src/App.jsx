@@ -8,6 +8,7 @@ import DomainManager from './pages/DomainManager';
 import InquiryManager from './pages/InquiryManager';
 import Analytics from './pages/Analytics';
 import VisitorInsights from './pages/VisitorInsights';
+import Settings from './pages/Settings';
 import { DomainProvider } from './context/DomainContext';
 import { InquiryProvider } from './context/InquiryContext';
 import { AnalyticsProvider } from './context/AnalyticsContext';
@@ -38,6 +39,7 @@ function App() {
                       <Route path="/admin/inquiries" element={<ProtectedRoute requireAdmin><InquiryManager /></ProtectedRoute>} />
                       <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><Analytics /></ProtectedRoute>} />
                       <Route path="/admin/visitors" element={<ProtectedRoute requireAdmin><VisitorInsights /></ProtectedRoute>} />
+                      <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><Settings /></ProtectedRoute>} />
                     </Routes>
                   </AnimatePresence>
                 </div>
