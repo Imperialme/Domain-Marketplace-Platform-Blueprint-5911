@@ -1,11 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useDomains } from '../context/DomainContext';
 import { useInquiries } from '../context/InquiryContext';
 import { useVisitor } from '../context/VisitorContext';
+import {
+  submitToNetlify,
+  sendAdminNotification,
+  sendBuyerConfirmation,
+} from '../services/emailService';
 
 const {
   FiGlobe, FiShield, FiCheck, FiSend, FiClock, FiLock,
@@ -85,7 +90,7 @@ const DomainLanding = () => {
   const { domainName: paramDomainName } = useParams();
   const { getDomainByName } = useDomains();
   const { addInquiry } = useInquiries();
-  const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted } = useVisitor();
+  const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted, currentSession } = useVisitor();
 
   const detectedHostname = getDetectedDomain();
   const domain = detectedHostname
@@ -152,19 +157,59 @@ const DomainLanding = () => {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1200));
 
-    const inquiry = addInquiry({
-      domain_id: domain?.id,
-      domain_name: domain?.domain_name || detectedHostname || paramDomainName,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      offerAmount: parseFloat(formData.offerAmount),
-      message: formData.message,
+    const displayDomain = domain?.domain_name || detectedHostname || paramDomainName;
+    const session = currentSession;
+
+    const emailData = {
+      domainName:     displayDomain,
+      buyerName:      formData.name,
+      buyerEmail:     formData.email,
+      buyerPhone:     formData.phone,
+      offerAmount:    parseFloat(formData.offerAmount),
+      message:        formData.message,
       paymentMethod,
-      referrer: document.referrer || 'Direct',
-      userAgent: navigator.userAgent,
+      country:        session?.countryName || session?.country,
+      city:           session?.city,
+      ip:             session?.ip,
+      referrerSource: session?.referrerSource,
+    };
+
+    // Fire all three channels in parallel — none block the UI
+    await Promise.allSettled([
+      // 1. Netlify Forms: captured + emailed to you by Netlify (free)
+      submitToNetlify({
+        domain_name:      displayDomain,
+        buyer_name:       formData.name,
+        buyer_email:      formData.email,
+        buyer_phone:      formData.phone || '',
+        offer_amount:     String(parseFloat(formData.offerAmount)),
+        payment_method:   paymentMethod,
+        message:          formData.message || '',
+        visitor_country:  session?.countryName || '',
+        visitor_city:     session?.city || '',
+        visitor_ip:       session?.ip || '',
+        visitor_source:   session?.referrerSource || 'Direct',
+        visitor_device:   session?.device || '',
+      }),
+      // 2. EmailJS → YOU: instant notification email with full buyer details
+      sendAdminNotification(emailData),
+      // 3. EmailJS → BUYER: confirmation so they don't ghost
+      sendBuyerConfirmation(emailData),
+    ]);
+
+    // Save to local admin panel regardless of email status
+    const inquiry = addInquiry({
+      domain_id:    domain?.id,
+      domain_name:  displayDomain,
+      name:         formData.name,
+      email:        formData.email,
+      phone:        formData.phone,
+      offerAmount:  parseFloat(formData.offerAmount),
+      message:      formData.message,
+      paymentMethod,
+      referrer:     document.referrer || 'Direct',
+      userAgent:    navigator.userAgent,
     });
 
     trackFormSubmitted(inquiry.id);
