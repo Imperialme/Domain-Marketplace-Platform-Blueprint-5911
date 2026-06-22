@@ -178,6 +178,11 @@ export const VisitorProvider = ({ children }) => {
     });
   }, []);
 
+  const trackEmailEntered = useCallback((email) => {
+    if (!email || !/\S+@\S+\.\S+/.test(email)) return;
+    updateSession({ emailCaptured: email });
+  }, [updateSession]);
+
   const trackFormStarted = useCallback(() => updateSession({ formStarted: true }), [updateSession]);
 
   const trackFormAbandoned = useCallback(() => {
@@ -235,6 +240,7 @@ export const VisitorProvider = ({ children }) => {
     sessions,
     startSession,
     updateSession,
+    trackEmailEntered,
     trackPriceTyped,
     trackFormStarted,
     trackFormAbandoned,

@@ -89,7 +89,7 @@ const DomainLanding = () => {
   const { domainName: paramDomainName } = useParams();
   const { getDomainByName } = useDomains();
   const { addInquiry } = useInquiries();
-  const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted, currentSession } = useVisitor();
+  const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted, trackEmailEntered, currentSession } = useVisitor();
 
   const detectedHostname = getDetectedDomain();
   const domain = detectedHostname
@@ -140,13 +140,21 @@ const DomainLanding = () => {
     }
   };
 
+  const handleEmailBlur = () => {
+    if (formData.email && /\S+@\S+\.\S+/.test(formData.email)) {
+      trackEmailEntered(formData.email);
+    }
+  };
+
   const validate = () => {
     const errs = {};
-    if (!formData.name.trim()) errs.name = 'Name is required';
     if (!formData.email.trim()) errs.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Invalid email';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Invalid email address';
+    if (!formData.name.trim()) errs.name = 'Name is required';
     if (!formData.offerAmount || parseFloat(formData.offerAmount) <= 0)
       errs.offerAmount = 'Please enter your offer amount';
+    else if (domain?.min_offer && parseFloat(formData.offerAmount) < domain.min_offer)
+      errs.offerAmount = `Minimum offer is $${Number(domain.min_offer).toLocaleString()}`;
     return errs;
   };
 
@@ -235,9 +243,11 @@ const DomainLanding = () => {
     );
   }
 
-  const askingPrice = domain.price;
+  const buyNowPrice = domain.buy_now_price || null;
+  const minOffer = domain.min_offer || null;
+  const askingPrice = buyNowPrice || domain.price || null;
   const domainName = domain.domain_name;
-  const escrowLink = buildEscrowLink(domainName, askingPrice);
+  const escrowLink = askingPrice ? buildEscrowLink(domainName, askingPrice) : null;
 
   // ─── Success screen ────────────────────────────────────────────────────────
   if (submitted) {
@@ -289,56 +299,67 @@ const DomainLanding = () => {
 
   // ─── Main landing page ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white">
-      {/* Announcement bar */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white text-center py-2.5 px-4 text-sm font-medium tracking-wide">
-        🌐 <span className="font-bold">{domainName}</span> is available for purchase
-      </div>
+    <div className="min-h-screen bg-slate-950">
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white pt-16 pb-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+      <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-10 pb-20 px-4">
+        <div className="max-w-4xl mx-auto">
 
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/15 rounded-full px-4 py-1.5 mb-8">
+          {/* NetZone nav bar */}
+          <div className="flex items-center justify-between mb-14">
+            <div className="flex items-center gap-2.5">
+              <svg viewBox="0 0 36 36" width="34" height="34" fill="none">
+                <circle cx="18" cy="18" r="16" stroke="#60a5fa" strokeWidth="1.8"/>
+                <ellipse cx="18" cy="18" rx="7" ry="16" stroke="#60a5fa" strokeWidth="1.4"/>
+                <line x1="2" y1="18" x2="34" y2="18" stroke="#60a5fa" strokeWidth="1.4"/>
+              </svg>
+              <span className="font-extrabold text-lg text-white tracking-tight">
+                Net<span className="text-blue-400">Zone</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-sm text-slate-200 font-medium">Premium Domain · Available Now</span>
+              Domain Available
             </div>
+          </div>
 
-            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight text-white mb-5 leading-none">
-              {domainName}
-            </h1>
+          <div className="text-center">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+              <div className="inline-flex items-center gap-2 bg-white/8 backdrop-blur border border-white/12 rounded-full px-4 py-1.5 mb-8">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm text-slate-300 font-medium">Premium Domain · Available Now</span>
+              </div>
 
-            {domain.tagline && (
-              <p className="text-slate-300 text-lg md:text-xl mb-10 max-w-xl mx-auto">{domain.tagline}</p>
-            )}
+              <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight text-white mb-5 leading-none">
+                {domainName}
+              </h1>
 
-            {/* Price + CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              {/* Buy Now */}
-              <a
-                href={escrowLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center gap-3 bg-white text-slate-900 hover:bg-slate-100 px-7 py-4 rounded-2xl font-bold text-base transition-all shadow-xl shadow-black/30"
-              >
-                <span className="text-xl">🔐</span>
-                <div className="text-left">
-                  <div className="text-xs text-slate-500 font-medium leading-none mb-0.5">BUY NOW via Escrow</div>
-                  <div className="text-green-700 font-black text-lg leading-none">${askingPrice.toLocaleString()}</div>
-                </div>
-                <SafeIcon icon={FiArrowDown} className="h-4 w-4 text-slate-400 group-hover:translate-y-0.5 transition-transform rotate-[-90deg]" />
-              </a>
+              {domain.tagline && (
+                <p className="text-slate-400 text-lg md:text-xl mb-10 max-w-xl mx-auto">{domain.tagline}</p>
+              )}
 
-              {/* Make Offer */}
-              <button
-                onClick={scrollToForm}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-7 py-4 rounded-2xl font-bold text-base transition-colors shadow-lg shadow-blue-900/40"
-              >
-                <SafeIcon icon={FiDollarSign} className="h-5 w-5" />
-                Make an Offer
-              </button>
-            </div>
+              {/* Price + CTAs */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+                {/* Buy Now — only shown if buy_now_price is set */}
+                {buyNowPrice && escrowLink && (
+                  <a href={escrowLink} target="_blank" rel="noopener noreferrer"
+                    className="group flex items-center gap-3 bg-white text-slate-900 hover:bg-slate-100 px-7 py-4 rounded-2xl font-bold text-base transition-all shadow-xl shadow-black/40">
+                    <span className="text-xl">🔐</span>
+                    <div className="text-left">
+                      <div className="text-xs text-slate-500 font-medium leading-none mb-0.5">BUY NOW via Escrow</div>
+                      <div className="text-green-700 font-black text-lg leading-none">${buyNowPrice.toLocaleString()}</div>
+                    </div>
+                    <SafeIcon icon={FiArrowDown} className="h-4 w-4 text-slate-400 rotate-[-90deg]" />
+                  </a>
+                )}
+
+                {/* Make Offer */}
+                <button onClick={scrollToForm}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-7 py-4 rounded-2xl font-bold text-base transition-colors shadow-lg shadow-blue-900/50">
+                  <SafeIcon icon={FiDollarSign} className="h-5 w-5" />
+                  {buyNowPrice ? 'Make an Offer' : 'Make an Offer'}
+                </button>
+              </div>
 
             {/* Trust badges */}
             <div className="flex items-center justify-center gap-6 sm:gap-10 flex-wrap">
@@ -350,23 +371,24 @@ const DomainLanding = () => {
             </div>
           </motion.div>
         </div>
+        </div>
       </div>
 
       {/* ── PAYMENT OPTIONS ROW ──────────────────────────────────────────── */}
-      <div className="bg-slate-50 border-y border-slate-200 py-8 px-4">
+      <div className="bg-slate-900/60 border-y border-white/8 py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <p className="text-center text-xs text-slate-400 uppercase tracking-widest font-semibold mb-6">
+          <p className="text-center text-xs text-slate-500 uppercase tracking-widest font-semibold mb-6">
             Accepted Payment Methods
           </p>
           <div className="grid sm:grid-cols-3 gap-4">
             {PAYMENT_METHODS.map(pm => (
-              <div key={pm.id} className={`bg-white rounded-2xl border-2 p-5 ${pm.border} shadow-sm`}>
+              <div key={pm.id} className="bg-white/5 rounded-2xl border border-white/10 p-5 hover:bg-white/8 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-2xl">{pm.icon}</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pm.badgeColor}`}>{pm.badge}</span>
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm mb-1">{pm.label}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{pm.description}</p>
+                <h3 className="font-bold text-white text-sm mb-1">{pm.label}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{pm.description}</p>
               </div>
             ))}
           </div>
@@ -381,31 +403,32 @@ const DomainLanding = () => {
           <motion.div className="lg:col-span-2 space-y-5"
             initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
 
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Domain Details</h3>
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Domain Details</h3>
               <dl className="space-y-3">
                 {[
-                  ['Domain Name', domainName],
+                  ['Domain', domainName],
                   ['Extension', '.' + domainName.split('.').slice(1).join('.')],
-                  ['Asking Price', `$${askingPrice.toLocaleString()}`],
+                  buyNowPrice ? ['Buy Now', `$${buyNowPrice.toLocaleString()}`] : null,
+                  minOffer ? ['Min. Offer', `$${minOffer.toLocaleString()}`] : null,
                   ['Availability', null],
                   ['Transfer', 'Full ownership'],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-0">
-                    <dt className="text-sm text-slate-500">{label}</dt>
+                ].filter(Boolean).map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center py-2 border-b border-white/8 last:border-0">
+                    <dt className="text-sm text-slate-400">{label}</dt>
                     {value === null
-                      ? <dd className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />Available
+                      ? <dd className="inline-flex items-center gap-1 bg-green-500/20 text-green-400 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />Available
                         </dd>
-                      : <dd className="text-sm font-semibold text-slate-900">{value}</dd>
+                      : <dd className="text-sm font-semibold text-white">{value}</dd>
                     }
                   </div>
                 ))}
               </dl>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">What's Included</h3>
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">What's Included</h3>
               <ul className="space-y-2.5">
                 {[
                   'Full ownership transfer',
@@ -415,9 +438,9 @@ const DomainLanding = () => {
                   'SSL certificate ready',
                   'No hidden fees',
                 ].map(item => (
-                  <li key={item} className="flex items-center gap-3 text-sm text-slate-700">
-                    <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <SafeIcon icon={FiCheck} className="h-3 w-3 text-blue-600" />
+                  <li key={item} className="flex items-center gap-3 text-sm text-slate-300">
+                    <div className="w-5 h-5 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <SafeIcon icon={FiCheck} className="h-3 w-3 text-blue-400" />
                     </div>
                     {item}
                   </li>
@@ -426,32 +449,31 @@ const DomainLanding = () => {
             </div>
 
             {/* Direct Escrow CTA */}
-            <a href={escrowLink} target="_blank" rel="noopener noreferrer"
-              className="block bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg shadow-green-900/20">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">🔐</span>
-                <div>
-                  <p className="font-bold text-sm">Buy via Escrow.com</p>
-                  <p className="text-green-200 text-xs">Safest way to buy a domain</p>
+            {escrowLink && (
+              <a href={escrowLink} target="_blank" rel="noopener noreferrer"
+                className="block bg-gradient-to-br from-green-600/90 to-emerald-700/90 rounded-2xl p-6 text-white hover:from-green-600 hover:to-emerald-600 transition-all border border-green-500/30">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">🔐</span>
+                  <div>
+                    <p className="font-bold text-sm">Buy via Escrow.com</p>
+                    <p className="text-green-200 text-xs">Safest way to buy a domain</p>
+                  </div>
                 </div>
-              </div>
-              <p className="text-green-100 text-xs leading-relaxed">
-                Escrow.com holds your payment securely until the domain is in your account.
-                Industry-trusted for 25+ years.
-              </p>
-              <div className="mt-3 flex items-center gap-1 text-white text-xs font-semibold">
-                Start Escrow Transaction →
-              </div>
-            </a>
+                <p className="text-green-100/80 text-xs leading-relaxed">
+                  Escrow.com holds your payment securely until the domain is in your account. Industry-trusted for 25+ years.
+                </p>
+                <div className="mt-3 text-white text-xs font-semibold">Start Escrow Transaction →</div>
+              </a>
+            )}
           </motion.div>
 
           {/* Right panel: offer form */}
           <motion.div ref={formSectionRef} className="lg:col-span-3"
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
 
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="bg-slate-800/60 backdrop-blur rounded-3xl border border-white/10 overflow-hidden shadow-2xl shadow-black/40">
               {/* Form header */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-8 py-6">
+              <div className="bg-gradient-to-r from-blue-600/30 to-indigo-700/30 border-b border-white/10 px-8 py-6">
                 <h2 className="text-xl font-bold text-white">Make Your Offer</h2>
                 <p className="text-slate-300 text-sm mt-1">
                   Submit your offer for <span className="text-white font-semibold">{domainName}</span> — we'll respond within 24 hours.
@@ -459,146 +481,141 @@ const DomainLanding = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-8 space-y-5">
-                {/* Name + Email */}
+
+                {/* EMAIL — first so we capture it even on abandonment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Your Email <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <SafeIcon icon={FiMail} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input type="email" name="email" value={formData.email}
+                      onChange={handleChange} onFocus={handleFocus} onBlur={handleEmailBlur}
+                      placeholder="you@company.com" autoComplete="email"
+                      className={`w-full pl-10 pr-4 py-3.5 border rounded-xl text-sm outline-none transition-all bg-slate-900/60 text-white placeholder-slate-500
+                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                        ${errors.email ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
+                  </div>
+                  {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
+                </div>
+
+                {/* Name + Phone */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                      Full Name <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                      Full Name <span className="text-red-400">*</span>
                     </label>
                     <div className="relative">
                       <SafeIcon icon={FiUser} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input type="text" name="name" value={formData.name}
                         onChange={handleChange} onFocus={handleFocus}
                         placeholder="John Smith"
-                        className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition-all
+                        className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition-all bg-slate-900/60 text-white placeholder-slate-500
                           focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                          ${errors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`} />
+                          ${errors.name ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
                     </div>
-                    {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+                    {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                      Email <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                      Phone <span className="text-slate-500 font-normal normal-case">(optional)</span>
                     </label>
                     <div className="relative">
-                      <SafeIcon icon={FiMail} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input type="email" name="email" value={formData.email}
+                      <SafeIcon icon={FiPhone} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input type="tel" name="phone" value={formData.phone}
                         onChange={handleChange} onFocus={handleFocus}
-                        placeholder="you@company.com"
-                        className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition-all
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                          ${errors.email ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`} />
+                        placeholder="+1 (555) 000-0000"
+                        className="w-full pl-10 pr-4 py-3 border border-slate-600 bg-slate-900/60 text-white placeholder-slate-500 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
                     </div>
-                    {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
                   </div>
                 </div>
 
-                {/* Phone */}
+                {/* Offer Amount ← debounce-tracked even without submit */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                    Phone <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Your Offer Amount <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
-                    <SafeIcon icon={FiPhone} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input type="tel" name="phone" value={formData.phone}
-                      onChange={handleChange} onFocus={handleFocus}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full pl-10 pr-4 py-3 border border-slate-300 bg-slate-50 focus:bg-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
-                  </div>
-                </div>
-
-                {/* Offer Amount ← this is the tracked field */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                    Your Offer Amount <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-lg select-none">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg select-none">$</span>
                     <input type="number" name="offerAmount" value={formData.offerAmount}
                       onChange={handleChange} onFocus={handleFocus}
                       min="1" step="1"
-                      placeholder={Math.floor(askingPrice * 0.8).toLocaleString()}
-                      className={`w-full pl-9 pr-4 py-4 border rounded-xl text-2xl font-bold outline-none transition-all
+                      placeholder={minOffer ? minOffer.toLocaleString() : '5000'}
+                      className={`w-full pl-9 pr-4 py-4 border rounded-xl text-2xl font-bold outline-none transition-all bg-slate-900/60 text-white placeholder-slate-600
                         focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                        ${errors.offerAmount ? 'border-red-400 bg-red-50 text-red-900' : 'border-slate-300 bg-slate-50 focus:bg-white text-slate-900'}`} />
+                        ${errors.offerAmount ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
                   </div>
                   {errors.offerAmount
-                    ? <p className="mt-1 text-xs text-red-500">{errors.offerAmount}</p>
-                    : <p className="mt-1 text-xs text-slate-400">
-                        Listed at <span className="font-semibold text-slate-600">${askingPrice.toLocaleString()}</span>.
-                        Counter-offers are welcome.
+                    ? <p className="mt-1 text-xs text-red-400">{errors.offerAmount}</p>
+                    : <p className="mt-1 text-xs text-slate-500">
+                        {minOffer && <span>Minimum offer: <span className="font-semibold text-slate-400">${minOffer.toLocaleString()}</span>. </span>}
+                        {buyNowPrice && <span>Buy now price: <span className="font-semibold text-green-400">${buyNowPrice.toLocaleString()}</span>.</span>}
+                        {!minOffer && !buyNowPrice && 'Counter-offers are welcome.'}
                       </p>
                   }
                 </div>
 
                 {/* Payment Method Selection */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3">
                     Preferred Payment Method
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {PAYMENT_METHODS.map(pm => (
-                      <button
-                        key={pm.id}
-                        type="button"
-                        onClick={() => setPaymentMethod(pm.id)}
+                      <button key={pm.id} type="button" onClick={() => setPaymentMethod(pm.id)}
                         className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center
                           ${paymentMethod === pm.id
-                            ? `${pm.border} ${pm.bg} shadow-sm`
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                      >
+                            ? 'border-blue-500 bg-blue-500/15 shadow-sm shadow-blue-500/20'
+                            : 'border-slate-600 bg-slate-800/40 hover:border-slate-500'
+                          }`}>
                         {paymentMethod === pm.id && (
-                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                             <SafeIcon icon={FiCheck} className="h-3 w-3 text-white" />
                           </div>
                         )}
                         <span className="text-xl">{pm.icon}</span>
-                        <span className="text-xs font-semibold text-slate-800 leading-tight">{pm.label}</span>
+                        <span className="text-xs font-semibold text-white leading-tight">{pm.label}</span>
                         <span className="text-xs text-slate-400 leading-tight">{pm.tagline}</span>
                       </button>
                     ))}
                   </div>
                   {paymentMethod === 'escrow' && (
-                    <div className="mt-2 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
-                      <span>🔐</span>
-                      Escrow.com holds funds safely until domain is in your account. Zero risk.
+                    <div className="mt-2 flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2 text-xs text-green-400">
+                      <span>🔐</span> Escrow.com holds funds safely until domain is in your account. Zero risk.
                     </div>
                   )}
                   {paymentMethod === 'paypal' && (
-                    <div className="mt-2 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
-                      <span>🅿️</span>
-                      PayPal payment link will be sent to your email after offer is accepted.
+                    <div className="mt-2 flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-blue-400">
+                      <span>🅿️</span> PayPal payment link sent to your email after offer is accepted.
                     </div>
                   )}
                   {paymentMethod === 'crypto' && (
-                    <div className="mt-2 flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700">
-                      <span>₿</span>
-                      Wallet address (BTC / ETH / USDT) provided after offer acceptance.
+                    <div className="mt-2 flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2 text-xs text-orange-400">
+                      <span>₿</span> Wallet address (BTC / ETH / USDT) provided after acceptance.
                     </div>
                   )}
                 </div>
 
                 {/* Message */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                    Message <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Message <span className="text-slate-500 font-normal normal-case">(optional)</span>
                   </label>
                   <textarea name="message" rows={3} value={formData.message}
                     onChange={handleChange} onFocus={handleFocus}
                     placeholder="What do you plan to use this domain for?"
-                    className="w-full px-4 py-3 border border-slate-300 bg-slate-50 focus:bg-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" />
+                    className="w-full px-4 py-3 border border-slate-600 bg-slate-900/60 text-white placeholder-slate-500 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" />
                 </div>
 
                 {/* Submit */}
                 <motion.button type="submit" disabled={submitting}
                   whileHover={{ scale: submitting ? 1 : 1.01 }}
                   whileTap={{ scale: submitting ? 1 : 0.99 }}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600
                     text-white py-4 px-6 rounded-2xl font-bold text-base transition-all
                     disabled:opacity-60 disabled:cursor-not-allowed
-                    flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
+                    flex items-center justify-center gap-2 shadow-lg shadow-blue-900/50">
                   {submitting ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -612,7 +629,7 @@ const DomainLanding = () => {
                   )}
                 </motion.button>
 
-                <div className="flex items-center justify-center gap-5 text-xs text-slate-400 pt-1">
+                <div className="flex items-center justify-center gap-5 text-xs text-slate-500 pt-1">
                   <span className="flex items-center gap-1"><SafeIcon icon={FiLock} className="h-3 w-3" /> SSL Encrypted</span>
                   <span className="flex items-center gap-1"><SafeIcon icon={FiShield} className="h-3 w-3" /> No Spam</span>
                   <span className="flex items-center gap-1"><SafeIcon icon={FiAlertCircle} className="h-3 w-3" /> No Obligation</span>
@@ -623,21 +640,21 @@ const DomainLanding = () => {
         </div>
       </div>
 
-      {/* ── FAQ / WHY SECTION ────────────────────────────────────────────── */}
-      <div className="bg-slate-50 border-t border-slate-200 py-14 px-4">
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+      <div className="border-t border-white/8 py-14 px-4">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-10">How It Works</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-10">How It Works</h2>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { step: '1', title: 'Submit Your Offer', desc: 'Enter your name, email, and offer amount. Choose your preferred payment method.', icon: '📝' },
+              { step: '1', title: 'Submit Your Offer', desc: 'Enter your email, name, and offer amount. Choose your preferred payment method.', icon: '📝' },
               { step: '2', title: 'We Review & Respond', desc: 'The seller reviews your offer and responds within 24 hours via email.', icon: '💬' },
               { step: '3', title: 'Secure Transfer', desc: 'Payment via Escrow.com, PayPal, or Crypto. Domain transferred immediately after confirmation.', icon: '🔐' },
             ].map(({ step, title, desc, icon }) => (
-              <div key={step} className="bg-white rounded-2xl p-6 border border-slate-200 text-center shadow-sm">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">{icon}</div>
-                <div className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Step {step}</div>
-                <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+              <div key={step} className="bg-white/5 rounded-2xl p-6 border border-white/8 text-center">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">{icon}</div>
+                <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">Step {step}</div>
+                <h3 className="font-bold text-white mb-2">{title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -645,17 +662,21 @@ const DomainLanding = () => {
       </div>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer className="bg-slate-900 text-white py-8 px-4">
+      <footer className="border-t border-white/8 py-8 px-4">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🌐</span>
-            <span className="font-bold text-slate-200">{domainName}</span>
-            <span className="text-slate-500 text-sm">is for sale</span>
+          <div className="flex items-center gap-2.5">
+            <svg viewBox="0 0 36 36" width="24" height="24" fill="none">
+              <circle cx="18" cy="18" r="16" stroke="#60a5fa" strokeWidth="1.8"/>
+              <ellipse cx="18" cy="18" rx="7" ry="16" stroke="#60a5fa" strokeWidth="1.4"/>
+              <line x1="2" y1="18" x2="34" y2="18" stroke="#60a5fa" strokeWidth="1.4"/>
+            </svg>
+            <span className="font-extrabold text-sm text-white">Net<span className="text-blue-400">Zone</span></span>
+            <span className="text-slate-600 text-sm">· {domainName} is for sale</span>
           </div>
           <div className="text-slate-400 text-sm">
             Questions? <a href="mailto:mail@shahid.me" className="text-blue-400 hover:text-blue-300 font-medium">mail@shahid.me</a>
           </div>
-          <p className="text-slate-600 text-xs">&copy; {new Date().getFullYear()} · Secure Domain Transfer</p>
+          <p className="text-slate-700 text-xs">&copy; {new Date().getFullYear()} · Secure Domain Transfer</p>
         </div>
       </footer>
     </div>

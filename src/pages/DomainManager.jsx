@@ -96,9 +96,9 @@ const DomainManager = () => {
                 <tr>
                   <th className="text-left py-4 px-6 font-medium text-gray-900">Domain</th>
                   <th className="text-left py-4 px-6 font-medium text-gray-900">Status</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-900">Price</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-900">Theme</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-900">Created</th>
+                  <th className="text-left py-4 px-6 font-medium text-gray-900">Buy Now</th>
+                  <th className="text-left py-4 px-6 font-medium text-gray-900">Min Offer</th>
+                  <th className="text-left py-4 px-6 font-medium text-gray-900">Added</th>
                   <th className="text-right py-4 px-6 font-medium text-gray-900">Actions</th>
                 </tr>
               </thead>
@@ -132,10 +132,14 @@ const DomainManager = () => {
                         </select>
                       </td>
                       <td className="py-4 px-6 font-medium text-gray-900">
-                        ${domain.price.toLocaleString()}
+                        {domain.buy_now_price
+                          ? <span className="text-green-700">${Number(domain.buy_now_price).toLocaleString()}</span>
+                          : <span className="text-gray-400 text-sm">—</span>}
                       </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm text-gray-600">Theme {domain.theme_variant}</span>
+                      <td className="py-4 px-6 text-sm text-gray-600">
+                        {domain.min_offer
+                          ? <span>${Number(domain.min_offer).toLocaleString()}</span>
+                          : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-500">
                         {new Date(domain.created_at).toLocaleDateString()}
