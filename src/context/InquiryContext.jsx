@@ -1,48 +1,73 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const InquiryContext = createContext();
 
 export const useInquiries = () => {
   const context = useContext(InquiryContext);
-  if (!context) {
-    throw new Error('useInquiries must be used within an InquiryProvider');
-  }
+  if (!context) throw new Error('useInquiries must be used within InquiryProvider');
   return context;
 };
 
-export const InquiryProvider = ({ children }) => {
-  const [inquiries, setInquiries] = useState([]);
+const INQUIRIES_KEY = 'dm_inquiries';
 
-  const addInquiry = (inquiryData) => {
+const loadInquiries = () => {
+  try {
+    return JSON.parse(localStorage.getItem(INQUIRIES_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const persistInquiries = (inquiries) => {
+  localStorage.setItem(INQUIRIES_KEY, JSON.stringify(inquiries));
+};
+
+export const InquiryProvider = ({ children }) => {
+  const [inquiries, setInquiries] = useState(loadInquiries);
+
+  const addInquiry = useCallback((inquiryData) => {
     const newInquiry = {
       id: Date.now(),
       ...inquiryData,
       status: 'new',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
-    setInquiries(prev => [...prev, newInquiry]);
-    
-    // Mock email notification
-    console.log('New inquiry submitted:', newInquiry);
-    
+
+    setInquiries(prev => {
+      const updated = [...prev, newInquiry];
+      persistInquiries(updated);
+      return updated;
+    });
+
     return newInquiry;
-  };
+  }, []);
 
-  const updateInquiry = (id, updates) => {
-    setInquiries(prev => prev.map(inquiry => 
-      inquiry.id === id ? { ...inquiry, ...updates } : inquiry
-    ));
-  };
+  const updateInquiry = useCallback((id, updates) => {
+    setInquiries(prev => {
+      const updated = prev.map(i => i.id === id ? { ...i, ...updates } : i);
+      persistInquiries(updated);
+      return updated;
+    });
+  }, []);
 
-  const getInquiriesForDomain = (domainId) => {
-    return inquiries.filter(inquiry => inquiry.domain_id === domainId);
-  };
+  const deleteInquiry = useCallback((id) => {
+    setInquiries(prev => {
+      const updated = prev.filter(i => i.id !== id);
+      persistInquiries(updated);
+      return updated;
+    });
+  }, []);
+
+  const getInquiriesForDomain = useCallback((domainId) =>
+    inquiries.filter(i => i.domain_id === domainId),
+  [inquiries]);
 
   const value = {
     inquiries,
     addInquiry,
     updateInquiry,
-    getInquiriesForDomain
+    deleteInquiry,
+    getInquiriesForDomain,
   };
 
   return (

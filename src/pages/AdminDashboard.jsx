@@ -5,13 +5,18 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useDomains } from '../context/DomainContext';
 import { useInquiries } from '../context/InquiryContext';
+import { useVisitor } from '../context/VisitorContext';
 import AdminLayout from '../components/AdminLayout';
 
-const { FiGlobe, FiMail, FiDollarSign, FiTrendingUp, FiPlus, FiEye } = FiIcons;
+const { FiGlobe, FiMail, FiDollarSign, FiTrendingUp, FiPlus, FiEye, FiUsers, FiAlertCircle } = FiIcons;
 
 const AdminDashboard = () => {
   const { domains } = useDomains();
   const { inquiries } = useInquiries();
+  const { getAllSessions, getAbandonedSessions } = useVisitor();
+
+  const allSessions = getAllSessions();
+  const abandonedSessions = getAbandonedSessions();
 
   const stats = {
     totalDomains: domains.length,
@@ -19,10 +24,12 @@ const AdminDashboard = () => {
     soldDomains: domains.filter(d => d.status === 'sold').length,
     totalInquiries: inquiries.length,
     newInquiries: inquiries.filter(i => i.status === 'new').length,
-    totalValue: domains.reduce((sum, d) => sum + d.price, 0)
+    totalValue: domains.reduce((sum, d) => sum + d.price, 0),
+    totalVisitors: allSessions.length,
+    abandonedForms: abandonedSessions.length,
   };
 
-  const recentInquiries = inquiries.slice(-5).reverse();
+  const recentInquiries = [...inquiries].reverse().slice(0, 5);
 
   return (
     <AdminLayout>
@@ -109,6 +116,41 @@ const AdminDashboard = () => {
               </div>
               <div className="bg-yellow-100 p-3 rounded-lg">
                 <SafeIcon icon={FiDollarSign} className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Visitors</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.totalVisitors}</p>
+              </div>
+              <div className="bg-indigo-100 p-3 rounded-lg">
+                <SafeIcon icon={FiUsers} className="h-6 w-6 text-indigo-600" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Abandoned Forms</p>
+                <p className="text-3xl font-bold text-red-600">{stats.abandonedForms}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Prices typed, not sent</p>
+              </div>
+              <div className="bg-red-100 p-3 rounded-lg">
+                <SafeIcon icon={FiAlertCircle} className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </motion.div>

@@ -10,11 +10,13 @@ import AdminDashboard from './pages/AdminDashboard';
 import DomainManager from './pages/DomainManager';
 import InquiryManager from './pages/InquiryManager';
 import Analytics from './pages/Analytics';
+import VisitorInsights from './pages/VisitorInsights';
 import Profile from './pages/Profile';
 import { DomainProvider } from './context/DomainContext';
 import { InquiryProvider } from './context/InquiryContext';
 import { AnalyticsProvider } from './context/AnalyticsContext';
 import { AuthProvider } from './context/AuthContext';
+import { VisitorProvider } from './context/VisitorContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import HelpHub from './components/HelpHub';
 import questConfig from './config/questConfig';
@@ -27,6 +29,7 @@ function App() {
       apiType="PRODUCTION"
     >
       <AuthProvider>
+        <VisitorProvider>
         <DomainProvider>
           <InquiryProvider>
             <AnalyticsProvider>
@@ -68,13 +71,21 @@ function App() {
                           </ProtectedRoute>
                         } 
                       />
-                      <Route 
-                        path="/admin/analytics" 
+                      <Route
+                        path="/admin/analytics"
                         element={
                           <ProtectedRoute requireAdmin>
                             <Analytics />
                           </ProtectedRoute>
-                        } 
+                        }
+                      />
+                      <Route
+                        path="/admin/visitors"
+                        element={
+                          <ProtectedRoute requireAdmin>
+                            <VisitorInsights />
+                          </ProtectedRoute>
+                        }
                       />
                     </Routes>
                   </AnimatePresence>
@@ -84,6 +95,7 @@ function App() {
             </AnalyticsProvider>
           </InquiryProvider>
         </DomainProvider>
+        </VisitorProvider>
       </AuthProvider>
     </QuestProvider>
   );
