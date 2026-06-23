@@ -66,7 +66,7 @@ export const DomainProvider = ({ children }) => {
   useEffect(() => {
     if (isLocalDev()) return; // use localStorage in dev
 
-    fetch('/.netlify/functions/get-domains')
+    fetch('/api/get-domains')
       .then(r => r.json())
       .then(serverDomains => {
         if (Array.isArray(serverDomains) && serverDomains.length > 0) {
@@ -97,7 +97,7 @@ export const DomainProvider = ({ children }) => {
 
     if (isLocalDev()) return;
 
-    fetch('/.netlify/functions/set-domains', {
+    fetch('/api/set-domains', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(domains),
@@ -153,7 +153,7 @@ export const DomainProvider = ({ children }) => {
   // so that domains added before Blobs was deployed get synced immediately.
   const syncToServer = () => {
     if (isLocalDev()) return Promise.resolve();
-    return fetch('/.netlify/functions/set-domains', {
+    return fetch('/api/set-domains', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(domains),

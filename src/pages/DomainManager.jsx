@@ -6,7 +6,78 @@ import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import AddDomainModal from '../components/AddDomainModal';
 
-const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw } = FiIcons;
+const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw, FiSave } = FiIcons;
+
+// ── Edit Domain Modal ─────────────────────────────────────────────────────────
+const EditDomainModal = ({ domain, onClose, onSave }) => {
+  const [form, setForm] = useState({
+    domain_name: domain.domain_name || '',
+    tagline: domain.tagline || '',
+    buy_now_price: domain.buy_now_price ?? '',
+    min_offer: domain.min_offer ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSaving(true);
+    onSave({
+      domain_name: form.domain_name.trim().toLowerCase(),
+      tagline: form.tagline.trim(),
+      buy_now_price: form.buy_now_price !== '' ? Number(form.buy_now_price) : null,
+      min_offer: form.min_offer !== '' ? Number(form.min_offer) : null,
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  const field = (label, key, type = 'text', placeholder = '') => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type={type}
+        value={form[key]}
+        onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+        placeholder={placeholder}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+      />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Edit Domain</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <SafeIcon icon={FiX} className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {field('Domain Name', 'domain_name', 'text', 'example.com')}
+          {field('Tagline', 'tagline', 'text', 'Short description…')}
+          {field('Buy Now Price ($)', 'buy_now_price', 'number', 'Leave blank if not set')}
+          {field('Minimum Offer ($)', 'min_offer', 'number', 'Leave blank if not set')}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving || !form.domain_name.trim()}
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <SafeIcon icon={FiSave} className="h-4 w-4" />
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
 
 // One-click copy with brief visual feedback
 const CopyUrlCell = ({ domainName }) => {
@@ -32,6 +103,7 @@ const CopyUrlCell = ({ domainName }) => {
 const DomainManager = () => {
   const { domains, domainsLoading, updateDomain, deleteDomain, syncToServer } = useDomains();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingDomain, setEditingDomain] = useState(null);
   const [filter, setFilter] = useState('all');
   const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | ok | error
 
@@ -87,6 +159,12 @@ const DomainManager = () => {
     if (window.confirm('Are you sure you want to delete this domain?')) {
       deleteDomain(domainId);
     }
+  };
+
+  const handleEdit = (domain) => setEditingDomain(domain);
+
+  const handleEditSave = (updates) => {
+    if (editingDomain) updateDomain(editingDomain.id, updates);
   };
 
   return (
@@ -217,6 +295,13 @@ const DomainManager = () => {
                             <SafeIcon icon={FiEye} className="h-4 w-4" />
                           </a>
                           <button
+                            onClick={() => handleEdit(domain)}
+                            className="text-gray-400 hover:text-blue-600 p-1"
+                            title="Edit Domain"
+                          >
+                            <SafeIcon icon={FiEdit} className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => handleDelete(domain.id)}
                             className="text-gray-400 hover:text-red-600 p-1"
                             title="Delete Domain"
@@ -242,10 +327,19 @@ const DomainManager = () => {
       </div>
 
       {/* Add Domain Modal */}
-      <AddDomainModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
+      <AddDomainModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* Edit Domain Modal */}
+      {editingDomain && (
+        <EditDomainModal
+          domain={editingDomain}
+          onClose={() => setEditingDomain(null)}
+          onSave={handleEditSave}
+        />
+      )}
     </AdminLayout>
   );
 };
