@@ -149,6 +149,17 @@ export const DomainProvider = ({ children }) => {
     return domains.find(d => d.domain_name.toLowerCase() === lower) || null;
   };
 
+  // Push the current domain list to Blobs — called by admin panel on load
+  // so that domains added before Blobs was deployed get synced immediately.
+  const syncToServer = () => {
+    if (isLocalDev()) return Promise.resolve();
+    return fetch('/.netlify/functions/set-domains', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domains),
+    });
+  };
+
   return (
     <DomainContext.Provider value={{
       domains,
@@ -158,6 +169,7 @@ export const DomainProvider = ({ children }) => {
       updateDomain,
       deleteDomain,
       getDomainByName,
+      syncToServer,
     }}>
       {children}
     </DomainContext.Provider>

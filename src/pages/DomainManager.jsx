@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
@@ -6,7 +6,7 @@ import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import AddDomainModal from '../components/AddDomainModal';
 
-const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy } = FiIcons;
+const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw } = FiIcons;
 
 // One-click copy with brief visual feedback
 const CopyUrlCell = ({ domainName }) => {
@@ -30,9 +30,29 @@ const CopyUrlCell = ({ domainName }) => {
 };
 
 const DomainManager = () => {
-  const { domains, updateDomain, deleteDomain } = useDomains();
+  const { domains, domainsLoading, updateDomain, deleteDomain, syncToServer } = useDomains();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | ok | error
+
+  // Auto-sync admin's domains to Blobs as soon as server fetch completes.
+  // This seeds Blobs with domains that were added before Blobs was deployed.
+  useEffect(() => {
+    if (domainsLoading) return;
+    setSyncStatus('syncing');
+    syncToServer()
+      .then(r => setSyncStatus(r && !r.ok ? 'error' : 'ok'))
+      .catch(() => setSyncStatus('error'))
+      .finally(() => setTimeout(() => setSyncStatus('idle'), 3000));
+  }, [domainsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleManualSync = () => {
+    setSyncStatus('syncing');
+    syncToServer()
+      .then(r => setSyncStatus(r && !r.ok ? 'error' : 'ok'))
+      .catch(() => setSyncStatus('error'))
+      .finally(() => setTimeout(() => setSyncStatus('idle'), 3000));
+  };
 
   const filteredDomains = domains.filter(domain => {
     if (filter === 'all') return domain.status !== 'archived';
@@ -73,18 +93,37 @@ const DomainManager = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-3">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Domain Manager</h1>
             <p className="text-gray-600">Manage your domain portfolio</p>
           </div>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-          >
-            <SafeIcon icon={FiPlus} className="h-5 w-5" />
-            <span>Add Domain</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Sync status indicator */}
+            <button onClick={handleManualSync} disabled={syncStatus === 'syncing'}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                syncStatus === 'ok'
+                  ? 'bg-green-50 border-green-300 text-green-700'
+                  : syncStatus === 'error'
+                  ? 'bg-red-50 border-red-300 text-red-700'
+                  : syncStatus === 'syncing'
+                  ? 'bg-blue-50 border-blue-200 text-blue-600 opacity-70'
+                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+              }`}>
+              <SafeIcon icon={syncStatus === 'ok' ? FiCheck : FiRefreshCw}
+                className={`h-3.5 w-3.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              {syncStatus === 'ok' ? 'Synced to server' :
+               syncStatus === 'error' ? 'Sync failed — retry' :
+               syncStatus === 'syncing' ? 'Syncing…' : 'Sync to server'}
+            </button>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+            >
+              <SafeIcon icon={FiPlus} className="h-5 w-5" />
+              <span>Add Domain</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
