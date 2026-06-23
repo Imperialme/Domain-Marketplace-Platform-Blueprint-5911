@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion';
 
 import DomainLanding from './pages/DomainLanding';
+import BrowseDomains from './pages/BrowseDomains';
 import AdminDashboard from './pages/AdminDashboard';
 import DomainManager from './pages/DomainManager';
 import InquiryManager from './pages/InquiryManager';
@@ -30,7 +31,8 @@ function App() {
                       {/* Root → redirect to admin */}
                       <Route path="/" element={<Navigate to="/admin" replace />} />
 
-                      {/* Public domain landing pages */}
+                      {/* Public routes */}
+                      <Route path="/browse" element={<BrowseDomains />} />
                       <Route path="/domain/:domainName" element={<DomainLanding />} />
 
                       {/* Admin routes */}

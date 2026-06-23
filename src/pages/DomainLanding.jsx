@@ -204,17 +204,27 @@ const DomainLanding = () => {
     ]);
 
     // Save to local admin panel regardless of email status
+    // Embed geo/session data so admin sees it even from other browsers
     const inquiry = addInquiry({
-      domain_id:    domain?.id,
-      domain_name:  displayDomain,
-      name:         formData.name,
-      email:        formData.email,
-      phone:        formData.phone,
-      offerAmount:  parseFloat(formData.offerAmount),
-      message:      formData.message,
+      domain_id:      domain?.id,
+      domain_name:    displayDomain,
+      name:           formData.name,
+      email:          formData.email,
+      phone:          formData.phone,
+      offerAmount:    parseFloat(formData.offerAmount),
+      message:        formData.message,
       paymentMethod,
-      referrer:     document.referrer || 'Direct',
-      userAgent:    navigator.userAgent,
+      referrer:       document.referrer || 'Direct',
+      userAgent:      navigator.userAgent,
+      ip:             session?.ip || null,
+      country:        session?.country || null,
+      countryName:    session?.countryName || null,
+      city:           session?.city || null,
+      referrerSource: session?.referrerSource || 'Direct',
+      device:         session?.device || null,
+      browser:        session?.browser || null,
+      timezone:       session?.timezone || null,
+      currency:       session?.currency || null,
     });
 
     trackFormSubmitted(inquiry.id);
@@ -319,9 +329,13 @@ const DomainLanding = () => {
           </div>
 
           <button onClick={handleClose}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl font-semibold text-sm transition-colors">
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl font-semibold text-sm transition-colors mb-3">
             Back to {domainName}
           </button>
+          <a href="/#/browse"
+            className="block w-full text-center text-slate-400 hover:text-blue-400 text-sm transition-colors py-1">
+            Browse all NetZone domains →
+          </a>
         </motion.div>
       </div>
     );

@@ -10,56 +10,67 @@ import AdminLayout from '../components/AdminLayout';
 const {
   FiMail, FiDollarSign, FiCalendar, FiDownload, FiX,
   FiAlertCircle, FiCheck, FiUser, FiSearch, FiGlobe,
-  FiPhone, FiMonitor, FiSmartphone, FiExternalLink, FiFileText,
+  FiPhone, FiFileText, FiSave, FiCornerDownLeft,
 } = FiIcons;
 
-// ── Inline note editor ───────────────────────────────────────────────────────
-const InlineNote = ({ inquiry, onSave }) => {
-  const [open, setOpen] = useState(!!inquiry.notes);
-  const [text, setText] = useState(inquiry.notes || '');
-  const savedRef = React.useRef(inquiry.notes || '');
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const buildReplyHref = (inquiry) => {
+  const subj = encodeURIComponent(
+    `Re: ${inquiry.domain_name} — Your Offer${inquiry.ref ? ` [${inquiry.ref}]` : ''}`
+  );
+  const body = encodeURIComponent(
+    `Hi ${inquiry.name},\n\nThank you for your offer of USD ${Number(inquiry.offerAmount || 0).toLocaleString()} for ${inquiry.domain_name}.\n\nWe will be in touch with you shortly to finalize the details and see how we can move forward with the negotiation.\n\nBest regards,\nNetZone`
+  );
+  return `mailto:${inquiry.email}?subject=${subj}&body=${body}`;
+};
 
-  const save = () => {
-    if (text !== savedRef.current) {
-      savedRef.current = text;
-      onSave(text);
-    }
-  };
+// ── Inline note editor ────────────────────────────────────────────────────────
+const InlineNote = ({ inquiry, onSave }) => {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(inquiry.notes || '');
+
+  React.useEffect(() => { setText(inquiry.notes || ''); }, [inquiry.notes]);
+
+  const save = () => { onSave(text.trim()); setOpen(false); };
+  const clear = () => { setText(''); onSave(''); setOpen(false); };
 
   return (
     <div className="mt-2">
-      {!open ? (
-        <button
-          onClick={e => { e.stopPropagation(); setOpen(true); }}
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
-        >
-          <SafeIcon icon={FiFileText} className="h-3 w-3" />
-          {inquiry.notes ? 'View note' : 'Add note'}
-        </button>
-      ) : (
-        <div onClick={e => e.stopPropagation()} className="mt-1">
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        className={`flex items-center gap-1 text-xs transition-colors ${
+          inquiry.notes
+            ? 'text-amber-600 hover:text-amber-700 font-medium'
+            : 'text-gray-400 hover:text-blue-600'
+        }`}
+      >
+        <SafeIcon icon={FiFileText} className="h-3 w-3" />
+        {open ? 'Collapse' : inquiry.notes ? 'Edit note' : 'Add note'}
+      </button>
+
+      {open && (
+        <div onClick={e => e.stopPropagation()} className="mt-1.5">
           <textarea
             autoFocus
             rows={2}
             value={text}
             onChange={e => setText(e.target.value)}
-            onBlur={save}
-            placeholder="Internal note — only visible to you (e.g. 'Negotiating $8k', 'Sent counter offer')…"
+            placeholder="Internal note — only visible to you (e.g. 'Negotiating USD 8k', 'Sent counter-offer')…"
             className="w-full text-xs border border-blue-200 bg-blue-50/60 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700 placeholder-gray-400"
           />
-          <div className="flex items-center gap-2 mt-1">
-            <button
-              onClick={() => { save(); setOpen(false); }}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Save & collapse
+          <div className="flex items-center gap-2 mt-1.5">
+            <button onClick={save}
+              className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg font-medium transition-colors">
+              <SafeIcon icon={FiSave} className="h-3 w-3" />
+              Save
             </button>
-            <span className="text-gray-300">·</span>
-            <button
-              onClick={() => { setText(''); onSave(''); setOpen(false); }}
-              className="text-xs text-gray-400 hover:text-red-500"
-            >
+            <button onClick={clear}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors">
               Clear
+            </button>
+            <button onClick={() => { setText(inquiry.notes || ''); setOpen(false); }}
+              className="text-xs text-gray-400 hover:text-gray-600 ml-auto transition-colors">
+              Cancel
             </button>
           </div>
         </div>
@@ -80,11 +91,25 @@ const InquiryManager = () => {
   const abandonedSessions = getAbandonedSessions();
   const allSessions = getAllSessions();
 
-  // Enrich inquiries with their session data
+  // Enrich inquiries: merge session data as fallback for older entries
   const enrichedInquiries = useMemo(() => {
     return inquiries.map(inq => {
       const session = allSessions.find(s => s.inquiryId === inq.id);
-      return { ...inq, session };
+      // Geo fields are now embedded in the inquiry at submission time.
+      // Fall back to session lookup for inquiries created before this change.
+      return {
+        ...inq,
+        session,
+        _country: inq.country || session?.country,
+        _countryName: inq.countryName || session?.countryName,
+        _city: inq.city || session?.city,
+        _ip: inq.ip || session?.ip,
+        _device: inq.device || session?.device,
+        _browser: inq.browser || session?.browser,
+        _referrerSource: inq.referrerSource || session?.referrerSource,
+        _timezone: inq.timezone || session?.timezone,
+        _currency: inq.currency || session?.currency,
+      };
     });
   }, [inquiries, allSessions]);
 
@@ -94,7 +119,8 @@ const InquiryManager = () => {
       const matchSearch = !search ||
         inq.name?.toLowerCase().includes(search.toLowerCase()) ||
         inq.email?.toLowerCase().includes(search.toLowerCase()) ||
-        inq.domain_name?.toLowerCase().includes(search.toLowerCase());
+        inq.domain_name?.toLowerCase().includes(search.toLowerCase()) ||
+        inq.ref?.toLowerCase().includes(search.toLowerCase());
       return matchFilter && matchSearch;
     });
   }, [enrichedInquiries, filter, search]);
@@ -108,23 +134,25 @@ const InquiryManager = () => {
   }, [abandonedSessions, search]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Domain', 'Name', 'Email', 'Phone', 'Offer ($)', 'Status', 'Source', 'Device', 'Message', 'Internal Notes'];
-    const rows = inquiries.map(inq => {
-      const session = allSessions.find(s => s.inquiryId === inq.id);
-      return [
-        new Date(inq.created_at).toLocaleDateString(),
-        inq.domain_name || '',
-        inq.name || '',
-        inq.email || '',
-        inq.phone || '',
-        inq.offerAmount || '',
-        inq.status || '',
-        session?.referrerSource || '',
-        session?.device || '',
-        `"${(inq.message || '').replace(/"/g, '""')}"`,
-        `"${(inq.notes || '').replace(/"/g, '""')}"`,
-      ].join(',');
-    });
+    const headers = ['Ref', 'Date', 'Domain', 'Name', 'Email', 'Phone', 'Offer (USD)', 'Payment', 'Status', 'Country', 'City', 'IP', 'Source', 'Device', 'Message', 'Internal Notes'];
+    const rows = enrichedInquiries.map(inq => [
+      inq.ref || '',
+      new Date(inq.created_at).toLocaleDateString(),
+      inq.domain_name || '',
+      inq.name || '',
+      inq.email || '',
+      inq.phone || '',
+      inq.offerAmount || '',
+      inq.paymentMethod || '',
+      inq.status || '',
+      inq._countryName || '',
+      inq._city || '',
+      inq._ip || '',
+      inq._referrerSource || '',
+      inq._device || '',
+      `"${(inq.message || '').replace(/"/g, '""')}"`,
+      `"${(inq.notes || '').replace(/"/g, '""')}"`,
+    ].join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
@@ -188,7 +216,7 @@ const InquiryManager = () => {
             <SafeIcon icon={FiSearch} className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder={activeTab === 'submitted' ? 'Search name, email, domain…' : 'Search domain or source…'}
+              placeholder={activeTab === 'submitted' ? 'Search name, email, domain, ref…' : 'Search domain or source…'}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
@@ -219,79 +247,113 @@ const InquiryManager = () => {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             {filteredInquiries.length > 0 ? (
               <AnimatePresence>
-                {filteredInquiries.map((inquiry, idx) => (
-                  <motion.div
-                    key={inquiry.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="p-5 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setSelectedInquiry(inquiry)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="font-semibold text-gray-900">{inquiry.name}</span>
-                          <span className="text-sm text-gray-500">{inquiry.email}</span>
-                          {inquiry.phone && (
-                            <span className="text-xs text-gray-400 flex items-center gap-1">
-                              <SafeIcon icon={FiPhone} className="h-3 w-3" />
-                              {inquiry.phone}
+                {filteredInquiries.map((inquiry, idx) => {
+                  const repeatCount = inquiries.filter(i => i.email === inquiry.email).length;
+                  const geoStr = [
+                    inquiry._country ? countryFlag(inquiry._country) : null,
+                    inquiry._countryName,
+                    inquiry._city,
+                  ].filter(Boolean).join(' ');
+
+                  return (
+                    <motion.div
+                      key={inquiry.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className="p-5 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedInquiry(inquiry)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          {/* Top row: ref + name + email + badges */}
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            {inquiry.ref && (
+                              <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                {inquiry.ref}
+                              </span>
+                            )}
+                            <span className="font-semibold text-gray-900">{inquiry.name}</span>
+                            <span className="text-sm text-gray-500">{inquiry.email}</span>
+                            {inquiry.phone && (
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <SafeIcon icon={FiPhone} className="h-3 w-3" />
+                                {inquiry.phone}
+                              </span>
+                            )}
+                            {repeatCount > 1 && (
+                              <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-medium border border-purple-100">
+                                {repeatCount}× inquiries
+                              </span>
+                            )}
+                            {inquiry.notes && (
+                              <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                                <SafeIcon icon={FiFileText} className="h-3 w-3" /> note
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Second row: domain + offer + date + geo + source */}
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                            <span className="flex items-center gap-1">
+                              <SafeIcon icon={FiGlobe} className="h-3.5 w-3.5" />
+                              {inquiry.domain_name}
                             </span>
-                          )}
-                          {inquiry.notes && (
-                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                              <SafeIcon icon={FiFileText} className="h-3 w-3" /> note
+                            {inquiry.offerAmount && (
+                              <span className="font-bold text-green-700">
+                                USD {Number(inquiry.offerAmount).toLocaleString()}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1 text-gray-400">
+                              <SafeIcon icon={FiCalendar} className="h-3.5 w-3.5" />
+                              {new Date(inquiry.created_at).toLocaleDateString()}
                             </span>
+                            {geoStr && (
+                              <span className="text-xs text-gray-400">{geoStr}</span>
+                            )}
+                            {inquiry._referrerSource && inquiry._referrerSource !== 'Direct' && (
+                              <span className="text-xs text-gray-400">via {inquiry._referrerSource}</span>
+                            )}
+                          </div>
+
+                          {inquiry.message && (
+                            <p className="text-sm text-gray-600 line-clamp-1 mb-1">{inquiry.message}</p>
                           )}
+
+                          <InlineNote
+                            inquiry={inquiry}
+                            onSave={text => updateInquiry(inquiry.id, { notes: text })}
+                          />
                         </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
-                          <span className="flex items-center gap-1">
-                            <SafeIcon icon={FiGlobe} className="h-3.5 w-3.5" />
-                            {inquiry.domain_name}
-                          </span>
-                          {inquiry.offerAmount && (
-                            <span className="flex items-center gap-1 font-bold text-green-700">
-                              <SafeIcon icon={FiDollarSign} className="h-3.5 w-3.5" />
-                              ${Number(inquiry.offerAmount).toLocaleString()}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1 text-gray-400">
-                            <SafeIcon icon={FiCalendar} className="h-3.5 w-3.5" />
-                            {new Date(inquiry.created_at).toLocaleDateString()}
-                          </span>
-                          {inquiry.session && (
-                            <span className="text-xs text-gray-400">
-                              via {inquiry.session.referrerSource}
-                              {' · '}{inquiry.session.device}
-                            </span>
-                          )}
+
+                        {/* Right: reply + status */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <a
+                            href={buildReplyHref(inquiry)}
+                            onClick={e => e.stopPropagation()}
+                            title={`Reply to ${inquiry.email}`}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all border border-transparent hover:border-blue-200"
+                          >
+                            <SafeIcon icon={FiCornerDownLeft} className="h-3.5 w-3.5" />
+                            Reply
+                          </a>
+                          <select
+                            value={inquiry.status}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => { e.stopPropagation(); updateInquiry(inquiry.id, { status: e.target.value }); }}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${statusColors[inquiry.status] || 'bg-gray-100 text-gray-700'}`}
+                          >
+                            <option value="new">New</option>
+                            <option value="replied">Replied</option>
+                            <option value="negotiating">Negotiating</option>
+                            <option value="closed">Closed</option>
+                          </select>
                         </div>
-                        {inquiry.message && (
-                          <p className="text-sm text-gray-600 line-clamp-2">{inquiry.message}</p>
-                        )}
-                        <InlineNote
-                          inquiry={inquiry}
-                          onSave={text => updateInquiry(inquiry.id, { notes: text })}
-                        />
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <select
-                          value={inquiry.status}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => { e.stopPropagation(); updateInquiry(inquiry.id, { status: e.target.value }); }}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${statusColors[inquiry.status] || 'bg-gray-100 text-gray-700'}`}
-                        >
-                          <option value="new">New</option>
-                          <option value="replied">Replied</option>
-                          <option value="negotiating">Negotiating</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             ) : (
               <div className="text-center py-16">
@@ -345,11 +407,11 @@ const InquiryManager = () => {
                         <div className="text-right flex-shrink-0">
                           <p className="text-xs text-gray-400">Last offer typed</p>
                           <p className="text-xl font-bold text-green-600">
-                            ${Number(session.lastPriceTyped).toLocaleString()}
+                            USD {Number(session.lastPriceTyped).toLocaleString()}
                           </p>
                           {session.pricesTyped?.length > 1 && (
                             <p className="text-xs text-gray-400 mt-0.5">
-                              Tried: {session.pricesTyped.map(p => `$${Number(p).toLocaleString()}`).join(', ')}
+                              Tried: {session.pricesTyped.map(p => `USD ${Number(p).toLocaleString()}`).join(', ')}
                             </p>
                           )}
                         </div>
@@ -369,7 +431,7 @@ const InquiryManager = () => {
         )}
       </div>
 
-      {/* Inquiry Detail Modal */}
+      {/* ── Inquiry Detail Modal ── */}
       {selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
@@ -378,11 +440,17 @@ const InquiryManager = () => {
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Inquiry Details</h2>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Inquiry Details</h2>
+                {selectedInquiry.ref && (
+                  <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {selectedInquiry.ref}</p>
+                )}
+              </div>
               <button onClick={() => setSelectedInquiry(null)} className="text-gray-400 hover:text-gray-600">
                 <SafeIcon icon={FiX} className="h-5 w-5" />
               </button>
             </div>
+
             <div className="p-6 space-y-5">
               <div className="grid sm:grid-cols-2 gap-4">
                 {[
@@ -390,8 +458,10 @@ const InquiryManager = () => {
                   ['Email', selectedInquiry.email],
                   ['Phone', selectedInquiry.phone || '—'],
                   ['Domain', selectedInquiry.domain_name],
-                  ['Offer Amount', selectedInquiry.offerAmount ? `$${Number(selectedInquiry.offerAmount).toLocaleString()}` : '—'],
+                  ['Offer Amount', selectedInquiry.offerAmount ? `USD ${Number(selectedInquiry.offerAmount).toLocaleString()}` : '—'],
+                  ['Payment', selectedInquiry.paymentMethod || '—'],
                   ['Date', new Date(selectedInquiry.created_at).toLocaleString()],
+                  ['Status', selectedInquiry.status],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <p className="text-xs text-gray-500 font-medium mb-0.5">{label}</p>
@@ -409,30 +479,31 @@ const InquiryManager = () => {
                 </div>
               )}
 
-              {selectedInquiry.session && (
+              {/* Visitor / Geo Info — reads from inquiry fields directly */}
+              {(selectedInquiry._ip || selectedInquiry._country || selectedInquiry._referrerSource) && (
                 <div>
                   <p className="text-xs text-gray-500 font-medium mb-2 uppercase tracking-wide">Visitor Info</p>
                   <div className="bg-blue-50 rounded-xl p-4 grid sm:grid-cols-2 gap-3 text-sm">
                     {[
-                      ['IP Address', selectedInquiry.session.ip || '—'],
+                      ['IP Address', selectedInquiry._ip || '—'],
                       ['Location', [
-                        selectedInquiry.session.country ? `${countryFlag(selectedInquiry.session.country)} ${selectedInquiry.session.countryName || selectedInquiry.session.country}` : null,
-                        selectedInquiry.session.city,
+                        selectedInquiry._country ? `${countryFlag(selectedInquiry._country)} ${selectedInquiry._countryName || selectedInquiry._country}` : null,
+                        selectedInquiry._city,
                       ].filter(Boolean).join(', ') || '—'],
-                      ['Source', selectedInquiry.session.referrerSource],
-                      ['Device', selectedInquiry.session.device],
-                      ['Browser', selectedInquiry.session.browser],
-                      ['Timezone', selectedInquiry.session.timezone || '—'],
-                      ['Currency', selectedInquiry.session.currency || '—'],
-                      ['Referrer URL', selectedInquiry.session.referrer || 'Direct'],
+                      ['Source', selectedInquiry._referrerSource || 'Direct'],
+                      ['Device', selectedInquiry._device || '—'],
+                      ['Browser', selectedInquiry._browser || '—'],
+                      ['Timezone', selectedInquiry._timezone || '—'],
+                      ['Currency', selectedInquiry._currency || '—'],
+                      ['Referrer URL', selectedInquiry.referrer || 'Direct'],
                     ].map(([label, val]) => (
                       <div key={label}>
                         <p className="text-xs text-blue-600 font-medium">{label}</p>
                         <p className="text-blue-900 text-sm">{val}</p>
                       </div>
                     ))}
-                    {selectedInquiry.session.country && (() => {
-                      const p = getPurchasingPower(selectedInquiry.session.country);
+                    {selectedInquiry._country && (() => {
+                      const p = getPurchasingPower(selectedInquiry._country);
                       return (
                         <div className="col-span-2">
                           <p className="text-xs text-blue-600 font-medium mb-1">Purchasing Power</p>
@@ -449,6 +520,20 @@ const InquiryManager = () => {
                   </div>
                 </div>
               )}
+
+              {/* Repeat buyer indicator */}
+              {(() => {
+                const count = inquiries.filter(i => i.email === selectedInquiry.email).length;
+                if (count <= 1) return null;
+                return (
+                  <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 flex items-center gap-2">
+                    <span className="text-purple-500 text-lg">🔁</span>
+                    <p className="text-sm text-purple-800 font-medium">
+                      This buyer has submitted {count} inquiries total from the same email address.
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Internal notes in modal */}
               <div>
@@ -472,9 +557,10 @@ const InquiryManager = () => {
                   Close
                 </button>
                 <a
-                  href={`mailto:${selectedInquiry.email}?subject=Re: ${selectedInquiry.domain_name} — Your Offer`}
-                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium text-center"
+                  href={buildReplyHref(selectedInquiry)}
+                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium text-center flex items-center justify-center gap-1.5"
                 >
+                  <SafeIcon icon={FiCornerDownLeft} className="h-4 w-4" />
                   Reply via Email
                 </a>
               </div>
@@ -483,7 +569,7 @@ const InquiryManager = () => {
         </div>
       )}
 
-      {/* Abandoned Session Detail Modal */}
+      {/* ── Abandoned Session Detail Modal ── */}
       {selectedSession && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
@@ -502,12 +588,12 @@ const InquiryManager = () => {
                 <p className="text-sm text-red-600 font-medium">This visitor started but did not complete the offer form</p>
                 {selectedSession.lastPriceTyped && (
                   <p className="text-3xl font-bold text-red-700 mt-2">
-                    ${Number(selectedSession.lastPriceTyped).toLocaleString()}
+                    USD {Number(selectedSession.lastPriceTyped).toLocaleString()}
                   </p>
                 )}
                 {selectedSession.pricesTyped?.length > 0 && (
                   <p className="text-xs text-red-500 mt-1">
-                    All prices typed: {selectedSession.pricesTyped.map(p => `$${Number(p).toLocaleString()}`).join(' → ')}
+                    All prices typed: {selectedSession.pricesTyped.map(p => `USD ${Number(p).toLocaleString()}`).join(' → ')}
                   </p>
                 )}
               </div>

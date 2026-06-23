@@ -271,12 +271,12 @@ const DomainManager = () => {
                       </td>
                       <td className="py-4 px-6 font-medium text-gray-900">
                         {domain.buy_now_price
-                          ? <span className="text-green-700">${Number(domain.buy_now_price).toLocaleString()}</span>
+                          ? <span className="text-green-700">USD {Number(domain.buy_now_price).toLocaleString()}</span>
                           : <span className="text-gray-400 text-sm">—</span>}
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-600">
                         {domain.min_offer
-                          ? <span>${Number(domain.min_offer).toLocaleString()}</span>
+                          ? <span>USD {Number(domain.min_offer).toLocaleString()}</span>
                           : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-500">

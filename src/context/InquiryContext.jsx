@@ -14,6 +14,11 @@ const isLocalDev = () =>
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+const generateRef = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return 'NZ' + Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+};
+
 const loadInquiries = () => {
   try {
     return JSON.parse(localStorage.getItem(INQUIRIES_KEY) || '[]');
@@ -65,6 +70,7 @@ export const InquiryProvider = ({ children }) => {
   const addInquiry = useCallback((inquiryData) => {
     const newInquiry = {
       id: Date.now(),
+      ref: generateRef(),
       ...inquiryData,
       status: 'new',
       created_at: new Date().toISOString(),
