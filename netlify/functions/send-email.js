@@ -2,7 +2,7 @@ const https = require('https');
 
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
 const MAILGUN_DOMAIN  = process.env.MAILGUN_DOMAIN  || '';
-const ADMIN_EMAIL     = process.env.VITE_ADMIN_EMAIL || 'mail@shahid.me';
+const ADMIN_EMAIL     = process.env.VITE_ADMIN_EMAIL || 'ask@netzone.me';
 // For EU accounts: set MAILGUN_REGION=eu in Netlify env vars
 const MG_HOST = process.env.MAILGUN_REGION === 'eu'
   ? 'api.eu.mailgun.net'

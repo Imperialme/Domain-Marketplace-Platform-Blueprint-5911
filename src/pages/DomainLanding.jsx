@@ -87,7 +87,7 @@ const TrustBadge = ({ emoji, label }) => (
 
 const DomainLanding = () => {
   const { domainName: paramDomainName } = useParams();
-  const { getDomainByName } = useDomains();
+  const { getDomainByName, domainsLoading } = useDomains();
   const { addInquiry } = useInquiries();
   const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted, trackEmailEntered, currentSession } = useVisitor();
 
@@ -221,6 +221,18 @@ const DomainLanding = () => {
     setSubmitting(false);
     setSubmitted(true);
   };
+
+  // ─── Loading: wait for server domains before showing fallback ────────────
+  if (domainsLoading && !domain) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm">Loading domain info…</p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Domain not in system (forwarded but not added yet) ───────────────────
   if (!domain) {

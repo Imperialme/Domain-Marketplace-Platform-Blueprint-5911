@@ -10,8 +10,63 @@ import AdminLayout from '../components/AdminLayout';
 const {
   FiMail, FiDollarSign, FiCalendar, FiDownload, FiX,
   FiAlertCircle, FiCheck, FiUser, FiSearch, FiGlobe,
-  FiPhone, FiMonitor, FiSmartphone, FiExternalLink,
+  FiPhone, FiMonitor, FiSmartphone, FiExternalLink, FiFileText,
 } = FiIcons;
+
+// ── Inline note editor ───────────────────────────────────────────────────────
+const InlineNote = ({ inquiry, onSave }) => {
+  const [open, setOpen] = useState(!!inquiry.notes);
+  const [text, setText] = useState(inquiry.notes || '');
+  const savedRef = React.useRef(inquiry.notes || '');
+
+  const save = () => {
+    if (text !== savedRef.current) {
+      savedRef.current = text;
+      onSave(text);
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      {!open ? (
+        <button
+          onClick={e => { e.stopPropagation(); setOpen(true); }}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+        >
+          <SafeIcon icon={FiFileText} className="h-3 w-3" />
+          {inquiry.notes ? 'View note' : 'Add note'}
+        </button>
+      ) : (
+        <div onClick={e => e.stopPropagation()} className="mt-1">
+          <textarea
+            autoFocus
+            rows={2}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onBlur={save}
+            placeholder="Internal note — only visible to you (e.g. 'Negotiating $8k', 'Sent counter offer')…"
+            className="w-full text-xs border border-blue-200 bg-blue-50/60 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700 placeholder-gray-400"
+          />
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={() => { save(); setOpen(false); }}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Save & collapse
+            </button>
+            <span className="text-gray-300">·</span>
+            <button
+              onClick={() => { setText(''); onSave(''); setOpen(false); }}
+              className="text-xs text-gray-400 hover:text-red-500"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const InquiryManager = () => {
   const { inquiries, updateInquiry, deleteInquiry } = useInquiries();
@@ -53,7 +108,7 @@ const InquiryManager = () => {
   }, [abandonedSessions, search]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Domain', 'Name', 'Email', 'Phone', 'Offer ($)', 'Status', 'Source', 'Device', 'Message'];
+    const headers = ['Date', 'Domain', 'Name', 'Email', 'Phone', 'Offer ($)', 'Status', 'Source', 'Device', 'Message', 'Internal Notes'];
     const rows = inquiries.map(inq => {
       const session = allSessions.find(s => s.inquiryId === inq.id);
       return [
@@ -67,6 +122,7 @@ const InquiryManager = () => {
         session?.referrerSource || '',
         session?.device || '',
         `"${(inq.message || '').replace(/"/g, '""')}"`,
+        `"${(inq.notes || '').replace(/"/g, '""')}"`,
       ].join(',');
     });
     const csv = [headers.join(','), ...rows].join('\n');
@@ -184,6 +240,11 @@ const InquiryManager = () => {
                               {inquiry.phone}
                             </span>
                           )}
+                          {inquiry.notes && (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                              <SafeIcon icon={FiFileText} className="h-3 w-3" /> note
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
                           <span className="flex items-center gap-1">
@@ -210,6 +271,10 @@ const InquiryManager = () => {
                         {inquiry.message && (
                           <p className="text-sm text-gray-600 line-clamp-2">{inquiry.message}</p>
                         )}
+                        <InlineNote
+                          inquiry={inquiry}
+                          onSave={text => updateInquiry(inquiry.id, { notes: text })}
+                        />
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <select
@@ -384,6 +449,20 @@ const InquiryManager = () => {
                   </div>
                 </div>
               )}
+
+              {/* Internal notes in modal */}
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1 uppercase tracking-wide flex items-center gap-1">
+                  <SafeIcon icon={FiFileText} className="h-3.5 w-3.5" /> Internal Note
+                </p>
+                <InlineNote
+                  inquiry={selectedInquiry}
+                  onSave={text => {
+                    updateInquiry(selectedInquiry.id, { notes: text });
+                    setSelectedInquiry(prev => ({ ...prev, notes: text }));
+                  }}
+                />
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <button

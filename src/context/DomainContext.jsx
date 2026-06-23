@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const DomainContext = createContext();
 
@@ -44,17 +44,64 @@ const loadDomains = () => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
-  } catch (_) { /* ignore */ }
+  } catch (_e) { /* storage unavailable */ }
   return DEFAULT_DOMAINS;
 };
 
+const isLocalDev = () =>
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 export const DomainProvider = ({ children }) => {
   const [domains, setDomains] = useState(loadDomains);
+  // True while we're fetching server domains (only in production)
+  const [domainsLoading, setDomainsLoading] = useState(!isLocalDev());
 
+  // Tracks whether server data is currently being applied (prevents sync loop)
+  const serverFetchRef = useRef(false);
+  // True once server load has completed (or we're in local dev)
+  const serverLoadedRef = useRef(isLocalDev());
+
+  // ── Fetch canonical domain list from Netlify Blobs on mount ───────────────
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(domains));
-    } catch (_) { /* ignore */ }
+    if (isLocalDev()) return; // use localStorage in dev
+
+    fetch('/.netlify/functions/get-domains')
+      .then(r => r.json())
+      .then(serverDomains => {
+        if (Array.isArray(serverDomains) && serverDomains.length > 0) {
+          serverFetchRef.current = true; // signal: this setDomains came from server
+          setDomains(serverDomains);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serverDomains)); } catch (_e) { /* storage full */ }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        serverLoadedRef.current = true;
+        setDomainsLoading(false);
+      });
+  }, []);
+
+  // ── Persist to localStorage + sync to Blobs whenever domains change ────────
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(domains)); } catch (_e) { /* storage full */ }
+
+    // Don't write back to server before we've loaded from it (avoids overwriting with stale data)
+    if (!serverLoadedRef.current) return;
+
+    // Don't write back the data we just received FROM the server (prevents loop)
+    if (serverFetchRef.current) {
+      serverFetchRef.current = false;
+      return;
+    }
+
+    if (isLocalDev()) return;
+
+    fetch('/.netlify/functions/set-domains', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domains),
+    }).catch(() => {});
   }, [domains]);
 
   const addDomain = (domainData) => {
@@ -71,7 +118,6 @@ export const DomainProvider = ({ children }) => {
     return newDomain;
   };
 
-  // Bulk import: array of { domain_name, buy_now_price, min_offer, tagline }
   const bulkImportDomains = (rows) => {
     const now = new Date().toISOString();
     const newDomains = rows.map((row, i) => ({
@@ -104,7 +150,15 @@ export const DomainProvider = ({ children }) => {
   };
 
   return (
-    <DomainContext.Provider value={{ domains, addDomain, bulkImportDomains, updateDomain, deleteDomain, getDomainByName }}>
+    <DomainContext.Provider value={{
+      domains,
+      domainsLoading,
+      addDomain,
+      bulkImportDomains,
+      updateDomain,
+      deleteDomain,
+      getDomainByName,
+    }}>
       {children}
     </DomainContext.Provider>
   );
