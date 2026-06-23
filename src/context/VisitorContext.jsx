@@ -61,6 +61,7 @@ const parseReferrerSource = (referrer) => {
 };
 
 const SESSIONS_KEY = 'dm_visitor_sessions';
+const ARCHIVE_KEY = 'dm_visitor_sessions_archive';
 
 const loadSessions = () => {
   try {
@@ -211,8 +212,25 @@ export const VisitorProvider = ({ children }) => {
   [sessions]);
 
   const clearSessions = useCallback(() => {
+    // Archive existing sessions before clearing
+    try {
+      const existing = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]');
+      if (existing.length > 0) {
+        const prev = JSON.parse(localStorage.getItem(ARCHIVE_KEY) || '[]');
+        const merged = [...prev, ...existing].slice(-5000);
+        localStorage.setItem(ARCHIVE_KEY, JSON.stringify(merged));
+      }
+    } catch (_) { /* ignore */ }
     setSessions([]);
     localStorage.removeItem(SESSIONS_KEY);
+  }, []);
+
+  const getArchivedSessions = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || '[]');
+    } catch {
+      return [];
+    }
   }, []);
 
   // Detect form abandonment on page leave
@@ -249,6 +267,7 @@ export const VisitorProvider = ({ children }) => {
     getAbandonedSessions,
     getAllSessions,
     clearSessions,
+    getArchivedSessions,
   };
 
   return (

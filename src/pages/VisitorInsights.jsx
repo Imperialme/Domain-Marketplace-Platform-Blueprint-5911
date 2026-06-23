@@ -192,13 +192,15 @@ const SessionRow = ({ session }) => {
 // ── Main page ────────────────────────────────────────────────────────────────
 
 const VisitorInsights = () => {
-  const { getAllSessions, clearSessions } = useVisitor();
+  const { getAllSessions, clearSessions, getArchivedSessions } = useVisitor();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDomain, setFilterDomain] = useState('all');
   const [filterCountry, setFilterCountry] = useState('all');
+  const [showArchive, setShowArchive] = useState(false);
 
-  const allSessions = getAllSessions();
+  const allSessions = showArchive ? getArchivedSessions() : getAllSessions();
+  const archivedCount = getArchivedSessions().length;
 
   const domains = useMemo(() => {
     const d = new Set(allSessions.map(s => s.domainName).filter(Boolean));
@@ -264,10 +266,24 @@ const VisitorInsights = () => {
               Real IPs, locations, purchasing power, and every price typed — even before submitting
             </p>
           </div>
-          <button onClick={() => { if (window.confirm('Clear all session data?')) clearSessions(); }}
-            className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-2 rounded-lg transition-colors">
-            <SafeIcon icon={FiTrash2} className="h-4 w-4" />Clear Data
-          </button>
+          <div className="flex items-center gap-2">
+            {archivedCount > 0 && (
+              <button onClick={() => setShowArchive(v => !v)}
+                className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-colors ${
+                  showArchive
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : 'text-amber-600 border-amber-200 hover:border-amber-400 hover:bg-amber-50'
+                }`}>
+                📦 {showArchive ? 'Live Data' : `Archive (${archivedCount})`}
+              </button>
+            )}
+            {!showArchive && (
+              <button onClick={() => { if (window.confirm('This will archive sessions (recoverable via Archive button) and clear the live view. Continue?')) clearSessions(); }}
+                className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-2 rounded-lg transition-colors">
+                <SafeIcon icon={FiTrash2} className="h-4 w-4" />Archive & Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {/* KPI row */}
@@ -375,7 +391,7 @@ const VisitorInsights = () => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">
-              Sessions
+              {showArchive ? '📦 Archived Sessions' : 'Sessions'}
               <span className="ml-2 text-sm font-normal text-gray-400">({filtered.length})</span>
             </h3>
             <p className="text-xs text-gray-400">Click any row to expand IP, geo, purchasing power & price history</p>

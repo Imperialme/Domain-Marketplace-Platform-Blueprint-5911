@@ -14,7 +14,7 @@ const DomainManager = () => {
   const [filter, setFilter] = useState('all');
 
   const filteredDomains = domains.filter(domain => {
-    if (filter === 'all') return true;
+    if (filter === 'all') return domain.status !== 'archived';
     return domain.status === filter;
   });
 
@@ -81,7 +81,7 @@ const DomainManager = () => {
               >
                 {status === 'all' ? 'All Domains' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 <span className="ml-2 text-xs">
-                  ({status === 'all' ? domains.length : domains.filter(d => d.status === status).length})
+                  ({status === 'all' ? domains.filter(d => d.status !== 'archived').length : domains.filter(d => d.status === status).length})
                 </span>
               </button>
             ))}

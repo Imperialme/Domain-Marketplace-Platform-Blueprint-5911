@@ -233,7 +233,7 @@ const DomainLanding = () => {
           <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">{displayName}</h1>
           <p className="text-slate-300 text-lg mb-2">This domain may be for sale.</p>
           <p className="text-slate-400 text-sm mb-8">Contact the owner to inquire about acquiring this domain.</p>
-          <a href="mailto:mail@shahid.me"
+          <a href="mailto:ask@netzone.me"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-7 py-3.5 rounded-2xl font-semibold transition-colors text-sm shadow-lg shadow-blue-900/40">
             <SafeIcon icon={FiMail} className="h-4 w-4" />
             Contact the Owner
@@ -285,12 +285,6 @@ const DomainLanding = () => {
             </div>
           </div>
 
-          {paymentMethod === 'escrow' && (
-            <a href={escrowLink} target="_blank" rel="noopener noreferrer"
-              className="block w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-2xl font-semibold text-sm transition-colors shadow-lg shadow-green-200 mb-3">
-              🔐 Proceed to Escrow.com to Complete Purchase
-            </a>
-          )}
           <p className="text-xs text-gray-400">The seller will be in touch shortly to finalize details.</p>
         </motion.div>
       </div>
@@ -674,7 +668,7 @@ const DomainLanding = () => {
             <span className="text-slate-600 text-sm">· {domainName} is for sale</span>
           </div>
           <div className="text-slate-400 text-sm">
-            Questions? <a href="mailto:mail@shahid.me" className="text-blue-400 hover:text-blue-300 font-medium">mail@shahid.me</a>
+            Questions? <a href="mailto:ask@netzone.me" className="text-blue-400 hover:text-blue-300 font-medium">ask@netzone.me</a>
           </div>
           <p className="text-slate-700 text-xs">&copy; {new Date().getFullYear()} · Secure Domain Transfer</p>
         </div>

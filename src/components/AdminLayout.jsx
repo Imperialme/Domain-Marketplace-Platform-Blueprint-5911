@@ -3,12 +3,15 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
+import { useDomains } from '../context/DomainContext';
 
 const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3, FiUsers } = FiIcons;
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const { domains } = useDomains();
+  const previewDomain = domains.find(d => d.status === 'active')?.domain_name || 'preview';
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: FiHome },
@@ -88,7 +91,7 @@ const AdminLayout = ({ children }) => {
             </button>
             <div className="flex items-center space-x-4">
               <Link
-                to="/domain/preview"
+                to={`/domain/${previewDomain}`}
                 className="text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
                 Preview Landing
