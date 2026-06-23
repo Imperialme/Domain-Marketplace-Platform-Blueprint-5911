@@ -6,7 +6,28 @@ import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import AddDomainModal from '../components/AddDomainModal';
 
-const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe } = FiIcons;
+const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy } = FiIcons;
+
+// One-click copy with brief visual feedback
+const CopyUrlCell = ({ domainName }) => {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/#/domain/${domainName}`;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <button onClick={handleCopy} title={url}
+      className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-all ${
+        copied ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+      }`}>
+      <SafeIcon icon={copied ? FiCheck : FiCopy} className="h-3.5 w-3.5" />
+      {copied ? 'Copied!' : 'Copy URL'}
+    </button>
+  );
+};
 
 const DomainManager = () => {
   const { domains, updateDomain, deleteDomain } = useDomains();
@@ -145,25 +166,20 @@ const DomainManager = () => {
                         {new Date(domain.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-4 px-6">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <CopyUrlCell domainName={domain.domain_name} />
                           <a
                             href={`/#/domain/${domain.domain_name}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-gray-600"
-                            title="View Domain"
+                            className="text-gray-400 hover:text-gray-600 p-1"
+                            title="Preview landing page"
                           >
                             <SafeIcon icon={FiEye} className="h-4 w-4" />
                           </a>
                           <button
-                            className="text-gray-400 hover:text-gray-600"
-                            title="Edit Domain"
-                          >
-                            <SafeIcon icon={FiEdit} className="h-4 w-4" />
-                          </button>
-                          <button
                             onClick={() => handleDelete(domain.id)}
-                            className="text-gray-400 hover:text-red-600"
+                            className="text-gray-400 hover:text-red-600 p-1"
                             title="Delete Domain"
                           >
                             <SafeIcon icon={FiTrash2} className="h-4 w-4" />
