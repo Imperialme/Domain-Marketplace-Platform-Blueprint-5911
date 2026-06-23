@@ -14,7 +14,7 @@ import {
 const {
   FiGlobe, FiShield, FiCheck, FiSend, FiClock, FiLock,
   FiMail, FiUser, FiDollarSign, FiAlertCircle, FiStar,
-  FiPhone, FiArrowDown, FiZap,
+  FiPhone, FiArrowDown, FiZap, FiX,
 } = FiIcons;
 
 // Detect if being served from a custom/forwarded domain
@@ -264,18 +264,33 @@ const DomainLanding = () => {
   // ─── Success screen ────────────────────────────────────────────────────────
   if (submitted) {
     const pm = PAYMENT_METHODS.find(m => m.id === paymentMethod);
+    const handleClose = () => {
+      setSubmitted(false);
+      setFormData({ name: '', email: '', phone: '', offerAmount: '', message: '' });
+      setErrors({});
+      setFormTouched(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
+          className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center relative">
+
+          {/* Close button */}
+          <button onClick={handleClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Close">
+            <SafeIcon icon={FiX} className="h-5 w-5" />
+          </button>
+
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
             className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
             ✅
           </motion.div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer Received!</h2>
-          <p className="text-gray-500 text-sm mb-6">
-            We'll respond to <strong className="text-gray-800">{formData.email}</strong> within 24 hours.
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            Thank you, <strong className="text-gray-900">{formData.name}</strong>. We will be in touch with you shortly to finalize the details and see how we can move forward with the negotiation.
           </p>
 
           <div className="bg-gray-50 rounded-2xl p-5 text-left space-y-3 mb-6">
@@ -287,17 +302,26 @@ const DomainLanding = () => {
               <span className="text-gray-500">Your Offer</span>
               <span className="font-bold text-green-600 text-lg">${parseFloat(formData.offerAmount).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Asking Price</span>
-              <span className="text-gray-700">${askingPrice.toLocaleString()}</span>
-            </div>
+            {askingPrice && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Asking Price</span>
+                <span className="text-gray-700">${askingPrice.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Payment via</span>
               <span className="text-gray-700">{pm?.icon} {pm?.label}</span>
             </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Contact</span>
+              <span className="text-gray-700">{formData.email}</span>
+            </div>
           </div>
 
-          <p className="text-xs text-gray-400">The seller will be in touch shortly to finalize details.</p>
+          <button onClick={handleClose}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl font-semibold text-sm transition-colors">
+            Back to {domainName}
+          </button>
         </motion.div>
       </div>
     );
