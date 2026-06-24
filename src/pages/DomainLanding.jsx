@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
@@ -357,7 +357,7 @@ const DomainLanding = () => {
 
           {/* NetZone nav bar */}
           <div className="flex items-center justify-between mb-14">
-            <div className="flex items-center gap-2.5">
+            <Link to="/browse" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <svg viewBox="0 0 36 36" width="34" height="34" fill="none">
                 <circle cx="18" cy="18" r="16" stroke="#60a5fa" strokeWidth="1.8"/>
                 <ellipse cx="18" cy="18" rx="7" ry="16" stroke="#60a5fa" strokeWidth="1.4"/>
@@ -366,7 +366,7 @@ const DomainLanding = () => {
               <span className="font-extrabold text-lg text-white tracking-tight">
                 Net<span className="text-blue-400">Zone</span>
               </span>
-            </div>
+            </Link>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
               Domain Available

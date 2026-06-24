@@ -18,13 +18,14 @@ const AdminDashboard = () => {
   const allSessions = getAllSessions();
   const abandonedSessions = getAbandonedSessions();
 
+  const activeDomains = domains.filter(d => d.status !== 'deleted');
   const stats = {
-    totalDomains: domains.length,
-    activeDomains: domains.filter(d => d.status === 'active').length,
-    soldDomains: domains.filter(d => d.status === 'sold').length,
+    totalDomains: activeDomains.length,
+    activeDomains: activeDomains.filter(d => d.status === 'active').length,
+    soldDomains: activeDomains.filter(d => d.status === 'sold').length,
     totalInquiries: inquiries.length,
     newInquiries: inquiries.filter(i => i.status === 'new').length,
-    totalValue: domains.reduce((sum, d) => sum + d.price, 0),
+    totalValue: activeDomains.reduce((sum, d) => sum + (d.buy_now_price || 0), 0),
     totalVisitors: allSessions.length,
     abandonedForms: abandonedSessions.length,
   };
@@ -111,7 +112,7 @@ const AdminDashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">Portfolio Value</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  ${stats.totalValue.toLocaleString()}
+                  USD {stats.totalValue.toLocaleString()}
                 </p>
               </div>
               <div className="bg-yellow-100 p-3 rounded-lg">
@@ -247,6 +248,14 @@ const AdminDashboard = () => {
                     {domains.filter(d => d.status === 'archived').length}
                   </span>
                 </div>
+                {domains.filter(d => d.status === 'deleted').length > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Deleted (restorable)</span>
+                    <span className="font-semibold text-red-500">
+                      {domains.filter(d => d.status === 'deleted').length}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

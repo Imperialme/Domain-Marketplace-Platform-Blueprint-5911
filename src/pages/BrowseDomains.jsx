@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDomains } from '../context/DomainContext';
 
 const BrowseDomains = () => {
   const { domains, domainsLoading } = useDomains();
+  const [search, setSearch] = useState('');
+  const [tldFilter, setTldFilter] = useState('');
+
   const active = domains.filter(d => d.status === 'active');
+
+  // Extract unique TLDs from active domains
+  const tlds = [...new Set(
+    active.map(d => '.' + d.domain_name.split('.').slice(1).join('.'))
+  )].sort();
+
+  const displayed = active.filter(d => {
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      d.domain_name.toLowerCase().includes(q) ||
+      (d.tagline || '').toLowerCase().includes(q);
+    const matchTld = !tldFilter || d.domain_name.endsWith(tldFilter);
+    return matchSearch && matchTld;
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -27,7 +44,7 @@ const BrowseDomains = () => {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-14">
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 mb-6">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
@@ -40,22 +57,63 @@ const BrowseDomains = () => {
           </motion.div>
         </div>
 
+        {/* Search + TLD filters */}
+        <div className="mb-8 space-y-4">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search domains…"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-blue-500/50 focus:bg-white/8 transition-all text-sm"
+          />
+          {tlds.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTldFilter('')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  !tldFilter ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                All
+              </button>
+              {tlds.map(tld => (
+                <button
+                  key={tld}
+                  onClick={() => setTldFilter(tldFilter === tld ? '' : tld)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    tldFilter === tld ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  {tld}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {domainsLoading ? (
           <div className="flex justify-center py-20">
             <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
           </div>
-        ) : active.length === 0 ? (
+        ) : displayed.length === 0 ? (
           <div className="text-center py-20 text-slate-500">
-            <p className="text-lg">No domains listed yet.</p>
-            <p className="text-sm mt-2">Check back soon.</p>
+            <p className="text-lg">{active.length === 0 ? 'No domains listed yet.' : 'No domains match your search.'}</p>
+            {search || tldFilter ? (
+              <button onClick={() => { setSearch(''); setTldFilter(''); }}
+                className="mt-3 text-sm text-blue-400 hover:text-blue-300 underline">
+                Clear filters
+              </button>
+            ) : (
+              <p className="text-sm mt-2">Check back soon.</p>
+            )}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {active.map((domain, i) => (
+            {displayed.map((domain, i) => (
               <motion.div key={domain.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: i * 0.04 }}
                 className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-blue-500/30 transition-all group">
                 <div className="mb-4">
                   <h2 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors truncate">

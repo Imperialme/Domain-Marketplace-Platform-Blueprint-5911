@@ -6,7 +6,7 @@ import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import AddDomainModal from '../components/AddDomainModal';
 
-const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw, FiSave, FiExternalLink } = FiIcons;
+const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw, FiSave, FiExternalLink, FiRotateCcw } = FiIcons;
 
 // ── Edit Domain Modal ─────────────────────────────────────────────────────────
 const EditDomainModal = ({ domain, onClose, onSave }) => {
@@ -101,7 +101,7 @@ const CopyUrlCell = ({ domainName }) => {
 };
 
 const DomainManager = () => {
-  const { domains, domainsLoading, updateDomain, deleteDomain, syncToServer } = useDomains();
+  const { domains, domainsLoading, updateDomain, deleteDomain, restoreDomain, permanentlyDeleteDomain, syncToServer } = useDomains();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDomain, setEditingDomain] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -131,7 +131,7 @@ const DomainManager = () => {
   };
 
   const filteredDomains = domains.filter(domain => {
-    if (filter === 'all') return domain.status !== 'archived';
+    if (filter === 'all') return domain.status !== 'archived' && domain.status !== 'deleted';
     return domain.status === filter;
   });
 
@@ -160,9 +160,7 @@ const DomainManager = () => {
   };
 
   const handleDelete = (domainId) => {
-    if (window.confirm('Are you sure you want to delete this domain?')) {
-      deleteDomain(domainId);
-    }
+    deleteDomain(domainId); // soft delete — restores from Deleted tab
   };
 
   const handleEdit = (domain) => setEditingDomain(domain);
@@ -205,8 +203,12 @@ const DomainManager = () => {
     clearSelection();
   };
   const bulkDelete = () => {
-    if (!window.confirm(`Delete ${selectedIds.size} domain${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
-    selectedIds.forEach(id => deleteDomain(id));
+    if (filter === 'deleted') {
+      if (!window.confirm(`Permanently delete ${selectedIds.size} domain${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+      selectedIds.forEach(id => permanentlyDeleteDomain(id));
+    } else {
+      selectedIds.forEach(id => deleteDomain(id)); // soft delete — restores from Deleted tab
+    }
     clearSelection();
   };
 
@@ -262,19 +264,21 @@ const DomainManager = () => {
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex flex-wrap gap-2">
-            {['all', 'active', 'pending_verification', 'sold', 'archived'].map((status) => (
+            {['all', 'active', 'pending_verification', 'sold', 'archived', 'deleted'].map((status) => (
               <button
                 key={status}
-                onClick={() => setFilter(status)}
+                onClick={() => { setFilter(status); clearSelection(); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filter === status
-                    ? 'bg-primary-600 text-white'
+                    ? status === 'deleted' ? 'bg-red-600 text-white' : 'bg-primary-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 {status === 'all' ? 'All Domains' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 <span className="ml-2 text-xs">
-                  ({status === 'all' ? domains.filter(d => d.status !== 'archived').length : domains.filter(d => d.status === status).length})
+                  ({status === 'all'
+                    ? domains.filter(d => d.status !== 'archived' && d.status !== 'deleted').length
+                    : domains.filter(d => d.status === status).length})
                 </span>
               </button>
             ))}
@@ -315,7 +319,7 @@ const DomainManager = () => {
             </div>
             <button onClick={bulkDelete}
               className="text-xs bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg font-medium transition-colors ml-auto">
-              Delete {selectedIds.size}
+              {filter === 'deleted' ? `Permanently Delete ${selectedIds.size}` : `Archive ${selectedIds.size}`}
             </button>
             <button onClick={clearSelection}
               className="text-xs text-blue-200 hover:text-white transition-colors">
@@ -402,40 +406,57 @@ const DomainManager = () => {
                         {new Date(domain.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-4 px-6">
-                        <div className="flex items-center justify-end gap-1">
-                          <CopyUrlCell domainName={domain.domain_name} />
-                          <button
-                            onClick={() => verifyDomain(domain)}
-                            disabled={verifyStatus[domain.id] === 'checking'}
-                            title="Check if domain is forwarding correctly"
-                            className="text-gray-400 hover:text-purple-600 p-1 disabled:opacity-40"
-                          >
-                            <SafeIcon icon={FiExternalLink} className="h-4 w-4" />
-                          </button>
-                          <a
-                            href={`/#/domain/${domain.domain_name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-gray-600 p-1"
-                            title="Preview landing page"
-                          >
-                            <SafeIcon icon={FiEye} className="h-4 w-4" />
-                          </a>
-                          <button
-                            onClick={() => handleEdit(domain)}
-                            className="text-gray-400 hover:text-blue-600 p-1"
-                            title="Edit Domain"
-                          >
-                            <SafeIcon icon={FiEdit} className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(domain.id)}
-                            className="text-gray-400 hover:text-red-600 p-1"
-                            title="Delete Domain"
-                          >
-                            <SafeIcon icon={FiTrash2} className="h-4 w-4" />
-                          </button>
-                        </div>
+                        {domain.status === 'deleted' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => restoreDomain(domain.id)}
+                              title="Restore domain"
+                              className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+                              <SafeIcon icon={FiRotateCcw} className="h-3.5 w-3.5" />
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => { if (window.confirm('Permanently delete? This cannot be undone.')) permanentlyDeleteDomain(domain.id); }}
+                              title="Permanently delete"
+                              className="text-gray-300 hover:text-red-500 p-1 transition-colors">
+                              <SafeIcon icon={FiTrash2} className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <CopyUrlCell domainName={domain.domain_name} />
+                            <button
+                              onClick={() => verifyDomain(domain)}
+                              disabled={verifyStatus[domain.id] === 'checking'}
+                              title="Check if domain is forwarding correctly"
+                              className="text-gray-400 hover:text-purple-600 p-1 disabled:opacity-40"
+                            >
+                              <SafeIcon icon={FiExternalLink} className="h-4 w-4" />
+                            </button>
+                            <a
+                              href={`/#/domain/${domain.domain_name}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-gray-600 p-1"
+                              title="Preview landing page"
+                            >
+                              <SafeIcon icon={FiEye} className="h-4 w-4" />
+                            </a>
+                            <button
+                              onClick={() => handleEdit(domain)}
+                              className="text-gray-400 hover:text-blue-600 p-1"
+                              title="Edit Domain"
+                            >
+                              <SafeIcon icon={FiEdit} className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(domain.id)}
+                              className="text-gray-400 hover:text-red-600 p-1"
+                              title="Archive domain (recoverable)"
+                            >
+                              <SafeIcon icon={FiTrash2} className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </motion.tr>
                   ))}

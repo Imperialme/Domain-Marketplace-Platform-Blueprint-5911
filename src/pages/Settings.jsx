@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 const {
   FiLock, FiMail, FiSave, FiCheck, FiAlertCircle,
-  FiGlobe, FiExternalLink, FiInfo, FiShield,
+  FiGlobe, FiExternalLink, FiInfo, FiShield, FiRefreshCw,
 } = FiIcons;
 
 const Section = ({ title, children }) => (
@@ -19,6 +19,24 @@ const Section = ({ title, children }) => (
 
 const Settings = () => {
   const { user, login, updateProfile } = useAuth();
+
+  // ── Email status diagnostic ──────────────────────────────────────────────
+  const [emailDiag, setEmailDiag] = useState(null);
+  const [emailDiagLoading, setEmailDiagLoading] = useState(false);
+
+  const checkEmailConfig = async () => {
+    setEmailDiagLoading(true);
+    setEmailDiag(null);
+    try {
+      const res = await fetch('/api/email-status');
+      const data = await res.json();
+      setEmailDiag(data);
+    } catch (e) {
+      setEmailDiag({ error: 'Could not reach /api/email-status — is the function deployed?' });
+    } finally {
+      setEmailDiagLoading(false);
+    }
+  };
 
   // ── Change password ──────────────────────────────────────────────────────
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
@@ -157,15 +175,46 @@ const Settings = () => {
         {/* ── Mailgun status ── */}
         <Section title="Email Notifications (Mailgun)">
           <div className="space-y-3 text-sm">
-            <p className="text-gray-500">Mailgun is configured via environment variables in Netlify. You cannot edit them here — go to <strong className="text-gray-700">Netlify → Site Settings → Environment Variables</strong>.</p>
+            <p className="text-gray-500">Mailgun is configured via environment variables in Netlify. Go to <strong className="text-gray-700">Netlify → Site Settings → Environment Variables</strong> to set them.</p>
             <div className="space-y-2">
-              {['MAILGUN_API_KEY', 'MAILGUN_DOMAIN', 'VITE_ADMIN_EMAIL'].map(v => (
+              {['MAILGUN_API_KEY', 'MAILGUN_DOMAIN', 'MAILGUN_REGION', 'VITE_ADMIN_EMAIL'].map(v => (
                 <div key={v} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-200">
                   <code className="text-xs text-gray-700">{v}</code>
                   <span className="text-xs text-gray-400 italic">set in Netlify</span>
                 </div>
               ))}
             </div>
+
+            {/* Live config check */}
+            <button onClick={checkEmailConfig} disabled={emailDiagLoading}
+              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60">
+              <SafeIcon icon={FiRefreshCw} className={`h-3.5 w-3.5 ${emailDiagLoading ? 'animate-spin' : ''}`} />
+              {emailDiagLoading ? 'Checking…' : 'Check Email Config'}
+            </button>
+
+            {emailDiag && (
+              <div className={`rounded-xl border p-4 space-y-2 text-xs ${emailDiag.error ? 'bg-red-50 border-red-200' : emailDiag.configured ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                {emailDiag.error ? (
+                  <p className="text-red-700 font-medium">{emailDiag.error}</p>
+                ) : (
+                  <>
+                    <div className={`font-semibold ${emailDiag.configured ? 'text-green-700' : 'text-amber-700'}`}>
+                      {emailDiag.configured ? '✓ Mailgun is configured' : '✗ Mailgun is NOT configured'}
+                    </div>
+                    <div className="space-y-1 text-gray-600 font-mono">
+                      <div><span className="text-gray-400">MAILGUN_API_KEY: </span>{emailDiag.keySet ? <span className="text-green-700">{emailDiag.keyPrefix} ✓</span> : <span className="text-red-600">NOT SET</span>}</div>
+                      <div><span className="text-gray-400">MAILGUN_DOMAIN: </span>{emailDiag.domainSet ? <span className="text-green-700">{emailDiag.domain} ✓</span> : <span className="text-red-600">NOT SET</span>}</div>
+                      <div><span className="text-gray-400">Region: </span>{emailDiag.region} → {emailDiag.apiHost}</div>
+                      <div><span className="text-gray-400">Admin email: </span>{emailDiag.adminEmail}</div>
+                    </div>
+                    {!emailDiag.configured && (
+                      <p className="text-amber-700 mt-2">Add MAILGUN_API_KEY and MAILGUN_DOMAIN in Netlify env vars, then redeploy.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <a href="https://app.netlify.com" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-xs font-medium">
               Open Netlify Dashboard <SafeIcon icon={FiExternalLink} className="h-3 w-3" />

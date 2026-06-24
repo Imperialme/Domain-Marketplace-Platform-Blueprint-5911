@@ -107,7 +107,7 @@ export const DomainProvider = ({ children }) => {
   const addDomain = (domainData) => {
     const newDomain = {
       id: Date.now(),
-      status: 'active',
+      status: 'pending_verification',
       buy_now_price: domainData.buy_now_price || null,
       min_offer: domainData.min_offer || null,
       tagline: domainData.tagline || '',
@@ -139,7 +139,22 @@ export const DomainProvider = ({ children }) => {
     setDomains(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
   };
 
+  // Soft delete — keeps the domain in the list with status 'deleted'
   const deleteDomain = (id) => {
+    setDomains(prev => prev.map(d =>
+      d.id === id ? { ...d, status: 'deleted', deleted_at: new Date().toISOString() } : d
+    ));
+  };
+
+  // Restore a soft-deleted domain back to pending_verification
+  const restoreDomain = (id) => {
+    setDomains(prev => prev.map(d =>
+      d.id === id ? { ...d, status: 'pending_verification', deleted_at: null } : d
+    ));
+  };
+
+  // Permanent removal — only call from the Deleted tab
+  const permanentlyDeleteDomain = (id) => {
     setDomains(prev => prev.filter(d => d.id !== id));
   };
 
@@ -168,6 +183,8 @@ export const DomainProvider = ({ children }) => {
       bulkImportDomains,
       updateDomain,
       deleteDomain,
+      restoreDomain,
+      permanentlyDeleteDomain,
       getDomainByName,
       syncToServer,
     }}>
