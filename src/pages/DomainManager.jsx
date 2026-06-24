@@ -6,7 +6,7 @@ import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import AddDomainModal from '../components/AddDomainModal';
 
-const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw, FiSave } = FiIcons;
+const { FiPlus, FiEdit, FiTrash2, FiEye, FiCheck, FiClock, FiX, FiGlobe, FiCopy, FiRefreshCw, FiSave, FiExternalLink } = FiIcons;
 
 // ── Edit Domain Modal ─────────────────────────────────────────────────────────
 const EditDomainModal = ({ domain, onClose, onSave }) => {
@@ -106,6 +106,10 @@ const DomainManager = () => {
   const [editingDomain, setEditingDomain] = useState(null);
   const [filter, setFilter] = useState('all');
   const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | ok | error
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [bulkMinOffer, setBulkMinOffer] = useState('');
+  const [verifyStatus, setVerifyStatus] = useState({}); // { [id]: 'checking'|'ok'|'error' }
 
   // Auto-sync admin's domains to Blobs as soon as server fetch completes.
   // This seeds Blobs with domains that were added before Blobs was deployed.
@@ -167,6 +171,57 @@ const DomainManager = () => {
     if (editingDomain) updateDomain(editingDomain.id, updates);
   };
 
+  // ── Bulk helpers ────────────────────────────────────────────────────────────
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedIds(prev =>
+      prev.size === filteredDomains.length
+        ? new Set()
+        : new Set(filteredDomains.map(d => d.id))
+    );
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkSetStatus = (status) => {
+    selectedIds.forEach(id => updateDomain(id, { status }));
+    clearSelection();
+  };
+  const bulkSetPrice = () => {
+    const price = bulkPrice !== '' ? Number(bulkPrice) : null;
+    selectedIds.forEach(id => updateDomain(id, { buy_now_price: price }));
+    setBulkPrice('');
+    clearSelection();
+  };
+  const bulkSetMinOffer = () => {
+    const min = bulkMinOffer !== '' ? Number(bulkMinOffer) : null;
+    selectedIds.forEach(id => updateDomain(id, { min_offer: min }));
+    setBulkMinOffer('');
+    clearSelection();
+  };
+  const bulkDelete = () => {
+    if (!window.confirm(`Delete ${selectedIds.size} domain${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    selectedIds.forEach(id => deleteDomain(id));
+    clearSelection();
+  };
+
+  // ── Domain verification ─────────────────────────────────────────────────────
+  const verifyDomain = async (domain) => {
+    setVerifyStatus(prev => ({ ...prev, [domain.id]: 'checking' }));
+    try {
+      const res = await fetch(`/api/check-domain?domain=${encodeURIComponent(domain.domain_name)}`);
+      const data = await res.json();
+      setVerifyStatus(prev => ({ ...prev, [domain.id]: data.forwarded ? 'ok' : 'error' }));
+    } catch {
+      setVerifyStatus(prev => ({ ...prev, [domain.id]: 'error' }));
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -226,12 +281,60 @@ const DomainManager = () => {
           </div>
         </div>
 
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-blue-600 text-white rounded-xl px-5 py-3 flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-sm">{selectedIds.size} selected</span>
+            <div className="h-4 w-px bg-blue-400" />
+            <select onChange={e => { if (e.target.value) bulkSetStatus(e.target.value); e.target.value = ''; }}
+              defaultValue=""
+              className="bg-blue-700 text-white text-xs rounded-lg px-2 py-1.5 border border-blue-500 cursor-pointer">
+              <option value="" disabled>Set status…</option>
+              <option value="active">Active</option>
+              <option value="pending_verification">Pending</option>
+              <option value="sold">Sold</option>
+              <option value="archived">Archived</option>
+            </select>
+            <div className="flex items-center gap-1">
+              <input type="number" placeholder="Buy Now USD" value={bulkPrice}
+                onChange={e => setBulkPrice(e.target.value)}
+                className="bg-blue-700 text-white text-xs rounded-lg px-2 py-1.5 border border-blue-500 w-32 placeholder-blue-300 outline-none" />
+              <button onClick={bulkSetPrice} disabled={bulkPrice === ''}
+                className="text-xs bg-white text-blue-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-40 transition-colors">
+                Apply
+              </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <input type="number" placeholder="Min Offer USD" value={bulkMinOffer}
+                onChange={e => setBulkMinOffer(e.target.value)}
+                className="bg-blue-700 text-white text-xs rounded-lg px-2 py-1.5 border border-blue-500 w-32 placeholder-blue-300 outline-none" />
+              <button onClick={bulkSetMinOffer} disabled={bulkMinOffer === ''}
+                className="text-xs bg-white text-blue-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-40 transition-colors">
+                Apply
+              </button>
+            </div>
+            <button onClick={bulkDelete}
+              className="text-xs bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg font-medium transition-colors ml-auto">
+              Delete {selectedIds.size}
+            </button>
+            <button onClick={clearSelection}
+              className="text-xs text-blue-200 hover:text-white transition-colors">
+              Clear
+            </button>
+          </div>
+        )}
+
         {/* Domains Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="py-4 pl-4 pr-2 w-10">
+                    <input type="checkbox" className="rounded"
+                      checked={selectedIds.size === filteredDomains.length && filteredDomains.length > 0}
+                      onChange={toggleSelectAll} />
+                  </th>
                   <th className="text-left py-4 px-6 font-medium text-gray-900">Domain</th>
                   <th className="text-left py-4 px-6 font-medium text-gray-900">Status</th>
                   <th className="text-left py-4 px-6 font-medium text-gray-900">Buy Now</th>
@@ -249,11 +352,27 @@ const DomainManager = () => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ delay: index * 0.1 }}
-                      className="hover:bg-gray-50"
+                      className={`hover:bg-gray-50 ${selectedIds.has(domain.id) ? 'bg-blue-50' : ''}`}
                     >
+                      <td className="py-4 pl-4 pr-2 w-10">
+                        <input type="checkbox" className="rounded"
+                          checked={selectedIds.has(domain.id)}
+                          onChange={() => toggleSelect(domain.id)} />
+                      </td>
                       <td className="py-4 px-6">
                         <div>
-                          <div className="font-medium text-gray-900">{domain.domain_name}</div>
+                          <div className="font-medium text-gray-900 flex items-center gap-2">
+                            {domain.domain_name}
+                            {verifyStatus[domain.id] === 'ok' && (
+                              <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">✓ Forwarded</span>
+                            )}
+                            {verifyStatus[domain.id] === 'error' && (
+                              <span className="text-xs text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">✗ Not forwarding</span>
+                            )}
+                            {verifyStatus[domain.id] === 'checking' && (
+                              <span className="text-xs text-blue-500">checking…</span>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-500">{domain.tagline}</div>
                         </div>
                       </td>
@@ -285,6 +404,14 @@ const DomainManager = () => {
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-end gap-1">
                           <CopyUrlCell domainName={domain.domain_name} />
+                          <button
+                            onClick={() => verifyDomain(domain)}
+                            disabled={verifyStatus[domain.id] === 'checking'}
+                            title="Check if domain is forwarding correctly"
+                            className="text-gray-400 hover:text-purple-600 p-1 disabled:opacity-40"
+                          >
+                            <SafeIcon icon={FiExternalLink} className="h-4 w-4" />
+                          </button>
                           <a
                             href={`/#/domain/${domain.domain_name}`}
                             target="_blank"

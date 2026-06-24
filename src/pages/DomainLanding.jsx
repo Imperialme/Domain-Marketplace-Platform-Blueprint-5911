@@ -168,43 +168,12 @@ const DomainLanding = () => {
     const displayDomain = domain?.domain_name || detectedHostname || paramDomainName;
     const session = currentSession;
 
-    const emailData = {
-      domainName:     displayDomain,
-      buyerName:      formData.name,
-      buyerEmail:     formData.email,
-      buyerPhone:     formData.phone,
-      offerAmount:    parseFloat(formData.offerAmount),
-      message:        formData.message,
-      paymentMethod,
-      country:        session?.countryName || session?.country,
-      city:           session?.city,
-      ip:             session?.ip,
-      referrerSource: session?.referrerSource,
-    };
+    // Calculate time spent on page before submission
+    const timeOnPage = session?.startTime
+      ? Math.round((Date.now() - new Date(session.startTime).getTime()) / 1000)
+      : null;
 
-    // Fire both channels in parallel — neither blocks the UI
-    await Promise.allSettled([
-      // 1. Netlify Forms: zero-config capture + email from Netlify
-      submitToNetlify({
-        domain_name:      displayDomain,
-        buyer_name:       formData.name,
-        buyer_email:      formData.email,
-        buyer_phone:      formData.phone || '',
-        offer_amount:     String(parseFloat(formData.offerAmount)),
-        payment_method:   paymentMethod,
-        message:          formData.message || '',
-        visitor_country:  session?.countryName || '',
-        visitor_city:     session?.city || '',
-        visitor_ip:       session?.ip || '',
-        visitor_source:   session?.referrerSource || 'Direct',
-        visitor_device:   session?.device || '',
-      }),
-      // 2. Mailgun (via Netlify Function): admin notification + buyer confirmation
-      sendEmailNotifications(emailData),
-    ]);
-
-    // Save to local admin panel regardless of email status
-    // Embed geo/session data so admin sees it even from other browsers
+    // Save inquiry FIRST so we have the ref number to include in the email
     const inquiry = addInquiry({
       domain_id:      domain?.id,
       domain_name:    displayDomain,
@@ -225,7 +194,44 @@ const DomainLanding = () => {
       browser:        session?.browser || null,
       timezone:       session?.timezone || null,
       currency:       session?.currency || null,
+      timeOnPage,
     });
+
+    // Fire email channels in parallel — both now include the ref number
+    await Promise.allSettled([
+      // 1. Netlify Forms: zero-config capture
+      submitToNetlify({
+        domain_name:      displayDomain,
+        buyer_name:       formData.name,
+        buyer_email:      formData.email,
+        buyer_phone:      formData.phone || '',
+        offer_amount:     String(parseFloat(formData.offerAmount)),
+        payment_method:   paymentMethod,
+        message:          formData.message || '',
+        ref:              inquiry.ref || '',
+        visitor_country:  session?.countryName || '',
+        visitor_city:     session?.city || '',
+        visitor_ip:       session?.ip || '',
+        visitor_source:   session?.referrerSource || 'Direct',
+        visitor_device:   session?.device || '',
+      }),
+      // 2. Mailgun: admin notification + buyer confirmation (includes ref)
+      sendEmailNotifications({
+        domainName:     displayDomain,
+        buyerName:      formData.name,
+        buyerEmail:     formData.email,
+        buyerPhone:     formData.phone,
+        offerAmount:    parseFloat(formData.offerAmount),
+        message:        formData.message,
+        paymentMethod,
+        ref:            inquiry.ref,
+        timeOnPage,
+        country:        session?.countryName || session?.country,
+        city:           session?.city,
+        ip:             session?.ip,
+        referrerSource: session?.referrerSource,
+      }),
+    ]);
 
     trackFormSubmitted(inquiry.id);
     setSubmitting(false);

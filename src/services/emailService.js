@@ -23,7 +23,7 @@ export const submitToNetlify = async (fields) => {
 // For EU Mailgun accounts also add MAILGUN_REGION=eu.
 export const sendEmailNotifications = async (data) => {
   try {
-    const res = await fetch('/.netlify/functions/send-email', {
+    const res = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
