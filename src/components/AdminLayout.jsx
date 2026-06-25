@@ -1,16 +1,18 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useDomains } from '../context/DomainContext';
+import { useAuth } from '../context/AuthContext';
 
-const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3, FiUsers } = FiIcons;
+const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3, FiUsers, FiLogOut } = FiIcons;
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const { domains } = useDomains();
+  const { logout } = useAuth();
   const previewDomain = domains.find(d => d.status === 'active')?.domain_name || 'preview';
 
   const navigation = [
@@ -46,7 +48,7 @@ const AdminLayout = ({ children }) => {
         className="fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-50 lg:translate-x-0 lg:static lg:inset-0"
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/browse" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <SafeIcon icon={FiGlobe} className="h-8 w-8 text-primary-600" />
             <span className="text-xl font-bold text-gray-900">Netzone Admin</span>
           </Link>
@@ -89,16 +91,19 @@ const AdminLayout = ({ children }) => {
             >
               <SafeIcon icon={FiMenu} className="h-6 w-6" />
             </button>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <Link
                 to={`/domain/${previewDomain}`}
                 className="text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
                 Preview Landing
               </Link>
-              <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">A</span>
-              </div>
+              <button onClick={logout}
+                className="flex items-center gap-2 text-gray-600 hover:text-red-600 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                title="Sign out">
+                <SafeIcon icon={FiLogOut} className="h-4 w-4" />
+                Sign Out
+              </button>
             </div>
           </div>
         </div>

@@ -28,8 +28,8 @@ function App() {
                 <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
                   <AnimatePresence mode="wait">
                     <Routes>
-                      {/* Root → redirect to admin */}
-                      <Route path="/" element={<Navigate to="/admin" replace />} />
+                      {/* Root → public browse page */}
+                      <Route path="/" element={<Navigate to="/browse" replace />} />
 
                       {/* Public routes */}
                       <Route path="/browse" element={<BrowseDomains />} />
