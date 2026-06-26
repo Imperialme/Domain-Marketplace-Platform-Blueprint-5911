@@ -1,0 +1,27 @@
+[Unit]
+Description=Procure.parts — B2B Spare Parts Procurement Platform
+Documentation=https://github.com/Imperialme/Domain-Marketplace-Platform-Blueprint-5911
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=procure
+Group=procure
+WorkingDirectory=/var/www/procure-parts
+EnvironmentFile=/var/www/procure-parts/.env.production
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=procure-parts
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/procure-parts
+
+[Install]
+WantedBy=multi-user.target
