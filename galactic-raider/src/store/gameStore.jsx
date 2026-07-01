@@ -185,6 +185,7 @@ function buildInitialState() {
     fxPnlRealized: 0,
     shownMilestones: {},   // tier labels already celebrated — each milestone pops up only once
     pendingMilestone: null, // set when a new wealth tier is first reached; cleared when the popup is dismissed
+    uiModalOpen: false,     // true while a trade modal is open — pauses auto-advance (price lock)
     navTarget: null, // cross-screen navigation intent {screen, tab, ticker, planet, id}
   };
 }
@@ -240,13 +241,21 @@ export function GameProvider({ children }) {
       const ev = GEO_EVENTS[Math.floor(Math.random() * GEO_EVENTS.length)];
       const newEv = { id: Math.random(), t: s.turn, ...ev };
       s.geoEvents = [newEv, ...(s.geoEvents || [])].slice(0, 15);
+      // Surface in the main news feed too so events are impossible to miss
+      addNews(ev.ico || '🌐', 'WORLD: ' + ev.ti, ev.bo, ev.impact !== 'negative');
     }
 
     // Update Earth company prices with Governor enforcement
     s.companies = s.companies.map(c => {
       const eps = c.price / c.pe;
       const bnd = PE_BOUNDS[c.s] || { mn: 10, mx: 35 };
-      const move = 1 + (Math.random() - 0.5) * 0.10 * c.b;
+      let move = 1 + (Math.random() - 0.5) * 0.10 * c.b;
+      // Post-IPO stabilization: for 30 turns after listing, moves are dampened and a
+      // stock trading below its list price gets a gentle recovery drift — no cliff drops.
+      if (c.listedTurn && s.turn - c.listedTurn < 30) {
+        move = 1 + (Math.random() - 0.5) * 0.04;
+        if (c.price < c.ip) move += 0.004;
+      }
       let np = cl(r2(c.price * move), c.price * 0.90, c.price * 1.10);
       if (np / eps < bnd.mn) np = eps * bnd.mn;
       if (np / eps > bnd.mx) np = eps * bnd.mx;
@@ -299,8 +308,12 @@ export function GameProvider({ children }) {
       }
 
       pState.cos = pState.cos.map(c => {
-        const move = 1 + (Math.random() - 0.5) * 0.12 * (c.b || 1.5) * stormMult;
-        const np = Math.max(0.10, r2(c.price * move));
+        // Mean-reversion toward initial price + hard clamp — planet stocks previously had
+        // neither and could drift to 38x or collapse to zero over long runs.
+        const anchor = c.ip || c.price;
+        const meanRevert = Math.pow(anchor / Math.max(0.01, c.price), 0.015);
+        const move = (1 + (Math.random() - 0.5) * 0.12 * (c.b || 1.5) * stormMult) * meanRevert;
+        const np = Math.max(anchor * 0.15, Math.min(anchor * 6, r2(c.price * move)));
         return { ...c, pp: c.price, price: np, ch: (np - c.price) / c.price, hist: [...(c.hist||[]).slice(-50), np] };
       });
       pState.gdp = Math.round(cl(pState.gdp + (Math.random() - 0.48) * 0.3, -5, 10) * 10) / 10;
@@ -321,9 +334,10 @@ export function GameProvider({ children }) {
     if (!s.cryptoHist) s.cryptoHist = Object.fromEntries(CRYPTO_COINS_STORE.map(c=>[c.id,[c.ip]]));
     CRYPTO_COINS_STORE.forEach(coin => {
       const prev = s.cryptoPrices[coin.id] || coin.ip;
-      const meanRevert = Math.pow(coin.ip / prev, 0.008);
+      // Stronger reversion + tighter cap: high-vol coins were pinning at the old 25x ceiling
+      const meanRevert = Math.pow(coin.ip / prev, 0.012);
       const move = (1 + (Math.random()-0.5)*coin.vol*1.3) * meanRevert;
-      const next = Math.max(coin.ip * 0.03, Math.min(coin.ip * 25, r2(prev * move)));
+      const next = Math.max(coin.ip * 0.05, Math.min(coin.ip * 12, r2(prev * move)));
       s.cryptoPrices[coin.id] = next;
       s.cryptoHist[coin.id] = [...(s.cryptoHist[coin.id]||[prev]).slice(-48), next];
     });
@@ -349,8 +363,9 @@ export function GameProvider({ children }) {
       }
       // Jupiter storm wrecks hydrogen supply
       if (com.id==='JGAS' && s.planetCompanies?.Jupiter?.stormActive) move *= 0.55 + Math.random()*0.15;
-      // Ryzolith increases in scarcity over time (capped contribution)
-      if (com.id==='SRYZ' && s.turn > 200) move *= 1 + Math.min(0.15, (s.turn / 20000));
+      // Ryzolith increases in scarcity over time — kept small enough that mean-reversion
+      // can push back; the old +15%/turn compounding pinned it at the 8x cap permanently
+      if (com.id==='SRYZ' && s.turn > 200) move *= 1 + Math.min(0.012, (s.turn / 50000));
       // Deep Field Minerals extreme volatility
       if (com.id==='NFLD' || com.id==='NWIN') move *= 1 + (Math.random()-0.5)*0.15;
       // Clamp between 0.2× and 8× of initial price — prevents both zero-ing out and runaway spikes
@@ -399,10 +414,12 @@ export function GameProvider({ children }) {
       }
     });
 
-    // ETF price movement
+    // ETF price movement — mean-reverting and clamped so funds can't drift unbounded
     s.etfs = s.etfs.map(e => {
-      const move = 1 + (Math.random() - 0.5) * 0.06;
-      const np = Math.max(0.01, r2(e.price * move));
+      const anchor = e.ip || e.price;
+      const meanRevert = Math.pow(anchor / Math.max(0.01, e.price), 0.02);
+      const move = (1 + (Math.random() - 0.5) * 0.06) * meanRevert;
+      const np = Math.max(anchor * 0.4, Math.min(anchor * 4, r2(e.price * move)));
       return { ...e, pp: e.price, price: np, ch: (np - e.price) / e.price, hist: [...(e.hist||[]).slice(-50), np] };
     });
 
@@ -430,7 +447,13 @@ export function GameProvider({ children }) {
           s.stockHoldings[ipo.id] = (s.stockHoldings[ipo.id]||0) + allocation;
           s.avgCostBasis[ipo.id] = midpoint;
           if (!s.companies.find(c=>c.t===ipo.id)) {
-            s.companies.push({ t:ipo.id, n:ipo.n, s:ipo.sector||'Technology', price:listPrice, pe:18, ch:0, hist:[listPrice,listPrice], div:0.5, b:1.5, yr:2020, emp:5000, hq:ipo.planet||'Earth', ip:listPrice, pe0:18, analysts:[], founder:ipo.founder||'Founder', ceo:ipo.founder||'Founder', ceoProfile:{ rep:75, tenure:0, style:'Founder-led', track:'Newly public' }, origin:ipo.desc||'IPO listing.' });
+            s.companies.push({ t:ipo.id, n:ipo.n, s:ipo.sector||'Technology', price:listPrice, pe:18, ch:0, hist:[listPrice,listPrice], div:0.5, b:1.5, yr:2020, emp:5000, hq:ipo.planet||'Earth', ip:listPrice, pe0:18,
+              // IPO analyst data uses `view`; company UI expects `rating` — map it across
+              analysts:(ipo.analysts||[]).map(a => ({ firm:a.firm, rating:a.view||a.rating||'HOLD', target:a.target, note:a.note })),
+              founder:ipo.founder||'Founder', ceo:ipo.founder||'Founder',
+              ceoProfile:{ rep:75, tenure:0, style:'Founder-led', track:'Newly public' },
+              origin:ipo.desc||'IPO listing.', ops:ipo.desc||'Newly listed public company.',
+              listedTurn:s.turn });
           }
           addNews('🚀', 'IPO LISTED: '+ipo.n, ipo.n+' listed at $'+listPrice.toFixed(2)+'. Your '+allocation.toLocaleString()+' shares allocated at $'+midpoint.toFixed(2)+'. Now tradeable in Markets.', true);
         } else {
@@ -716,7 +739,9 @@ export function GameProvider({ children }) {
     if (s.tradingWallet < FEE) return 'Need $500M in Trading Wallet';
     s.tradingWallet = r2(s.tradingWallet - FEE);
     s.foundationOpen = true;
-    logTx('FOUNDATION', 'Trading', -FEE, 'Foundation opened. $500M fee. Savings Wallet now protected.');
+    // The endowment IS the foundation: the $500M becomes protected principal earning 3% APR
+    s.foundationBalance = r2((s.foundationBalance || 0) + FEE);
+    logTx('FOUNDATION', 'Trading', -FEE, 'Foundation endowed with $500M. Protected principal earns 3% APR.');
     refresh();
     return null;
   }, [refresh, logTx]);
@@ -1133,7 +1158,7 @@ export function GameProvider({ children }) {
     const proceeds = r2(qty * price);
     const avgCost = s.cryptoAvgCost[coinId] || price;
     const profit = Math.max(0, (price - avgCost) * qty);
-    const cgt = r2(profit * 0.30); // flat 30% CGT for crypto
+    const cgt = r2(profit * 0.30 * (1 - (s.taxRelief || 0))); // flat 30% CGT for crypto, philanthropy relief applies
     s.tradingWallet = r2(s.tradingWallet + proceeds - cgt);
     s.cryptoHoldings[coinId] = r2(held - qty);
     if (s.cryptoHoldings[coinId] <= 0) delete s.cryptoHoldings[coinId];
@@ -1234,7 +1259,7 @@ export function GameProvider({ children }) {
     const avgCost = s.commodityAvgCost?.[comId] || price;
     const proceeds = r2(safeUnits * price);
     const profit = Math.max(0, (price - avgCost) * safeUnits);
-    const cgt = r2(profit * (com.tax || 0.15));
+    const cgt = r2(profit * (com.tax || 0.15) * (1 - (s.taxRelief || 0)));
     s.tradingWallet = r2(s.tradingWallet + proceeds - cgt);
     s.commodityHoldings[comId] = r2(held - safeUnits);
     if (s.commodityHoldings[comId] < 0.0001) delete s.commodityHoldings[comId];
@@ -1290,6 +1315,13 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  // Trade-lock: while any buy/sell modal is open, auto-advance pauses so the
+  // quoted price cannot change while the player is deciding.
+  const setTradeLock = useCallback((open) => {
+    S.current.uiModalOpen = !!open;
+    refresh();
+  }, [refresh]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1302,7 +1334,28 @@ export function GameProvider({ children }) {
     try {
       const data = localStorage.getItem('CC_save_'+slot);
       if (!data) return 'No save found';
-      S.current = JSON.parse(data);
+      const loaded = JSON.parse(data);
+      // Deep-merge over a fresh initial state: saves from older builds are missing newer
+      // fields (fxRates, shownMilestones, ...) and would crash screens if loaded raw.
+      const fresh = buildInitialState();
+      const merged = { ...fresh, ...loaded };
+      // Sanitize companies — IPO-created entries from older builds lack fields the UI reads
+      merged.companies = (loaded.companies || fresh.companies).map(c => ({
+        analysts: [], ceoProfile: { rep: 75, tenure: 0, style: 'Professional', track: 'Steady' },
+        founder: c.ceo || 'Founder', ops: c.origin || '', origin: '', hist: [c.ip || c.price || 1],
+        ...c,
+      }));
+      // Nested structures the UI iterates — never leave them undefined
+      ['planetCompanies','cryptoPrices','cryptoHist','commodityHist','fxRates','fxHist',
+       'fundDeposits','planetWallets','planetUnlocks','shownMilestones','stats'].forEach(k => {
+        if (!merged[k]) merged[k] = fresh[k];
+      });
+      ['fxPositions','bondHoldings','etfs','geoEvents','news','txLog','badges','phiBenefits'].forEach(k => {
+        if (!Array.isArray(merged[k])) merged[k] = fresh[k];
+      });
+      merged.navTarget = null;
+      merged.pendingMilestone = null;
+      S.current = merged;
       refresh();
       return null;
     } catch(e) { return 'Load failed'; }
@@ -1327,7 +1380,7 @@ export function GameProvider({ children }) {
     setDarkMode, setLanguage,
     setPlayerAvatar, setPlayerName,
     clearMilestone,
-    navigateTo, clearNavTarget,
+    navigateTo, clearNavTarget, setTradeLock,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
