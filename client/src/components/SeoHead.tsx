@@ -18,7 +18,7 @@ export default function SeoHead({
   title,
   description,
   canonical,
-  ogImage = "/logo-brand.png",
+  ogImage = "https://procure.parts/og-image.jpg",
   keywords,
   structuredData,
 }: SeoHeadProps) {

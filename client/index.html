@@ -18,10 +18,9 @@
     <meta name="msapplication-TileImage" content="/logo-icon.png" />
 
     <!-- Favicon suite -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
     <link rel="shortcut icon" href="/favicon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/logo-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- PWA manifest -->
     <link rel="manifest" href="/site.webmanifest" />
@@ -31,16 +30,16 @@
     <meta property="og:url" content="https://procure.parts/" />
     <meta property="og:title" content="Procure.parts — B2B Spare Parts Procurement" />
     <meta property="og:description" content="Connect with verified suppliers for OEM and aftermarket spare parts. 24–48 hour RFQ turnaround. B2B verified members only." />
-    <meta property="og:image" content="/logo-brand.png" />
-    <meta property="og:image:width" content="1920" />
-    <meta property="og:image:height" content="1920" />
+    <meta property="og:image" content="https://procure.parts/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="Procure.parts" />
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Procure.parts — B2B Spare Parts Procurement" />
     <meta name="twitter:description" content="Connect with verified suppliers for OEM and aftermarket spare parts. 24–48 hour RFQ turnaround." />
-    <meta name="twitter:image" content="/logo-brand.png" />
+    <meta name="twitter:image" content="https://procure.parts/og-image.jpg" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -51,10 +50,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!--
+      Analytics: when you have an Umami (or similar) instance, add:
+      <script defer src="https://your-umami-host/script.js" data-website-id="YOUR_ID"></script>
+      The previous %VITE_ANALYTICS_*% placeholders produced a 404 request on
+      every page load when the env vars were unset.
+    -->
   </body>
 
 </html>
