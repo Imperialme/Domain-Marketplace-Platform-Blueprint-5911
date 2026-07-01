@@ -610,6 +610,18 @@ function PlanetFXTab({ d, showMsg }) {
 
 function r2(n){return Math.round(n*100)/100;}
 
+// Transfer direction options: [dir, display label]
+const DIR_OPTIONS = [
+  ['C2T','💵 Cash → ⚡ Trading'],
+  ['T2C','⚡ Trading → 💵 Cash'],
+  ['C2S','💵 Cash → 🏦 Savings'],
+  ['S2C','🏦 Savings → 💵 Cash'],
+  ['T2S','⚡ Trading → 🏦 Savings'],
+  ['S2T','🏦 Savings → ⚡ Trading'],
+];
+const DIR_LABELS = Object.fromEntries(DIR_OPTIONS);
+const SRC_NAME = { C:'Cash', T:'Trading', S:'Savings' };
+
 export default function WealthScreen() {
   const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
   const d = D;
@@ -618,6 +630,7 @@ export default function WealthScreen() {
   const [tab, setTab] = useState('portfolio');
   const [repayAmt, setRepayAmt] = useState('');
   const [transferAmt, setTransferAmt] = useState('');
+  const [transferDir, setTransferDir] = useState('C2T');
   const [activePct, setActivePct] = useState(null);
   const [msg, setMsg] = useState('');
   const showMsg = m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
@@ -629,6 +642,9 @@ export default function WealthScreen() {
     const labels={C2T:'Cash→Trading',T2C:'Trading→Cash',C2S:'Cash→Savings',S2C:'Savings→Cash',T2S:'Trading→Savings',S2T:'Savings→Trading'};
     showMsg(labels[dir]+': '+fm(amount));
   };
+
+  const srcKey = {C:'cashWallet',T:'tradingWallet',S:'savingsWallet'}[transferDir[0]];
+  const srcBal = d[srcKey] || 0;
 
   const handlePctSelect = (pct, walletKey) => {
     const bal = d[walletKey] || 0;
@@ -667,11 +683,26 @@ export default function WealthScreen() {
 
         <div style={CS.card}>
           <div style={CS.label}>Transfer Money</div>
-          {/* % preset buttons */}
-          <div style={{fontSize:10,color:'#4B5563',marginBottom:5}}>Quick % (from source wallet)</div>
+          {/* 1. Direction selector */}
+          <div style={{fontSize:10,color:'#4B5563',marginBottom:5}}>1. Choose direction</div>
+          <div style={{display:'flex',flexDirection:'column',gap:7,marginBottom:12}}>
+            {DIR_OPTIONS.map(([dir,lbl])=>{
+              const sel = transferDir===dir;
+              return (
+                <button key={dir} onClick={()=>{setTransferDir(dir);setActivePct(null);}} style={{background:sel?'rgba(59,130,246,0.15)':'#060B14',border:'1px solid '+(sel?'#3B82F6':'#1A2744'),color:sel?'#93C5FD':'#6B7280',borderRadius:10,padding:'11px 14px',fontSize:12,fontWeight:sel?700:600,cursor:'pointer',textAlign:'left'}}>
+                  {sel?'● ':'○ '}{lbl}
+                </button>
+              );
+            })}
+          </div>
+          {/* 2. % quick buttons from source wallet */}
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+            <div style={{fontSize:10,color:'#4B5563'}}>2. Quick % of source</div>
+            <div style={{fontSize:10,color:'#93C5FD',fontFamily:'monospace'}}>From {SRC_NAME[transferDir[0]]}: {fm(srcBal)}</div>
+          </div>
           <div style={{display:'flex',gap:5,marginBottom:8}}>
-            {[10,25,50,75].map(p=>(
-              <button key={p} onClick={()=>handlePctSelect(p,'tradingWallet')} style={{flex:1,padding:'7px 0',background:activePct===p?'#1D4ED8':'#060B14',border:'1px solid '+(activePct===p?'#3B82F6':'#1A2744'),color:activePct===p?'#fff':'#6B7280',borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+            {[25,50,75,100].map(p=>(
+              <button key={p} onClick={()=>handlePctSelect(p,srcKey)} style={{flex:1,padding:'7px 0',background:activePct===p?'#1D4ED8':'#060B14',border:'1px solid '+(activePct===p?'#3B82F6':'#1A2744'),color:activePct===p?'#fff':'#6B7280',borderRadius:9,fontSize:11,fontWeight:700,cursor:'pointer'}}>
                 {p}%
               </button>
             ))}
@@ -685,20 +716,17 @@ export default function WealthScreen() {
             placeholder="$ Amount"
             style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:14,outline:'none',boxSizing:'border-box',marginBottom:12,fontFamily:'monospace'}}
           />
-          <div style={{display:'flex',flexDirection:'column',gap:7}}>
-            {[['C2T','💵 Cash → ⚡ Trading'],['T2C','⚡ Trading → 💵 Cash'],['C2S','💵 Cash → 🏦 Savings'],['S2C','🏦 Savings → 💵 Cash'],['T2S','⚡ Trading → 🏦 Savings'],['S2T','🏦 Savings → ⚡ Trading']].map(([dir,lbl])=>(
-              <button key={dir} onClick={()=>doTransfer(dir)} style={{background:'#060B14',border:'1px solid #1A2744',color:'#93C5FD',borderRadius:10,padding:'11px 14px',fontSize:12,fontWeight:600,cursor:'pointer',textAlign:'left'}}>
-                ⇄ {lbl}
-              </button>
-            ))}
-          </div>
+          {/* 3. Confirm */}
+          <button onClick={()=>doTransfer(transferDir)} style={{width:'100%',background:'#1D4ED8',color:'#fff',border:'none',borderRadius:12,padding:'13px 0',fontWeight:800,fontSize:14,cursor:'pointer'}}>
+            Transfer {fm(parseFloat(transferAmt)||0)} — {DIR_LABELS[transferDir]}
+          </button>
         </div>
 
         <div style={{...CS.card,border:d.foundationOpen?'1px solid #34D399':'1px solid #1A2744'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div>
               <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>🛡️ Asset Protection Foundation</div>
-              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>Bankruptcy shield · 3% APR · $500M one-time fee (Trading Wallet)</div>
+              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>Your $500M endowment becomes protected principal · grows at 3% APR · shielded from debt</div>
             </div>
             {d.foundationOpen&&<div style={{background:'#14532D',color:'#34D399',padding:'3px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>OPEN</div>}
           </div>

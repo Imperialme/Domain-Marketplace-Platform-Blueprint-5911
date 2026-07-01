@@ -502,9 +502,14 @@ function PhilTab() {
               </div>
             </div>
             <div style={{fontSize:11,color:'#6B7280',marginBottom:8}}>Cash Wallet: <b style={{color:'#60A5FA'}}>{fm(cashBal)}</b></div>
-            <div style={{display:'flex',gap:6,marginBottom:10}}>
+            <div style={{display:'flex',gap:6,marginBottom:8}}>
               {[['5%',0.05],['10%',0.10],['20%',0.20],['All',1]].map(([lbl,pct])=>(
                 <button key={lbl} onClick={()=>setAmt(String(Math.floor(cashBal*pct)))} style={{flex:1,padding:'9px 0',background:'#060B14',border:'1px solid #1A2744',color:'#94A3B8',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>{lbl}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:6,marginBottom:10}}>
+              {[['$100K',100000],['$1M',1000000],['$10M',10000000],['$100M',100000000]].map(([lbl,val])=>(
+                <button key={lbl} onClick={()=>setAmt(String(val))} style={{flex:1,padding:'9px 0',background:'#060B14',border:'1px solid #1A2744',color:'#94A3B8',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>{lbl}</button>
               ))}
             </div>
             <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Amount (min $100,000)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:10,padding:'12px 14px',color:'#F8FAFC',fontSize:16,marginBottom:10,outline:'none',boxSizing:'border-box'}}/>
@@ -606,7 +611,7 @@ function SettingsTab({ TH, t }) {
             <div style={{fontSize:12,color:'#FCA5A5',marginBottom:10,lineHeight:1.5}}>{t('settings_reset_confirm')}</div>
             <div style={{display:'flex',gap:8}}>
               <button onClick={() => setConfirmReset(false)} style={{flex:1,padding:'10px 0',background:TH.card,color:TH.sub,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,cursor:'pointer'}}>{t('btn_cancel')}</button>
-              <button onClick={() => { S.current = null; localStorage.clear(); window.location.reload(); }} style={{flex:2,padding:'10px 0',background:'#991B1B',color:'#fff',border:'none',borderRadius:8,fontWeight:800,cursor:'pointer'}}>🗑️ {t('settings_reset')}</button>
+              <button onClick={() => { S.current = null; localStorage.removeItem('CC_autosave'); window.location.reload(); }} style={{flex:2,padding:'10px 0',background:'#991B1B',color:'#fff',border:'none',borderRadius:8,fontWeight:800,cursor:'pointer'}}>🗑️ {t('settings_reset')}</button>
             </div>
           </div>
         )}
