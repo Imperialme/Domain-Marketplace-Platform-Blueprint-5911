@@ -74,7 +74,20 @@ function QuickPcts({onSelect,labels=['25%','50%','75%','Max']}) {
   );
 }
 
-function TradeModal({title,price,priceSub,held,walletBalance,isBuyOnly,onBuy,onSell,onClose}) {
+function TradeBreakdown({ rows, T }) {
+  return (
+    <div style={{background:T.bg,border:'1px solid '+T.border,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
+      {rows.map(([label,value,color])=>(
+        <div key={label} style={{display:'flex',justifyContent:'space-between',padding:'3px 0'}}>
+          <span style={{fontSize:11,color:T.muted}}>{label}</span>
+          <span style={{fontSize:12,fontWeight:700,color:color||T.text,fontFamily:'monospace'}}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TradeModal({title,price,priceSub,held,walletBalance,isBuyOnly,avgCost,taxRate=0.20,taxRelief=0,onBuy,onSell,onClose}) {
   const [mode,setMode]=useState('buy');
   const [qty,setQty]=useState('');
   const q=parseInt(qty)||0;
@@ -106,12 +119,24 @@ function TradeModal({title,price,priceSub,held,walletBalance,isBuyOnly,onBuy,onS
         <QuickPcts onSelect={setByPct} labels={['25%','50%','75%','Max']}/>
 
         <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="Enter quantity" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
-        {q>0&&price&&(
-          <div style={{background:mode==='buy'?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(mode==='buy'?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:10,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between'}}>
-            <span style={{fontSize:12,color:T.sub}}>Total {mode==='buy'?'cost':'proceeds'}</span>
-            <span style={{fontSize:14,fontWeight:800,color:mode==='buy'?T.green:T.red,fontFamily:'monospace'}}>{fm(q*price)}</span>
-          </div>
-        )}
+        {q>0&&price>0&&(()=>{
+          if(mode==='buy'){
+            return <TradeBreakdown T={T} rows={[
+              ['Cost',fm(q*price)],
+              ['Wallet after purchase',fm((walletBalance||0)-q*price),(walletBalance||0)-q*price>=0?T.green:T.red],
+            ]}/>;
+          }
+          const basis=avgCost||price;
+          const invested=basis*q;
+          const proceeds=price*q;
+          const tax=Math.max(0,(price-basis)*q)*taxRate*(1-(taxRelief||0));
+          return <TradeBreakdown T={T} rows={[
+            ['Invested',fm(invested)],
+            ['Sale proceeds',fm(proceeds)],
+            ['Est. tax (CGT)','-'+fm(tax),T.red],
+            ['You receive',fm(proceeds-tax),T.green],
+          ]}/>;
+        })()}
         <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
           <button onClick={onClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
           <button onClick={()=>{if(q<=0)return;mode==='buy'?onBuy(q):onSell(q);}} style={{padding:'14px 0',background:mode==='buy'?T.green:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 16px '+(mode==='buy'?'rgba(16,185,129,0.3)':'rgba(244,63,94,0.3)')}}>
@@ -130,12 +155,15 @@ function Toast({msg}) {
 
 // ── EARTH MARKETS ──────────────────────────────────────────────
 function EarthTab() {
-  const {D,buyStock,sellStock,clearNavTarget}=useGame();
+  const {D,buyStock,sellStock,clearNavTarget,setTradeLock}=useGame();
   const d=D;
   const [selected,setSelected]=useState(null);
   const [modal,setModal]=useState(false);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Trade-lock: pause auto-advance (price freeze) while the buy/sell sheet is open
+  useEffect(()=>{ setTradeLock(!!modal); return ()=>setTradeLock(false); },[modal,setTradeLock]);
 
   // Auto-select a ticker when navigated from portfolio
   useEffect(()=>{
@@ -244,6 +272,7 @@ function EarthTab() {
       {modal&&(
         <TradeModal title={co.n} price={co.price} held={d.stockHoldings?.[co.t]||0}
           walletBalance={d.tradingWallet}
+          avgCost={d.avgCostBasis?.[co.t]||co.price} taxRate={0.20} taxRelief={d.taxRelief||0}
           onBuy={q=>{const e=buyStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q.toLocaleString()+' '+co.t);setModal(false);}}}
           onSell={q=>{const e=sellStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Sold '+q.toLocaleString()+' '+co.t);setModal(false);}}}
           onClose={()=>setModal(false)}
@@ -296,12 +325,15 @@ function EarthTab() {
 
 // ── PLANETS ────────────────────────────────────────────────────
 function PlanetsTab() {
-  const {D,buyPlanetStock,sellPlanetStock,clearNavTarget}=useGame();
+  const {D,buyPlanetStock,sellPlanetStock,clearNavTarget,setTradeLock}=useGame();
   const d=D;
   const [planet,setPlanet]=useState(null);
   const [modal,setModal]=useState(null);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Trade-lock: pause auto-advance while the trade sheet is open
+  useEffect(()=>{ setTradeLock(!!modal); return ()=>setTradeLock(false); },[modal,setTradeLock]);
 
   // Auto-navigate to a planet when navigated from portfolio
   useEffect(()=>{
@@ -410,6 +442,7 @@ function PlanetsTab() {
             priceSub={`${modal.pd.currency} ${modal.co.price.toFixed(2)} · ≈ $${(modal.co.price*modal.pd.rate).toFixed(2)} USD`}
             held={modal.held}
             walletBalance={d.tradingWallet}
+            avgCost={(d.planetAvgCost?.[modal.planet+'_'+modal.co.t]||modal.co.price)*modal.pd.rate} taxRate={0.20} taxRelief={d.taxRelief||0}
             onBuy={q=>{const e=buyPlanetStock(modal.planet,modal.co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' '+modal.co.t);setModal(null);}}}
             onSell={q=>{sellPlanetStock(modal.planet,modal.co.t,q);showMsg('✅ Sold '+q+' '+modal.co.t);setModal(null);}}
             onClose={()=>setModal(null)}
@@ -469,11 +502,14 @@ function PlanetsTab() {
 
 // ── ETF TAB ────────────────────────────────────────────────────
 function ETFTab() {
-  const {D,buyETF,sellETF}=useGame();
+  const {D,buyETF,sellETF,setTradeLock}=useGame();
   const d=D;
   const [modal,setModal]=useState(null);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Trade-lock: pause auto-advance while the trade sheet is open
+  useEffect(()=>{ setTradeLock(!!modal); return ()=>setTradeLock(false); },[modal,setTradeLock]);
   return (
     <div>
       <Toast msg={msg}/>
@@ -523,6 +559,7 @@ function ETFTab() {
           priceSub={`$${modal.price.toFixed(2)}/unit · ${modal.expense}% expense ratio`}
           held={modal.units||0}
           walletBalance={d.tradingWallet}
+          avgCost={modal.avgCost||modal.price} taxRate={0.20} taxRelief={d.taxRelief||0}
           onBuy={q=>{const e=buyETF(modal.id,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Bought '+q+' units');setModal(null);}}}
           onSell={q=>{sellETF(modal.id,q);showMsg('✅ Sold '+q+' units');setModal(null);}}
           onClose={()=>setModal(null)}
@@ -639,12 +676,15 @@ const BOND_DATA = {
 const RISK_COLOR = {Low:T.green, Medium:T.amber, High:T.red, 'Very High':'#DC2626', Extreme:'#7F1D1D'};
 
 function BondsTab() {
-  const {D, buyBond}=useGame();
+  const {D, buyBond, setTradeLock}=useGame();
   const d=D;
   const [buyModal,setBuyModal]=useState(null);
   const [buyAmt,setBuyAmt]=useState('');
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
+
+  // Trade-lock: pause auto-advance while the bond purchase sheet is open
+  useEffect(()=>{ setTradeLock(!!buyModal); return ()=>setTradeLock(false); },[buyModal,setTradeLock]);
 
   const allBonds=[...BOND_DATA.government,...BOND_DATA.corporate,...BOND_DATA.cosmic];
 
@@ -736,9 +776,11 @@ function BondsTab() {
             <div style={{fontSize:11,color:T.sub,marginBottom:12}}>Trading Wallet: {fm(d.tradingWallet||0)}</div>
             <input type="number" value={buyAmt} onChange={e=>setBuyAmt(e.target.value)} placeholder={`Min $${buyModal.minInvest.toLocaleString()}`} style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
             {parseFloat(buyAmt)>0&&(
-              <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12,color:T.green}}>
-                Projected payout: {fm(parseFloat(buyAmt)*(1+(buyModal.yield/100)*(buyModal.maturity/365)))}
-              </div>
+              <TradeBreakdown T={T} rows={[
+                ['Cost',fm(parseFloat(buyAmt))],
+                ['Wallet after purchase',fm((d.tradingWallet||0)-parseFloat(buyAmt)),(d.tradingWallet||0)-parseFloat(buyAmt)>=0?T.green:T.red],
+                ['Projected payout',fm(parseFloat(buyAmt)*(1+(buyModal.yield/100)*(buyModal.maturity/365))),T.green],
+              ]}/>
             )}
             <div style={{display:'flex',gap:10}}>
               <button onClick={()=>setBuyModal(null)} style={{flex:1,padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
@@ -753,7 +795,7 @@ function BondsTab() {
 
 // ── CRYPTO TAB ─────────────────────────────────────────────────
 function CryptoTab() {
-  const {D,buyCrypto,sellCrypto,clearNavTarget}=useGame();
+  const {D,buyCrypto,sellCrypto,clearNavTarget,setTradeLock}=useGame();
   const d=D;
   const [modal,setModal]=useState(null); // {coin, mode:'buy'|'sell'}
   const [buyAmt,setBuyAmt]=useState('');
@@ -764,6 +806,9 @@ function CryptoTab() {
 
   const openBuy=(coin)=>{setModal({coin,mode:'buy'});setBuyAmt('');};
   const openSell=(coin)=>{setModal({coin,mode:'sell'});setSellQty('');setSellPct('');};
+
+  // Trade-lock: pause auto-advance while a buy/sell sheet is open
+  useEffect(()=>{ setTradeLock(!!modal); return ()=>setTradeLock(false); },[modal,setTradeLock]);
 
   // Auto-open buy modal when navigated from portfolio
   useEffect(()=>{
@@ -878,6 +923,12 @@ function CryptoTab() {
             </div>
             <QuickPcts onSelect={(i)=>{const pcts=[0.25,0.50,0.75,1.00];setBuyAmt(String(r2((d.tradingWallet||0)*pcts[i])));}} labels={['25%','50%','75%','Max']}/>
             <input type="number" value={buyAmt} onChange={e=>setBuyAmt(e.target.value)} placeholder="USD amount to spend" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+            {parseFloat(buyAmt)>0&&(
+              <TradeBreakdown T={T} rows={[
+                ['Cost',fm(parseFloat(buyAmt))],
+                ['Wallet after purchase',fm((d.tradingWallet||0)-parseFloat(buyAmt)),(d.tradingWallet||0)-parseFloat(buyAmt)>=0?T.green:T.red],
+              ]}/>
+            )}
             <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
               <button onClick={doClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
               <button onClick={handleBuy} style={{padding:'14px 0',background:T.green,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Buy {modal.coin.sym}</button>
@@ -903,12 +954,19 @@ function CryptoTab() {
               ))}
             </div>
             <input type="number" value={sellQty} onChange={e=>setSellQty(e.target.value)} placeholder="Quantity to sell" style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
-            {parseFloat(sellQty)>0&&(
-              <div style={{background:'rgba(244,63,94,0.08)',border:'1px solid rgba(244,63,94,0.2)',borderRadius:8,padding:'8px 12px',marginBottom:10,display:'flex',justifyContent:'space-between'}}>
-                <span style={{fontSize:12,color:T.sub}}>Proceeds (before CGT)</span>
-                <span style={{fontSize:13,fontWeight:800,color:T.red,fontFamily:'monospace'}}>{fm(parseFloat(sellQty)*(d.cryptoPrices?.[modal.coin.id]||0))}</span>
-              </div>
-            )}
+            {parseFloat(sellQty)>0&&(()=>{
+              const qy=parseFloat(sellQty);
+              const price=d.cryptoPrices?.[modal.coin.id]||modal.coin.ip;
+              const basis=d.cryptoAvgCost?.[modal.coin.id]||price;
+              const proceeds=qy*price;
+              const tax=Math.max(0,(price-basis)*qy)*0.30*(1-(d.taxRelief||0));
+              return <TradeBreakdown T={T} rows={[
+                ['Invested',fm(basis*qy)],
+                ['Sale proceeds',fm(proceeds)],
+                ['Est. tax (CGT)','-'+fm(tax),T.red],
+                ['You receive',fm(proceeds-tax),T.green],
+              ]}/>;
+            })()}
             <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
               <button onClick={doClose} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
               <button onClick={handleSell} style={{padding:'14px 0',background:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer'}}>Sell {modal.coin.sym}</button>
@@ -927,12 +985,15 @@ const CAT_COLORS = {Earth:'#2E7D32',Mars:'#C62828',Venus:'#F57F17',Jupiter:'#E65
 const CAT_ICOS   = {Earth:'🌍',Mars:'🔴',Venus:'🟡',Jupiter:'🟠',Saturn:'🪐',Mercury:'☿',Uranus:'🔵',Neptune:'💜'};
 
 function CommoditiesTab() {
-  const {D,buyCommodity,sellCommodity,clearNavTarget}=useGame();
+  const {D,buyCommodity,sellCommodity,clearNavTarget,setTradeLock}=useGame();
   const d=D;
   const [modal,setModal]=useState(null); // {type:'buy'|'sell', com}
   const [qty,setQty]=useState('');
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
+
+  // Trade-lock: pause auto-advance while a buy/sell sheet is open
+  useEffect(()=>{ setTradeLock(!!modal); return ()=>setTradeLock(false); },[modal,setTradeLock]);
 
   // Auto-open buy modal when navigated from portfolio
   useEffect(()=>{
@@ -1059,12 +1120,25 @@ function CommoditiesTab() {
             }
             <QuickPcts onSelect={setByPct} labels={['25%','50%','75%','Max']}/>
             <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder={`Units (${modal.com.unit})`} style={{width:'100%',background:T.bg,border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'14px 16px',color:T.text,fontSize:18,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
-            {parseFloat(qty)>0&&(
-              <div style={{background:modal.type==='buy'?'rgba(16,185,129,0.08)':'rgba(244,63,94,0.08)',border:'1px solid '+(modal.type==='buy'?'rgba(16,185,129,0.2)':'rgba(244,63,94,0.2)'),borderRadius:8,padding:'10px 14px',marginBottom:12,display:'flex',justifyContent:'space-between'}}>
-                <span style={{fontSize:12,color:T.sub}}>{modal.type==='buy'?'Total cost':'Gross proceeds'}</span>
-                <span style={{fontSize:14,fontWeight:800,color:modal.type==='buy'?T.green:T.red,fontFamily:'monospace'}}>{fm(parseFloat(qty)*getPrice(modal.com.id))}</span>
-              </div>
-            )}
+            {parseFloat(qty)>0&&(()=>{
+              const qy=parseFloat(qty);
+              const price=getPrice(modal.com.id);
+              if(modal.type==='buy'){
+                return <TradeBreakdown T={T} rows={[
+                  ['Cost',fm(qy*price)],
+                  ['Wallet after purchase',fm((d.tradingWallet||0)-qy*price),(d.tradingWallet||0)-qy*price>=0?T.green:T.red],
+                ]}/>;
+              }
+              const basis=d.commodityAvgCost?.[modal.com.id]||price;
+              const proceeds=qy*price;
+              const tax=Math.max(0,(price-basis)*qy)*0.15*(1-(d.taxRelief||0));
+              return <TradeBreakdown T={T} rows={[
+                ['Invested',fm(basis*qy)],
+                ['Sale proceeds',fm(proceeds)],
+                ['Est. tax (CGT)','-'+fm(tax),T.red],
+                ['You receive',fm(proceeds-tax),T.green],
+              ]}/>;
+            })()}
             <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:10}}>
               <button onClick={()=>setModal(null)} style={{padding:'14px 0',background:T.raised,border:'1px solid '+T.border,color:T.sub,borderRadius:14,fontWeight:700,fontSize:14,cursor:'pointer'}}>Cancel</button>
               <button onClick={doTrade} style={{padding:'14px 0',background:modal.type==='buy'?T.green:T.red,color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 16px '+(modal.type==='buy'?'rgba(16,185,129,0.3)':'rgba(244,63,94,0.3)') }}>

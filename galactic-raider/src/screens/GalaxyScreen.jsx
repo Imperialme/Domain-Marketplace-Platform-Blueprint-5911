@@ -351,7 +351,8 @@ const PLANET_SCIENCE = {
       'Earth is the financial heart of the solar system and your home base. With the deepest, most liquid markets and the lowest volatility, it is where most players build their first fortune before venturing outward.',
       'The Earth economy spans ten public companies across seven sectors, from Silk Road Tech to AgroLatin Corp. Prices are anchored by the Economic Governor, which keeps valuations within realistic price-to-earnings bounds, so crashes and bubbles are gentler here than anywhere else.',
       'Investment thesis: Earth is your low-risk core. Use blue chips (SLKT, MRDB, TNPT) and the Global Equity ETF to compound steadily, then redeploy gains into higher-risk planetary plays as your net worth grows.'
-    ]},
+    ],
+    sci:{'Diameter':'12,742 km — the 1× baseline','From Sun':'149.6M km (1 AU)','Year':'365.25 days','Day':'24 hours','Moons':'1 — the Moon','Claim to Fame':'Only known world with life'}},
   Mars: {dist:'1.52 AU (228M km)',temp:'-125°C to 20°C',atm:'CO2 95%, thin',fact:'Olympus Mons — tallest volcano in solar system',ico:'🔴',color:'#C62828',econ:'GDP growing · MCR currency · 4 companies · Medium risk',
     area:'145 million km² · roughly Earth\'s land area',gov:'Corporate-colonial charter economy. The Mars Colonisation Society administers mining rights and the MCR currency. Light regulation, fast growth.',
     resources:'Ultra-pure lithium (3× Earth grade), red-dust iron, perchlorates for fuel and life support. The supply backbone of the solar EV industry.',
@@ -359,7 +360,8 @@ const PLANET_SCIENCE = {
       'Mars is the first frontier — unlocking at $5B net worth. Its economy is built on extraction: the lithium and iron that power robotics and construction across the inner planets.',
       'The Martian market runs on the MCR currency at roughly 0.85 USD. Because Mars trades close to Earth, contagion from Earth shocks arrives within two turns but at half intensity — a useful diversifier without being fully decoupled.',
       'Investment thesis: Mars rewards growth investors. Mining and robotics names carry high beta, so position sizes should be moderate. Holding MCR before buying gives a fee discount on stock purchases.'
-    ]},
+    ],
+    sci:{'Diameter':'6,779 km (0.53× Earth)','From Sun':'227.9M km','Year':'687 Earth days','Day':'24.6 hours','Moons':'2 — Phobos & Deimos','Claim to Fame':'Olympus Mons (21.9 km) — tallest volcano in the solar system'}},
   Venus: {dist:'0.72 AU (108M km)',temp:'462°C average',atm:'CO2 96%, crushing pressure',fact:'Rotates backwards, day longer than year',ico:'🟡',color:'#F57F17',econ:'Automated energy · VCR currency · 3 companies · Medium risk',
     area:'460 million km² · nearly Earth-sized',gov:'Fully automated economy run by autonomous industrial collectives. No human surface presence; governance is algorithmic and energy-export driven.',
     resources:'Solar energy at scale, sulfuric industrial compounds, and atmospheric carbon for composite manufacturing.',
@@ -367,7 +369,8 @@ const PLANET_SCIENCE = {
       'Venus unlocks at $50B and offers a steady, energy-anchored economy. Its automated solar arrays export power across the inner system, giving Venusian equities a defensive, utility-like character.',
       'The crushing 462°C surface means all industry is robotic and orbital. This makes Venus less prone to the labour and storm shocks that hit other planets — its GDP drifts slowly and predictably.',
       'Investment thesis: Venus is a medium-risk income play. Solar and manufacturing names pay reliable dividends. A good place to park capital between aggressive bets elsewhere.'
-    ]},
+    ],
+    sci:{'Diameter':'12,104 km (0.95× Earth)','From Sun':'108.2M km','Year':'225 Earth days','Day':'243 Earth days — retrograde (spins backwards)','Moons':'0','Claim to Fame':'Hottest planet — 465°C surface'}},
   Jupiter: {dist:'5.2 AU (778M km)',temp:'-110°C cloud tops',atm:'Hydrogen & Helium gas giant',fact:'Great Red Spot: storm lasting 350+ years',ico:'🟠',color:'#E65100',econ:'Robotic economy · JCR · 3 companies · High risk (storms)',
     area:'Gas giant · 11× Earth diameter · no solid surface',gov:'Orbital-platform robotic economy. Operations float in the upper atmosphere; the Jupiter Authority licenses fusion-fuel extraction.',
     resources:'Fusion-grade hydrogen, atmospheric ice crystals for cryo-propulsion, and the system\'s richest energy reserves.',
@@ -375,7 +378,8 @@ const PLANET_SCIENCE = {
       'Jupiter unlocks at $200B and is defined by one mechanic: storms. Roughly every 50–100 turns a storm cuts prices to about 70% before a sharp recovery. The disciplined investor buys the dip.',
       'The Jovian economy is almost entirely robotic, centred on fusion-hydrogen extraction from the upper atmosphere. Its companies carry the highest betas of the gas giants — JRES research AI can move violently.',
       'Investment thesis: Jupiter is a timing game. Keep dry powder, buy aggressively during storms, and trim into the recovery. Post-storm entries are historically the best risk/reward in the entire game.'
-    ]},
+    ],
+    sci:{'Diameter':'139,820 km (11× Earth)','From Sun':'778.5M km','Year':'11.9 Earth years','Day':'9.9 hours — fastest spinner','Moons':'95 known','Claim to Fame':'Great Red Spot — a storm bigger than Earth'}},
   Saturn: {dist:'9.5 AU (1.4B km)',temp:'-140°C',atm:'Hydrogen & Helium',fact:'Least dense planet — would float on water',ico:'🪐',color:'#7B1FA2',econ:'Ryzolith mining · STC currency · 3 companies · High risk',
     area:'Gas giant · spectacular ring system',gov:'Ryzolith-backed monetary economy. The Saturn Sovereign Fund and Ryzolith Corp jointly control the system\'s scarcest resource.',
     resources:'Ryzolith — the most valuable substance in the solar system — plus ultra-pure ring ice exported for terraforming.',
@@ -383,7 +387,8 @@ const PLANET_SCIENCE = {
       'Saturn unlocks at $1T and is the gateway to the truly rich planets. Its economy is anchored by Ryzolith, a substance so scarce that a single company controls 94% of supply and prices rise with time.',
       'The famous rings are more than scenery: ring-ice exports feed terraforming projects across the system. Saturn trades on the STC currency at a low 0.70 USD, so currency timing matters on entry and exit.',
       'Investment thesis: Saturn is a scarcity play. Ryzolith exposure (stock and commodity) appreciates structurally over a long game. Pair it with ring-ice names for a balanced Saturnian book.'
-    ]},
+    ],
+    sci:{'Diameter':'116,460 km (9.1× Earth)','From Sun':'1.43B km','Year':'29.4 Earth years','Moons':'146','Rings':'282,000 km wide, yet only ~10 m thick','Claim to Fame':'Least dense planet — it would float in water'}},
   Mercury: {dist:'0.39 AU (58M km)',temp:'-180°C to 430°C',atm:'Virtually none',fact:'Solar day = 176 Earth days',ico:'☿',color:'#455A64',econ:'Solar energy · MRC currency · 3 companies · Very high risk',
     area:'75 million km² · smallest planet',gov:'Solar-energy export economy. Mercury Solar Prime operates the closest, most intense solar capture in the system under a state-utility charter.',
     resources:'Solar crystals (energy-storage medium grown in extreme heat), thermal ore, and 24× Earth solar intensity.',
@@ -391,7 +396,8 @@ const PLANET_SCIENCE = {
       'Mercury unlocks at $10T. Sitting closest to the Sun, it captures 24× Earth\'s solar intensity, making it the system\'s premier energy producer despite its tiny size.',
       'Extreme temperature swings — from -180°C to 430°C across its long solar day — forge unique materials like solar crystals and thermal ore. Solar-flare events can boost output and prices sharply.',
       'Investment thesis: Mercury is very high risk with strong energy upside. Mercury Solar Prime pays a solid dividend and anchors the book; thermal and robotics names add volatility for the aggressive investor.'
-    ]},
+    ],
+    sci:{'Diameter':'4,879 km (0.38× Earth)','From Sun':'57.9M km — closest planet','Year':'88 Earth days','Day':'176 Earth days (solar day)','Moons':'0','Claim to Fame':'Wildest temperature swing — −173°C to 427°C'}},
   Uranus: {dist:'19.2 AU (2.9B km)',temp:'-195°C',atm:'Methane gives blue color',fact:'Rotates on its side — 98° axial tilt',ico:'🔵',color:'#0277BD',econ:'Ice mining · URU currency · 3 companies · Extreme risk',
     area:'Ice giant · 4× Earth diameter',gov:'Long-cycle cryogenic economy. Governance adapts to 42-year seasons; the Uranus Research Base coordinates ice extraction and cryo-tech.',
     resources:'Cryo-methane fuel and diamond-hard "Uranian ice" used in space-drilling technology.',
@@ -399,7 +405,8 @@ const PLANET_SCIENCE = {
       'Uranus unlocks at $50T and operates on a uniquely long horizon. Its 98° axial tilt produces 42-year seasons, creating predictable multi-decade supply cycles rather than the fast shocks seen elsewhere.',
       'The ice giant\'s signature exports are cryo-methane fuel and diamond-ice crystals so hard they tip the system\'s best mining drills. Activity is sparse but structurally valuable.',
       'Investment thesis: Uranus is an extreme-risk, patient-capital planet. Its low currency (0.55 USD) and thin liquidity reward long holds. Best suited to late-game players diversifying a trillion-dollar book.'
-    ]},
+    ],
+    sci:{'Diameter':'50,724 km (4× Earth)','From Sun':'2.87B km','Year':'84 Earth years','Moons':'28','Tilt':'98° — rotates on its side','Claim to Fame':'Coldest planetary atmosphere — −224°C'}},
   Neptune: {dist:'30.1 AU (4.5B km)',temp:'-200°C',atm:'Methane, hydrogen, helium',fact:'Fastest winds in solar system: 2,100 km/h',ico:'💜',color:'#4527A0',econ:'Deep research · NPT currency · 3 companies · Extreme risk',
     area:'Ice giant · most distant economy',gov:'Frontier research economy. The Neptune Deep Research consortium operates with minimal oversight at the edge of the system — highest risk, highest potential.',
     resources:'Deep-field minerals of unknown composition and wind-energy crystals formed by 2,100 km/h winds — the most efficient energy storage ever discovered.',
@@ -407,8 +414,31 @@ const PLANET_SCIENCE = {
       'Neptune unlocks at $100T — the final and richest frontier. As the most distant economy, it is the most volatile and the most rewarding, built around deep-field research and extraction.',
       'Its 2,100 km/h winds — the fastest in the solar system — forge wind-energy crystals of unmatched efficiency, while deep-field mineral sites yield materials of unknown, extreme value.',
       'Investment thesis: Neptune is pure high-conviction speculation. NRES research carries the highest beta in the game and the Neptune Sovereign Fund offers the system\'s top APR (28.4%). Size positions for survivability — the swings are brutal.'
-    ]},
+    ],
+    sci:{'Diameter':'49,244 km (3.9× Earth)','From Sun':'4.5B km — farthest planet','Year':'165 Earth years','Moons':'16','Winds':'Fastest in the solar system — 2,100 km/h','Claim to Fame':'Completed its first full orbit since its 1846 discovery only in 2011'}},
 };
+
+// Real-astronomy cards for objects beyond the eight planets
+const BEYOND_THE_EIGHT = [
+  {ico:'🧊',color:'#90A4AE',title:'Pluto — Dwarf Planet',
+   body:'Just 2,377 km across — 0.19× Earth and smaller than our own Moon. It orbits 5.9B km from the Sun, taking 248 Earth years per lap, and has 5 moons including huge Charon. Reclassified from planet to dwarf planet in 2006.'},
+  {ico:'🌙',color:'#B0BEC5',title:'The Moon',
+   body:'Earth\'s companion is 3,474 km across and orbits 384,400 km away. It is slowly drifting from us at about 3.8 cm per year — roughly the speed your fingernails grow.'},
+  {ico:'☀️',color:'#F59E0B',title:'The Sun',
+   body:'A ball of plasma 1.39 million km across — 109 Earths lined up edge to edge. It contains 99.86% of the entire solar system\'s mass; everything else, all planets included, is the leftover 0.14%.'},
+  {ico:'⭐',color:'#8B5CF6',title:'Proxima Centauri — Nearest Star',
+   body:'The closest star beyond the Sun sits 4.24 light-years away. At the speed of today\'s fastest space probes, the journey would take roughly 70,000 years.'},
+  {ico:'🪨',color:'#A1887F',title:'Ceres',
+   body:'The largest object in the asteroid belt (about 940 km across) and the only dwarf planet in the inner solar system.'},
+  {ico:'🌑',color:'#78909C',title:'Eris',
+   body:'A distant dwarf planet nearly the size of Pluto — its 2005 discovery is what triggered Pluto\'s reclassification.'},
+  {ico:'❄️',color:'#4FC3F7',title:'Makemake',
+   body:'A bright, reddish dwarf planet in the Kuiper Belt beyond Neptune, with one known tiny moon.'},
+  {ico:'🥚',color:'#CE93D8',title:'Haumea',
+   body:'An egg-shaped dwarf planet that spins so fast (one day lasts about 4 hours) it has stretched itself — and it even has a ring.'},
+];
+
+const SCALE_PARAGRAPH = 'Cosmic scale: if Earth were a 1 cm marble, the Sun would be a 109 cm ball about 117 m away — and Proxima Centauri, the very nearest star, would sit roughly 31,000 km away, most of the way around the planet.';
 
 function SpaceGuidePanel({onBack}) {
   const {D}=useGame();
@@ -473,6 +503,19 @@ function SpaceGuidePanel({onBack}) {
                     <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>Amazing Fact</div>
                     <div style={{fontSize:12,color:'rgba(255,255,255,0.9)',fontStyle:'italic'}}>✨ {sci.fact}</div>
                   </div>
+                  {sci.sci&&(
+                    <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10,marginBottom:10}}>
+                      <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:8}}>🔭 Real Astronomy</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                        {Object.entries(sci.sci).map(([l,v])=>(
+                          <div key={l} style={{background:'#0D1B2E',borderRadius:8,padding:'8px 9px',border:'1px solid rgba(255,255,255,0.06)'}}>
+                            <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>{l}</div>
+                            <div style={{fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,lineHeight:1.4}}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:10,marginBottom:threshold?10:0}}>
                     <div style={{fontSize:9,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',marginBottom:3}}>Game Economy</div>
                     <div style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{sci.econ}</div>
@@ -490,6 +533,21 @@ function SpaceGuidePanel({onBack}) {
             </div>
           );
         })}
+
+        {/* Beyond the Eight — real astronomy past the planets */}
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',textTransform:'uppercase',letterSpacing:2,margin:'18px 2px 10px'}}>🔭 Beyond the Eight</div>
+        {BEYOND_THE_EIGHT.map(item=>(
+          <div key={item.title} style={{background:'#0D1B2E',borderRadius:14,padding:'12px 14px',border:'1px solid #1A2744',marginBottom:8,display:'flex',gap:12,alignItems:'flex-start'}}>
+            <div style={{fontSize:26,lineHeight:1,marginTop:2}}>{item.ico}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:800,color:item.color,marginBottom:4}}>{item.title}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>{item.body}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.25)',borderRadius:14,padding:'12px 14px',marginTop:4,fontSize:11,color:'#C4B5FD',lineHeight:1.6}}>
+          🌌 {SCALE_PARAGRAPH}
+        </div>
       </div>
     </div>
   );

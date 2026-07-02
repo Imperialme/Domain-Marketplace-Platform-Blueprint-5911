@@ -77,11 +77,11 @@ function AppShell() {
   // It pauses whenever a milestone popup is showing so the celebration isn't skipped past.
   useEffect(() => {
     clearInterval(autoRef.current);
-    if (autoAdv && !D.pendingMilestone) {
+    if (autoAdv && !D.pendingMilestone && !D.uiModalOpen) {
       autoRef.current = setInterval(() => advanceTurn(), autoSpeed * 1000);
     }
     return () => clearInterval(autoRef.current);
-  }, [autoAdv, autoSpeed, advanceTurn, D.pendingMilestone]);
+  }, [autoAdv, autoSpeed, advanceTurn, D.pendingMilestone, D.uiModalOpen]);
 
   // React to cross-screen navigation intents set via navigateTo()
   useEffect(() => {
