@@ -542,7 +542,7 @@ function PhilTab() {
 
 // ── SETTINGS TAB ───────────────────────────────────────────────
 function SettingsTab({ TH, t }) {
-  const { D, setDarkMode, setLanguage, saveGame, loadGame, S } = useGame();
+  const { D, setDarkMode, setLanguage, setMusicTrack, toggleMusic, MUSIC_PLAYLIST, saveGame, loadGame, S } = useGame();
   const [msg, setMsg] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const showMsg = m => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
@@ -585,6 +585,31 @@ function SettingsTab({ TH, t }) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Music */}
+      <div style={card}>
+        <div style={lbl}>🎵 {t('settings_music') || 'Background Music'}</div>
+        <div style={{marginBottom:10,display:'flex',gap:8,alignItems:'center'}}>
+          <button
+            onClick={() => toggleMusic(!D.musicEnabled)}
+            style={{flex:1,padding:'10px 0',borderRadius:10,border:'2px solid '+(D.musicEnabled?'#10B981':TH.borderSolid),background:D.musicEnabled?'rgba(16,185,129,0.15)':TH.raised,color:D.musicEnabled?'#10B981':TH.sub,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+            {D.musicEnabled ? '🔊 Enabled' : '🔇 Muted'}
+          </button>
+        </div>
+        {D.musicEnabled && (
+          <div style={{display:'grid',gridTemplateColumns:'1fr',gap:6,maxHeight:'160px',overflowY:'auto'}}>
+            {MUSIC_PLAYLIST.map(track => (
+              <button
+                key={track.id}
+                onClick={() => setMusicTrack(track.id)}
+                style={{padding:'10px 12px',borderRadius:8,border:'2px solid '+(D.musicTrack===track.id?'#3B82F6':TH.borderSolid),background:D.musicTrack===track.id?'rgba(59,130,246,0.15)':TH.raised,textAlign:'left',cursor:'pointer',transition:'all .15s'}}>
+                <div style={{fontSize:12,fontWeight:700,color:D.musicTrack===track.id?'#93C5FD':TH.text}}>{track.name}</div>
+                <div style={{fontSize:10,color:TH.sub,marginTop:2}}>{track.desc}</div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Save Slots */}

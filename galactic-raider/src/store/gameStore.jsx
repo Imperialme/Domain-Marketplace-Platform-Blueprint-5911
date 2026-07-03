@@ -15,6 +15,16 @@ const PLANET_THRESHOLDS = {
   Neptune: 100e12,
 };
 
+const MUSIC_PLAYLIST = [
+  { id: 'music_oasis_of_sol', name: '🏜️ Oasis of Sol', desc: 'Serene desert trading vibes' },
+  { id: 'music_quiet_capital', name: '🌆 The Quiet Capital', desc: 'Urban commerce ambience' },
+  { id: 'music_nocturnal_raider_2', name: '🌙 Nocturnal Raider II', desc: 'Night trading intensity' },
+  { id: 'music_nocturnal_raider_7', name: '🌙 Nocturnal Raider VII', desc: 'Deep night market pulse' },
+  { id: 'music_deep_space', name: '🌌 Deep Space Solitude', desc: 'Cosmic meditative flow' },
+  { id: 'music_planetary_oversight', name: '🪐 Planetary Oversight', desc: 'Orbital command presence' },
+  { id: 'music_solar_drift', name: '☀️ Solar Drift', desc: 'Stellar long-term vision' },
+];
+
 const BADGE_DEFS = [
   {id:'millionaire', label:'Millionaire', desc:'Reach $1M net worth', ico:'💰'},
   {id:'decamillionaire', label:'Decamillionaire', desc:'Reach $10M net worth', ico:'💎'},
@@ -131,6 +141,8 @@ function buildInitialState() {
     // Preferences
     darkMode: true,
     language: 'en',
+    musicTrack: 'music_oasis_of_sol',  // default track
+    musicEnabled: true,
     // Philanthropy / Redemption
     totalDebt: 0,
     redeemPts: 0,
@@ -1361,6 +1373,17 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  const setMusicTrack = useCallback((trackId) => {
+    S.current.musicTrack = trackId;
+    S.current.musicEnabled = true;
+    refresh();
+  }, [refresh]);
+
+  const toggleMusic = useCallback((enabled) => {
+    S.current.musicEnabled = !!enabled;
+    refresh();
+  }, [refresh]);
+
   const clearMilestone = useCallback(() => {
     S.current.pendingMilestone = null;
     refresh();
@@ -1576,6 +1599,7 @@ export function GameProvider({ children }) {
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
     startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO,
+    setMusicTrack, toggleMusic, MUSIC_PLAYLIST,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
