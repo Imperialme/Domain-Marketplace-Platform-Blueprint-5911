@@ -4,6 +4,7 @@ import { fm, C } from '../utils';
 import { PHI_CATS, WHEEL_SEGMENTS } from '../constants';
 import { getTheme } from '../theme';
 import { getT, LANGS } from '../i18n';
+import { AcademyTab } from './AcademyScreen';
 
 const CS = {
   card: { background:'#0D1B2E', borderRadius:16, padding:14, border:'1px solid #1A2744', marginBottom:10 },
@@ -661,6 +662,7 @@ export default function CommandScreen() {
     {id:'ceo', l:t('tab_ceo')},
     {id:'wheel', l:t('tab_wheel')},
     {id:'phil', l:t('tab_donate')},
+    {id:'academy', l:'Academy'},
     {id:'settings', l:t('tab_settings')},
   ];
   return (
@@ -677,6 +679,7 @@ export default function CommandScreen() {
       {tab==='ceo'&&<CEOTab/>}
       {tab==='wheel'&&<WheelTab/>}
       {tab==='phil'&&<PhilTab/>}
+      {tab==='academy'&&<AcademyTab TH={TH} t={t}/>}
       {tab==='settings'&&<SettingsTab TH={TH} t={t}/>}
     </div>
   );

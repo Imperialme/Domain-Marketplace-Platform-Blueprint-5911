@@ -8,6 +8,7 @@ import UniverseScreen from './screens/UniverseScreen';
 import WealthScreen from './screens/WealthScreen';
 import CommandScreen from './screens/CommandScreen';
 import GalaxyScreen from './screens/GalaxyScreen';
+import { OnboardingScreen } from './screens/OnboardingScreen';
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { err: null }; }
@@ -68,7 +69,7 @@ function AppShell() {
   const [autoAdv, setAutoAdv] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(3);
   const autoRef = useRef(null);
-  const { D, advanceTurn, clearMilestone, navigateTo, clearNavTarget } = useGame();
+  const { D, advanceTurn, clearMilestone, navigateTo, clearNavTarget, markOnboardingShown } = useGame();
   const TH = getTheme(D.darkMode);
   const t = getT(D.language);
   const isRTL = D.language === 'ar';
@@ -112,6 +113,7 @@ function AppShell() {
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: TH.bg, minHeight: '100vh', maxWidth: 430, margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: TH.text }}>
       <style>{`@keyframes cc-milefade{from{opacity:0}to{opacity:1}}@keyframes cc-milepop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1) rotate(0)}}`}</style>
+      {!D.showedOnboarding && <OnboardingScreen onComplete={markOnboardingShown} />}
       {D.pendingMilestone && <MilestoneModal milestone={D.pendingMilestone} onClose={clearMilestone} />}
       <div style={{ height: 'calc(100vh - 64px)', overflowY: 'auto', overflowX: 'hidden' }}>
         {screens[activeTab]}

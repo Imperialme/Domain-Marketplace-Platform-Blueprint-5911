@@ -143,6 +143,7 @@ function buildInitialState() {
     language: 'en',
     musicTrack: 'music_oasis_of_sol',  // default track
     musicEnabled: true,
+    showedOnboarding: false,  // first-time player tutorial
     // Philanthropy / Redemption
     totalDebt: 0,
     redeemPts: 0,
@@ -1384,6 +1385,11 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  const markOnboardingShown = useCallback(() => {
+    S.current.showedOnboarding = true;
+    refresh();
+  }, [refresh]);
+
   const clearMilestone = useCallback(() => {
     S.current.pendingMilestone = null;
     refresh();
@@ -1600,6 +1606,7 @@ export function GameProvider({ children }) {
     navigateTo, clearNavTarget, setTradeLock,
     startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO,
     setMusicTrack, toggleMusic, MUSIC_PLAYLIST,
+    markOnboardingShown,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
