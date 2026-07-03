@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 
 import DomainLanding from './pages/DomainLanding';
 import BrowseDomains from './pages/BrowseDomains';
+import Blog from './pages/Blog';
 import AdminDashboard from './pages/AdminDashboard';
 import DomainManager from './pages/DomainManager';
 import InquiryManager from './pages/InquiryManager';
@@ -33,6 +34,7 @@ function App() {
 
                       {/* Public routes */}
                       <Route path="/browse" element={<BrowseDomains />} />
+                      <Route path="/blog" element={<Blog />} />
                       <Route path="/domain/:domainName" element={<DomainLanding />} />
 
                       {/* Admin routes */}

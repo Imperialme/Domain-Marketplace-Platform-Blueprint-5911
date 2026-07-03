@@ -37,9 +37,12 @@ const BrowseDomains = () => {
             </svg>
             <span className="font-extrabold text-lg">Net<span className="text-blue-400">Zone</span></span>
           </div>
-          <span className="text-slate-400 text-sm">
-            {domainsLoading ? 'Loading…' : `${active.length} domain${active.length !== 1 ? 's' : ''} available`}
-          </span>
+          <div className="flex items-center gap-4">
+            <Link to="/blog" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">Blog</Link>
+            <span className="text-slate-400 text-sm">
+              {domainsLoading ? 'Loading…' : `${active.length} domain${active.length !== 1 ? 's' : ''} available`}
+            </span>
+          </div>
         </div>
       </header>
 
