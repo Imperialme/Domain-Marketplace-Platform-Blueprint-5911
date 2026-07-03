@@ -187,6 +187,31 @@ function buildInitialState() {
     pendingMilestone: null, // set when a new wealth tier is first reached; cleared when the popup is dismissed
     uiModalOpen: false,     // true while a trade modal is open — pauses auto-advance (price lock)
     navTarget: null, // cross-screen navigation intent {screen, tab, ticker, planet, id}
+    // Founder Mode
+    founderMode: {
+      active: false,
+      companyId: null,
+      companyName: null,
+      industry: null,  // 'tech', 'healthcare', 'energy', 'finance', 'retail'
+      stage: 'setup',  // 'setup' -> 'bootstrapped' -> 'pre-ipo' -> 'public'
+      foundersCapital: 0,
+      currentCapital: 0,
+      loans: [],
+      revenue: 0,
+      expenses: 0,
+      profitMargin: 0.15,
+      sharesOutstanding: 1000000,
+      shareholderPrice: 100,
+      ipoShares: 0,
+      ipoPrice: 0,
+      investorDemand: 0,
+      demandTrend: 0,
+      weatherResistance: 0.5,
+      turnStarted: 0,
+      decisions: [],
+      stock: { price: 100, ch: 0, hist: [100, 100] },
+      nwAtFoundation: 0,
+    },
   };
 }
 
@@ -461,6 +486,42 @@ export function GameProvider({ children }) {
         }
       }
     });
+
+    // ── FOUNDER MODE ─────────────────────────────────────────────
+    if (s.founderMode.active && s.founderMode.stage !== 'setup') {
+      const fm = s.founderMode;
+      const era = TAX_ERAS[s.eraIdx];
+
+      // Weather impact on demand (GDP-based)
+      const weatherImpact = (s.gdp - 2.5) / 5;  // -1 to 1 scale based on GDP
+      const resistanceMultiplier = 1 + (weatherImpact * (1 - fm.weatherResistance));
+
+      // Demand trend evolution (S-curve from decision trajectory + economic weather)
+      fm.demandTrend = cl(fm.demandTrend + (Math.random() - 0.5) * 0.05, -0.8, 0.8);
+      const demandMultiplier = 1 + fm.demandTrend * resistanceMultiplier;
+
+      // Revenue calculation based on demand and profitability
+      fm.revenue = r2(fm.currentCapital * 0.02 * demandMultiplier);
+      fm.expenses = r2(fm.currentCapital * 0.01);
+      const profit = fm.revenue - fm.expenses;
+      fm.currentCapital = r2(fm.currentCapital + profit);
+
+      // Stock price movement (P/E multiple based on growth and profitability)
+      const peMultiple = fm.demandTrend > 0 ? 18 : 12;
+      const eps = fm.revenue / fm.sharesOutstanding;
+      const newSharePrice = r2(eps * peMultiple);
+      fm.stock.ch = (newSharePrice - fm.stock.price) / fm.stock.price;
+      fm.stock.price = Math.max(1, newSharePrice);
+      fm.stock.hist = [...(fm.stock.hist || []).slice(-50), fm.stock.price];
+
+      // Loan interest accrual
+      fm.loans = fm.loans.map(loan => {
+        const newOutstanding = r2(loan.outstanding + r2(loan.outstanding * (loan.rate / 365)));
+        const monthlyPayment = r2(loan.monthlyPayment || loan.outstanding / loan.termMonths);
+        const newRemaining = Math.max(0, newOutstanding - monthlyPayment);
+        return { ...loan, outstanding: newRemaining, turnsRemaining: loan.turnsRemaining - 1 };
+      }).filter(loan => loan.outstanding > 0);
+    }
 
     // Savings wallet interest
     if (s.savingsWallet > 0) {
@@ -1322,6 +1383,139 @@ export function GameProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  // ── FOUNDER MODE ─────────────────────────────────────────────
+  const startFounderMode = useCallback((companyName, industry, capitalAmount) => {
+    const s = S.current;
+    if (capitalAmount > s.tradingWallet) return 'Insufficient funds';
+
+    const companyId = 'FOUNDER_' + Math.random().toString(36).substr(2, 9);
+    s.founderMode.active = true;
+    s.founderMode.companyId = companyId;
+    s.founderMode.companyName = companyName.trim() || 'Founder Corp';
+    s.founderMode.industry = industry || 'tech';
+    s.founderMode.foundersCapital = capitalAmount;
+    s.founderMode.currentCapital = capitalAmount;
+    s.founderMode.stage = 'bootstrapped';
+    s.founderMode.turnStarted = s.turn;
+    s.founderMode.nwAtFoundation = Object.values(s.stockHoldings).reduce((x, [t, n]) => {
+      const co = s.companies.find(c => c.t === t);
+      return x + (co ? co.price * n : 0);
+    }, 0) + s.savingsWallet + s.tradingWallet + s.cashWallet;
+
+    s.tradingWallet = r2(s.tradingWallet - capitalAmount);
+
+    // Weather resistance varies by industry
+    const resistanceByIndustry = {
+      'tech': 0.4, 'healthcare': 0.7, 'energy': 0.5,
+      'finance': 0.6, 'retail': 0.3, 'utilities': 0.8
+    };
+    s.founderMode.weatherResistance = resistanceByIndustry[industry] || 0.5;
+
+    addNews('🚀', 'Founder Mode Started', `You founded ${companyName} in ${industry} with $${capitalAmount.toLocaleString()}.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  const takeLoanFounder = useCallback((amount, termMonths) => {
+    const s = S.current;
+    if (!s.founderMode.active) return 'Not in Founder Mode';
+    if (amount > s.founderMode.currentCapital * 5) return 'Loan amount exceeds 5x current capital';
+
+    const loanId = Math.random().toString(36).substr(2, 9);
+    // Loan rate varies by term and profitability
+    const baseRate = termMonths <= 12 ? 0.05 : termMonths <= 36 ? 0.07 : 0.09;
+    const profitRate = s.founderMode.revenue > 0 ? 0.02 : 0.05;
+    const rate = baseRate + profitRate;
+
+    const loan = {
+      id: loanId,
+      amount,
+      outstanding: amount,
+      rate,
+      termMonths,
+      monthlyPayment: r2(amount / termMonths),
+      turnsRemaining: termMonths * 30,
+      turnTaken: s.turn,
+    };
+
+    s.founderMode.loans.push(loan);
+    s.founderMode.currentCapital = r2(s.founderMode.currentCapital + amount);
+
+    addNews('🏦', 'Founder Loan', `Borrowed $${amount.toLocaleString()} at ${(rate*100).toFixed(1)}% over ${termMonths} months.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  const launchFounderIPO = useCallback((ipoShares, targetPrice) => {
+    const s = S.current;
+    if (!s.founderMode.active) return 'Not in Founder Mode';
+    if (s.founderMode.stage === 'public') return 'Already public';
+
+    const fm = s.founderMode;
+    fm.stage = 'pre-ipo';
+    fm.ipoShares = ipoShares;
+    fm.ipoPrice = targetPrice;
+
+    // Investor demand based on company metrics
+    const profitabilityScore = Math.min(1, fm.revenue / (fm.currentCapital * 0.05));
+    const demandScore = Math.min(1, (fm.demandTrend + 1) / 2);
+    fm.investorDemand = r2(profitabilityScore * 0.6 + demandScore * 0.4);
+
+    addNews('📋', 'IPO Filed', `${fm.companyName} filed for IPO: ${ipoShares.toLocaleString()} shares @ $${targetPrice}. Investor demand: ${(fm.investorDemand * 100).toFixed(0)}%.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  const confirmFounderIPO = useCallback(() => {
+    const s = S.current;
+    if (!s.founderMode.active || s.founderMode.stage !== 'pre-ipo') return 'Not ready for IPO';
+
+    const fm = s.founderMode;
+    const allocation = Math.floor(fm.ipoShares * fm.investorDemand);
+    const proceeds = r2(allocation * fm.ipoPrice);
+
+    // Add founder company to tradeable list
+    const companyId = fm.companyId;
+    if (!s.companies.find(c => c.t === companyId)) {
+      s.companies.push({
+        t: companyId,
+        n: fm.companyName,
+        s: fm.industry,
+        price: fm.ipoPrice,
+        pe: 18,
+        ch: 0,
+        hist: [fm.ipoPrice, fm.ipoPrice],
+        div: 0.3,
+        b: 1.5,
+        yr: 2024,
+        emp: 50,
+        hq: 'Earth',
+        ip: fm.ipoPrice,
+        pe0: 18,
+        analysts: [],
+        founder: 'You',
+        ceo: 'You',
+        ceoProfile: { rep: 85, tenure: 0, style: 'Founder', track: 'Growth' },
+        origin: `Founder company in ${fm.industry}`,
+        ops: `Publicly traded ${fm.companyName} - ${fm.industry} sector`,
+        listedTurn: s.turn,
+      });
+    }
+
+    // Player gets own shares in the IPO
+    s.stockHoldings[companyId] = (s.stockHoldings[companyId] || 0) + allocation;
+    s.avgCostBasis[companyId] = fm.ipoPrice;
+    s.tradingWallet = r2(s.tradingWallet + proceeds);
+
+    fm.stage = 'public';
+    fm.stock.price = fm.ipoPrice;
+    fm.stock.hist = [fm.ipoPrice, fm.ipoPrice];
+
+    addNews('🎉', 'IPO Successful', `${fm.companyName} went public! ${allocation.toLocaleString()} shares allocated. Proceeds: $${proceeds.toLocaleString()}.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
     try {
@@ -1381,6 +1575,7 @@ export function GameProvider({ children }) {
     setPlayerAvatar, setPlayerName,
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
+    startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

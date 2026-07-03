@@ -5,6 +5,7 @@ import { PLANETS_DATA, IPOS, COMMODITIES } from '../constants';
 import { PLANET_THRESHOLDS } from '../store/gameStore';
 import { getTheme } from '../theme';
 import { getT } from '../i18n';
+import { FounderTab } from './FounderScreen';
 
 const CRYPTO_COINS = [
   // Earth coins (unlocked)
@@ -1158,7 +1159,7 @@ export default function UniverseScreen() {
   const { D, clearNavTarget } = useGame();
   const TH = getTheme(D.darkMode);
   const t = getT(D.language);
-  const TABS=[{id:'earth',ico:'🌍',l:t('tab_earth')},{id:'planets',ico:'🪐',l:t('tab_planets')},{id:'etf',ico:'📊',l:t('tab_etf')},{id:'ipo',ico:'🚀',l:t('tab_ipo')},{id:'bonds',ico:'🏦',l:t('tab_bonds')},{id:'crypto',ico:'₿',l:t('tab_crypto')},{id:'commodities',ico:'⛏️',l:t('tab_rawmats')}];
+  const TABS=[{id:'earth',ico:'🌍',l:t('tab_earth')},{id:'planets',ico:'🪐',l:t('tab_planets')},{id:'etf',ico:'📊',l:t('tab_etf')},{id:'ipo',ico:'🚀',l:t('tab_ipo')},{id:'bonds',ico:'🏦',l:t('tab_bonds')},{id:'crypto',ico:'₿',l:t('tab_crypto')},{id:'commodities',ico:'⛏️',l:t('tab_rawmats')},{id:'founder',ico:'💼',l:'Founder'}];
 
   // Switch to the correct sub-tab when navigated from portfolio
   useEffect(()=>{
@@ -1194,6 +1195,7 @@ export default function UniverseScreen() {
         {tab==='bonds'&&<BondsTab/>}
         {tab==='crypto'&&<CryptoTab/>}
         {tab==='commodities'&&<CommoditiesTab/>}
+        {tab==='founder'&&<FounderTab lang={D.language}/>}
       </div>
     </div>
   );
