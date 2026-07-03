@@ -614,7 +614,7 @@ function AcademyPanel({onBack}) {
   const markComplete=(n)=>{
     const next=[...new Set([...completed,n])];
     setCompleted(next);
-    try{localStorage.setItem('CC_academy',JSON.stringify(next));}catch(e){}
+    try{localStorage.setItem('CC_academy',JSON.stringify(next));}catch(e){/* ignore */}
   };
 
   if(chapter) {

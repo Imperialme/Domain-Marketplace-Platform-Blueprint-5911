@@ -678,7 +678,7 @@ export function GameProvider({ children }) {
     if (s.turn % 10 === 0) {
       try {
         localStorage.setItem('CC_autosave', JSON.stringify(s));
-      } catch(e) {}
+      } catch(e) {/* ignore */}
     }
 
     refresh();

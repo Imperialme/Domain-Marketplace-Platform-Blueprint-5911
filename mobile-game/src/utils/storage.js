@@ -15,7 +15,7 @@ export async function saveScore(score, difficulty) {
 
     await incrementStat('gamesPlayed');
     await addToStat('totalScore', score);
-  } catch (_) {}
+  } catch (_) {/* ignore */}
 }
 
 export async function getScores() {

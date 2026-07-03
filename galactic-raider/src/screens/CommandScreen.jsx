@@ -271,8 +271,6 @@ function FortuneWheelTab() {
   const [insured, setInsured] = useState(false);
   const animRef = useRef(null);
 
-  if (!FORTUNE_SEGS) return null;
-
   const maxStake = Math.floor((d.tradingWallet||0) * 0.75);
   const stake = parseFloat(stakeAmt)||0;
   const insuranceFee = insured ? Math.round(stake*0.05*100)/100 : 0;
@@ -308,7 +306,7 @@ function FortuneWheelTab() {
 
   const segSize = 360/FORTUNE_SEGS.length;
 
-  return (
+  return !FORTUNE_SEGS ? null : (
     <div>
       <div style={{background:'linear-gradient(135deg,#1A0F2E,#2D1A0A)',borderRadius:16,padding:14,border:'1px solid #78350F',marginBottom:12}}>
         {/* Stats row */}

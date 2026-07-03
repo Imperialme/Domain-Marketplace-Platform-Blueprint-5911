@@ -33,25 +33,32 @@ let base = html
 const inlineBlock = errorTrap + '\n<script type="text/javascript">' + js + '</script>\n</body>';
 const standalone = base.replace('</body>', () => inlineBlock);
 fs.writeFileSync(path.join(root, 'cosmos-capital.html'), standalone);
+// eslint-disable-next-line no-undef
 console.log('Wrote cosmos-capital.html', Math.round(standalone.length / 1024) + 'KB');
 
-// Netlify package: multi-track music playlist system
+// Netlify package: multi-track music playlist system with proper toggle
 const musicBlock = `
-<!-- Music playlist system -->
+<!-- Music playlist & control system -->
 <audio id="bgm" loop preload="auto" style="display:none"></audio>
-<div id="music-menu" style="position:fixed;bottom:72px;right:10px;z-index:9999;background:rgba(10,22,40,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:0;min-width:200px;max-width:250px;box-shadow:0 4px 16px rgba(0,0,0,0.6);display:none;flex-direction:column" onmouseleave="closeMusicMenu()">
-  <div style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:12px;font-weight:bold;color:rgba(255,255,255,0.8)">🎵 Playlist</div>
+<div id="music-menu" style="position:fixed;bottom:120px;right:10px;z-index:9999;background:rgba(10,22,40,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:0;min-width:200px;max-width:250px;box-shadow:0 4px 16px rgba(0,0,0,0.6);display:none;flex-direction:column">
+  <div style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:11px;font-weight:bold;color:rgba(255,255,255,0.9);display:flex;justify-content:space-between;align-items:center">
+    <span>🎵 Playlist</span>
+    <button onclick="closeMusicMenu()" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:14px">✕</button>
+  </div>
   <div style="overflow-y:auto;max-height:200px">
     <button onclick="selectTrack('music_oasis_of_sol')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Oasis of Sol">🏜️ Oasis of Sol</button>
-    <button onclick="selectTrack('music_quiet_capital')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="The Quiet Capital">🌆 The Quiet Capital</button>
-    <button onclick="selectTrack('music_nocturnal_raider_2')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Nocturnal Raider II">🌙 Nocturnal Raider II</button>
-    <button onclick="selectTrack('music_nocturnal_raider_7')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Nocturnal Raider VII">🌙 Nocturnal Raider VII</button>
-    <button onclick="selectTrack('music_deep_space')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Deep Space Solitude">🌌 Deep Space Solitude</button>
-    <button onclick="selectTrack('music_planetary_oversight')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Planetary Oversight">🪐 Planetary Oversight</button>
+    <button onclick="selectTrack('music_quiet_capital')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Quiet Capital">🌆 Quiet Capital</button>
+    <button onclick="selectTrack('music_nocturnal_raider_2')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Nocturnal II">🌙 Nocturnal II</button>
+    <button onclick="selectTrack('music_nocturnal_raider_7')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Nocturnal VII">🌙 Nocturnal VII</button>
+    <button onclick="selectTrack('music_deep_space')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Deep Space">🌌 Deep Space</button>
+    <button onclick="selectTrack('music_planetary_oversight')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)" title="Planetary">🪐 Planetary</button>
     <button onclick="selectTrack('music_solar_drift')" style="width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;" title="Solar Drift">☀️ Solar Drift</button>
   </div>
 </div>
-<div id="music-btn" onclick="toggleMusicMenu()" style="position:fixed;bottom:72px;right:10px;z-index:9999;width:36px;height:36px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Open music menu">🎵</div>
+<div id="music-controls" style="position:fixed;bottom:72px;right:10px;z-index:9999;display:flex;gap:4px">
+  <button id="music-play-btn" onclick="toggleMusic()" style="width:40px;height:40px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:all 0.2s" title="Play/Pause music">🎵</button>
+  <button onclick="toggleMusicMenu()" style="width:40px;height:40px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:all 0.2s" title="Playlist menu">📋</button>
+</div>
 <script>
 var _mPlaying=false;var _mAudio=document.getElementById('bgm');var _currentTrack='music_oasis_of_sol';var _tracks={
   'music_oasis_of_sol':'music_oasis_of_sol.mp3',
@@ -62,11 +69,13 @@ var _mPlaying=false;var _mAudio=document.getElementById('bgm');var _currentTrack
   'music_planetary_oversight':'music_planetary_oversight.mp3',
   'music_solar_drift':'music_solar_drift.mp3'
 };
+function updateMusicBtn(){var btn=document.getElementById('music-play-btn');btn.textContent=_mPlaying?'🔊':'🔇';}
 function toggleMusicMenu(){var menu=document.getElementById('music-menu');menu.style.display=menu.style.display==='flex'?'none':'flex';}
 function closeMusicMenu(){document.getElementById('music-menu').style.display='none';}
-function selectTrack(trackId){_currentTrack=trackId;_mAudio.src=_tracks[trackId];var wasPlaying=_mPlaying;if(wasPlaying)_mAudio.pause();_mAudio.src=_tracks[trackId];if(wasPlaying){_mAudio.volume=0.35;_mAudio.play().catch(function(){});}}
-function toggleMusic(){var btn=document.getElementById('music-btn');if(_mPlaying){_mAudio.pause();btn.textContent='🔇';_mPlaying=false;}else{_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){btn.textContent='🎵';_mPlaying=true;}).catch(function(){btn.textContent='▶️';});}}
-document.addEventListener('click',function(){if(!_mPlaying&&!_mAudio.dataset.tried){_mAudio.dataset.tried='1';_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){document.getElementById('music-btn').textContent='🎵';_mPlaying=true;}).catch(function(){});}},{once:true});
+function selectTrack(trackId){_currentTrack=trackId;var wasPlaying=_mPlaying;if(wasPlaying)_mAudio.pause();_mAudio.src=_tracks[trackId];_mAudio.currentTime=0;if(wasPlaying){_mAudio.volume=0.35;_mAudio.play().catch(function(){});}}
+function toggleMusic(){if(_mPlaying){_mAudio.pause();_mPlaying=false;}else{_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){_mPlaying=true;}).catch(function(){});} updateMusicBtn();}
+document.addEventListener('click',function(){if(!_mPlaying&&!_mAudio.dataset.tried){_mAudio.dataset.tried='1';_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){_mPlaying=true;updateMusicBtn();}).catch(function(){});}},{once:true});
+_mAudio.addEventListener('ended',function(){_mAudio.play();});
 </script>
 `;
 
@@ -75,4 +84,5 @@ if (!fs.existsSync(deployDir)) fs.mkdirSync(deployDir);
 const musicEndBlock = musicBlock + '</body>';
 const deployHtml = standalone.replace('</body>', () => musicEndBlock);
 fs.writeFileSync(path.join(deployDir, 'index.html'), deployHtml);
+// eslint-disable-next-line no-undef
 console.log('Wrote cosmos-deploy/index.html', Math.round(deployHtml.length / 1024) + 'KB');
