@@ -156,10 +156,12 @@ function Toast({msg}) {
 
 // ── EARTH MARKETS ──────────────────────────────────────────────
 function EarthTab() {
-  const {D,buyStock,sellStock,clearNavTarget,setTradeLock}=useGame();
+  const {D,buyStock,sellStock,launchTakeover,clearNavTarget,setTradeLock}=useGame();
   const d=D;
   const [selected,setSelected]=useState(null);
   const [modal,setModal]=useState(false);
+  const [takeoverModal,setTakeoverModal]=useState(false);
+  const [premiumPct,setPremiumPct]=useState(20);
   const [msg,setMsg]=useState('');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),2500);};
 
@@ -267,9 +269,14 @@ function EarthTab() {
         <div style={{marginTop:8,fontSize:12,color:T.text,fontWeight:600}}>{co.ops}</div>
       </div>
 
-      <button onClick={()=>setModal(true)} style={{width:'100%',background:'linear-gradient(135deg,#059669,#065F46)',color:'#fff',border:'none',borderRadius:14,padding:'15px 0',fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 20px rgba(16,185,129,0.25)'}}>
+      <button onClick={()=>setModal(true)} style={{width:'100%',background:'linear-gradient(135deg,#059669,#065F46)',color:'#fff',border:'none',borderRadius:14,padding:'15px 0',fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 4px 20px rgba(16,185,129,0.25)',marginBottom:8}}>
         Trade {co.t}
       </button>
+      {(d.companyOwnership?.[co.t]||0)<51&&(
+        <button onClick={()=>setTakeoverModal(true)} style={{width:'100%',background:'linear-gradient(135deg,#7C2D12,#431407)',color:'#FDBA74',border:'1px solid #9A3412',borderRadius:14,padding:'13px 0',fontWeight:800,fontSize:14,cursor:'pointer'}}>
+          🏴 Launch Takeover Bid
+        </button>
+      )}
       {modal&&(
         <TradeModal title={co.n} price={co.price} held={d.stockHoldings?.[co.t]||0}
           walletBalance={d.tradingWallet}
@@ -278,6 +285,36 @@ function EarthTab() {
           onSell={q=>{const e=sellStock(co.t,q);if(e)showMsg('❌ '+e);else{showMsg('✅ Sold '+q.toLocaleString()+' '+co.t);setModal(false);}}}
           onClose={()=>setModal(false)}
         />
+      )}
+      {takeoverModal&&(
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}} onClick={()=>setTakeoverModal(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:16,padding:20,maxWidth:380,width:'100%',border:'1px solid '+T.border}}>
+            <div style={{fontSize:16,fontWeight:900,color:T.text,marginBottom:6}}>🏴 Takeover Bid: {co.n}</div>
+            <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.5}}>
+              Offer a premium over market price to acquire enough shares for 51% control. Higher premiums improve your odds, but the board can still reject the bid — you'll lose a due-diligence fee if it fails.
+            </div>
+            <div style={{marginBottom:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:T.sub,marginBottom:6}}>
+                <span>Premium over market</span><strong style={{color:T.amber}}>{premiumPct}%</strong>
+              </div>
+              <input type="range" min={5} max={80} value={premiumPct} onChange={e=>setPremiumPct(+e.target.value)} style={{width:'100%'}}/>
+            </div>
+            {(()=>{
+              const successChance=Math.min(0.95,Math.max(0.1,0.35+premiumPct/100*2));
+              return (
+                <div style={{background:'rgba(0,0,0,0.3)',borderRadius:10,padding:'10px 12px',marginBottom:14,fontSize:11,color:T.sub,lineHeight:1.7}}>
+                  <div>Bid price: <strong style={{color:T.text}}>${(co.price*(1+premiumPct/100)).toFixed(2)}</strong>/share</div>
+                  <div>Estimated success chance: <strong style={{color:successChance>=0.6?T.green:T.amber}}>{Math.round(successChance*100)}%</strong></div>
+                  <div>If rejected: lose 10% of bid cost as a due-diligence fee</div>
+                </div>
+              );
+            })()}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <button onClick={()=>setTakeoverModal(false)} style={{padding:'12px 0',background:'rgba(255,255,255,0.08)',color:T.sub,border:'1px solid '+T.border,borderRadius:10,cursor:'pointer',fontWeight:700}}>Cancel</button>
+              <button onClick={()=>{const e=launchTakeover(co.t,premiumPct/100);if(e)showMsg('❌ '+e);else showMsg('🏴 Bid submitted for '+co.t);setTakeoverModal(false);}} style={{padding:'12px 0',background:'#9A3412',color:'#FDBA74',border:'none',borderRadius:10,cursor:'pointer',fontWeight:800}}>Launch Bid</button>
+            </div>
+          </div>
+        </div>
       )}
       <Toast msg={msg}/>
     </div>

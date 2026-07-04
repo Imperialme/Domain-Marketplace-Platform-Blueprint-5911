@@ -77,6 +77,8 @@ function buildInitialState() {
     stockHoldings: {},
     avgCostBasis: {},
     companyOwnership: {},
+    lastDecisionTurn: {},
+    nextDecisionInterval: {},
     // CEO
     pendingDecisions: [],
     resolvedDecisions: [],
@@ -234,19 +236,39 @@ function buildInitialState() {
       stock: { price: 100, ch: 0, hist: [100, 100] },
       nwAtFoundation: 0,
       pendingOffer: null,   // {id, buyer, pricePerShare, totalValue, turn, expiresAtTurn}
+      fundingRound: 'seed', // seed -> seriesA -> seriesB -> seriesC -> (ipo) -> public
+      burnRate: 0,          // expenses - revenue this turn; positive = losing money
+      runwayTurns: null,    // turns left at current burn rate before capital hits zero
+      leadInvestor: null,   // {name, stakePct} — set once a VC round closes; can veto IPO terms
+      fundingHistory: [],   // [{round, turn, investor, raised, preMoney, postMoney, dilutionPct}]
+      lastRoundRejection: null, // {round, reason, turn} — feedback shown after a rejected raise
     },
   };
 }
 
 const FOUNDER_MIN_CAPITAL = 10000000; // $10M minimum to start a company
 
+// burnIntensity: fixed operating cost per turn as a fraction of total capital
+// raised (headcount/infrastructure — scales with how much you've raised, not
+// with revenue). cogsRatio: variable cost as a fraction of revenue. A company
+// is burning cash whenever revenue*(1-cogsRatio) < burnIntensity*capitalBase —
+// which is exactly true early on, and becomes profitable as revenue grows.
 const FOUNDER_INDUSTRY_PROFILES = {
-  tech:       { weatherResistance: 0.4, revenueCeilingMult: 3.5, baseMargin: 0.25 },
-  healthcare: { weatherResistance: 0.7, revenueCeilingMult: 2.2, baseMargin: 0.20 },
-  energy:     { weatherResistance: 0.5, revenueCeilingMult: 2.5, baseMargin: 0.18 },
-  finance:    { weatherResistance: 0.6, revenueCeilingMult: 2.8, baseMargin: 0.22 },
-  retail:     { weatherResistance: 0.3, revenueCeilingMult: 1.8, baseMargin: 0.12 },
-  utilities:  { weatherResistance: 0.8, revenueCeilingMult: 1.4, baseMargin: 0.15 },
+  tech:       { weatherResistance: 0.4, revenueCeilingMult: 3.5, revenueMultiple: 12, burnIntensity: 0.030, cogsRatio: 0.25 },
+  healthcare: { weatherResistance: 0.7, revenueCeilingMult: 2.2, revenueMultiple: 8,  burnIntensity: 0.022, cogsRatio: 0.35 },
+  energy:     { weatherResistance: 0.5, revenueCeilingMult: 2.5, revenueMultiple: 6,  burnIntensity: 0.018, cogsRatio: 0.45 },
+  finance:    { weatherResistance: 0.6, revenueCeilingMult: 2.8, revenueMultiple: 7,  burnIntensity: 0.020, cogsRatio: 0.30 },
+  retail:     { weatherResistance: 0.3, revenueCeilingMult: 1.8, revenueMultiple: 4,  burnIntensity: 0.012, cogsRatio: 0.55 },
+  utilities:  { weatherResistance: 0.8, revenueCeilingMult: 1.4, revenueMultiple: 5,  burnIntensity: 0.010, cogsRatio: 0.50 },
+};
+
+// Funding round ladder — each round requires more traction than the last,
+// takes a smaller (but still real) dilution bite, and getting greedy on
+// valuation raises the chance investors walk away.
+const FUNDING_ROUNDS = {
+  seriesA: { label: 'Series A', prevRound: 'seed', minRevenueRatio: 0.25, dilution: [0.15, 0.25], nextRound: 'seriesB' },
+  seriesB: { label: 'Series B', prevRound: 'seriesA', minRevenueRatio: 0.45, dilution: [0.10, 0.20], nextRound: 'seriesC' },
+  seriesC: { label: 'Series C', prevRound: 'seriesB', minRevenueRatio: 0.65, dilution: [0.08, 0.15], nextRound: null },
 };
 
 // Diminishing-leverage curve: smaller companies can borrow a larger % of their
@@ -264,6 +286,195 @@ function founderMaxLeverageRatio(foundersCapital) {
 
 const FICTIONAL_INVESTORS = ['Nova Capital Partners','Meridian Growth Fund','Zenith Ventures','Apex Horizon Capital','Silverline Investments','Vantage Point Capital','Northstar Equity Group','Bluewave Asset Management'];
 const FICTIONAL_ACQUIRERS = ['Orbital Holdings Group','Continuum Industries','Paragon Consolidated','Everstream Capital','Ironbridge Enterprises','Halcyon Ventures Group'];
+
+// ── DYNAMIC CEO DECISIONS ──────────────────────────────────────
+// Instead of a fixed one-time list, decisions are generated on the fly from
+// archetypes + randomized flavor pools, so the same board never proposes the
+// same "Kazakhstan expansion" twice — every playthrough, every company, and
+// every era of the game keeps producing fresh scenarios.
+const EXPANSION_REGIONS = ['Vietnam','Indonesia','Nigeria','Brazil','Poland','Chile','Kenya','Philippines','Egypt','Morocco','Peru','Thailand','Bangladesh','Ghana','Colombia','Rwanda','Uzbekistan','Mongolia','Ecuador','Jordan','Portugal','Malaysia'];
+const RND_TECH = ['quantum computing','biosynthetic materials','autonomous logistics','next-gen battery cells','AI-driven diagnostics','desalination technology','vertical farming systems','space-grade alloys','carbon capture','neural interface hardware','synthetic fuel','modular robotics'];
+const FICTIONAL_EXECS = ['Elena Vasquez','Tomás Ferreira','Aiko Tanaka','Dmitri Volkov','Fatima Al-Rashid','Priya Narayanan','Kwame Mensah','Liam O\'Sullivan','Mei Lin Zhao','Carlos Mendoza','Ingrid Sørensen','Adaeze Nwosu'];
+const RIVAL_FIRMS = ['Halcyon Dynamics','Continuum Systems','Paragon Holdings','Vertex Industrial','Meridian Group','Ironbridge Partners','Cascade Ventures','Solstice Capital'];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(lo, hi) { return Math.floor(lo + Math.random() * (hi - lo + 1)); }
+
+const CEO_ARCHETYPES = [
+  // Market Expansion
+  (co, ceo) => {
+    const region = pick(EXPANSION_REGIONS);
+    const capex = randInt(150, 900);
+    const uplift = randInt(5, 15);
+    return {
+      type: 'expansion', headline: 'MARKET EXPANSION PROPOSAL',
+      context: `${ceo} proposes opening operations in ${region} — estimated $${capex}M investment, ${uplift}% projected revenue uplift.`,
+      opts: [
+        { l: `Approve ${region} Expansion`, detail: `$${capex}M capex. +${uplift}% revenue over 30 turns.`, priceImp: 0.03 + uplift/300, repImp: 5, good: true },
+        { l: `Pilot Program ($${Math.round(capex*0.2)}M)`, detail: 'Test market with limited exposure.', priceImp: 0.02, repImp: 2, good: true },
+        { l: 'Decline Expansion', detail: 'Preserve capital. Slower growth.', priceImp: -0.01, repImp: -2, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Cost Restructuring
+  (co, ceo) => {
+    const pctStaff = randInt(4, 12);
+    const workers = randInt(400, 3000);
+    const marginGain = (pctStaff * 0.5).toFixed(1);
+    return {
+      type: 'cost_cut', headline: 'COST RESTRUCTURING PROPOSAL',
+      context: `${ceo} proposes cutting ${workers.toLocaleString()} positions (${pctStaff}% of staff) to improve margins by ${marginGain}%.`,
+      opts: [
+        { l: 'Approve Restructuring', detail: `−${workers.toLocaleString()} jobs. +${marginGain}% margin. ESG risk.`, priceImp: 0.02 + pctStaff/150, repImp: -4, good: true },
+        { l: `Smaller Cut (${Math.round(workers*0.35)} roles)`, detail: 'Partial reduction, softer morale hit.', priceImp: 0.02, repImp: -1, good: true },
+        { l: 'Reject Cuts', detail: 'No layoffs. Slower margin improvement.', priceImp: -0.02, repImp: 3, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Dividend Policy
+  (co, ceo) => {
+    const cur = (co.div || 1.5).toFixed(1);
+    const hi = (parseFloat(cur) * 1.5).toFixed(1);
+    const lo = (parseFloat(cur) * 0.6).toFixed(1);
+    return {
+      type: 'dividend', headline: 'DIVIDEND POLICY DECISION',
+      context: `${ceo} proposes changing the annual dividend from ${cur}% to ${hi}% to attract income investors.`,
+      opts: [
+        { l: `Increase to ${hi}%`, detail: 'Higher yield attracts income investors.', priceImp: 0.04, repImp: 4, good: true },
+        { l: `Maintain ${cur}%`, detail: 'Preserve R&D spending. No immediate impact.', priceImp: 0, repImp: 0, good: true },
+        { l: `Cut to ${lo}%`, detail: 'More cash for pipeline. Short-term dip.', priceImp: -0.05, repImp: -3, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // R&D Investment
+  (co, ceo) => {
+    const tech = pick(RND_TECH);
+    const spend = randInt(80, 600);
+    return {
+      type: 'rd', headline: 'R&D INVESTMENT PROPOSAL',
+      context: `${ceo} proposes a $${spend}M investment into ${tech} research — a multi-year bet on future competitiveness.`,
+      opts: [
+        { l: `Fund Full $${spend}M`, detail: `Deep bet on ${tech}. Dilutes near-term earnings.`, priceImp: 0.05, repImp: 6, good: true },
+        { l: `Partial Funding ($${Math.round(spend*0.4)}M)`, detail: 'Balanced approach — modest upside.', priceImp: 0.02, repImp: 2, good: true },
+        { l: 'Defer Investment', detail: 'Protect this year\'s earnings. Falls behind rivals.', priceImp: -0.03, repImp: -3, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Share Buyback
+  (co, ceo) => {
+    const amt = randInt(100, 800);
+    return {
+      type: 'buyback', headline: 'SHARE BUYBACK PROGRAM',
+      context: `${ceo} proposes a $${amt}M share repurchase program to return capital to shareholders and support the stock price.`,
+      opts: [
+        { l: `Approve $${amt}M Buyback`, detail: 'Reduces float, boosts EPS. Uses cash reserves.', priceImp: 0.06, repImp: 3, good: true },
+        { l: `Smaller Buyback ($${Math.round(amt*0.3)}M)`, detail: 'Conservative capital return.', priceImp: 0.02, repImp: 1, good: true },
+        { l: 'Reinvest Instead', detail: 'No buyback. Capital goes to operations.', priceImp: -0.01, repImp: 0, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Executive Shake-up
+  (co, ceo) => {
+    const candidate = pick(FICTIONAL_EXECS);
+    return {
+      type: 'exec', headline: 'EXECUTIVE LEADERSHIP CHANGE',
+      context: `The board is split: some directors want to replace ${ceo} with rising executive ${candidate} to reinvigorate strategy.`,
+      opts: [
+        { l: `Install ${candidate}`, detail: 'Fresh strategy, market uncertainty short-term.', priceImp: 0.03, repImp: 2, good: true },
+        { l: `Keep ${ceo}, Add Oversight`, detail: 'Stability with added board oversight.', priceImp: 0.01, repImp: 1, good: true },
+        { l: 'No Change', detail: 'Status quo. Investors wanted action.', priceImp: -0.02, repImp: -2, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // ESG Initiative
+  (co, ceo) => {
+    const cost = randInt(60, 400);
+    return {
+      type: 'esg', headline: 'SUSTAINABILITY INITIATIVE',
+      context: `${ceo} proposes a $${cost}M sustainability program targeting carbon-neutral operations within 5 years.`,
+      opts: [
+        { l: `Fund $${cost}M Initiative`, detail: 'Long-term brand value. Near-term cost.', priceImp: 0.02, repImp: 7, good: true },
+        { l: 'Scaled-Down Pledge', detail: 'Modest commitment, lower cost.', priceImp: 0.01, repImp: 3, good: true },
+        { l: 'Decline', detail: 'No commitment. Reputational risk.', priceImp: 0.01, repImp: -5, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Product Recall / Crisis
+  (co, ceo) => {
+    const units = randInt(50, 900);
+    return {
+      type: 'crisis', headline: '⚠️ PRODUCT SAFETY CRISIS',
+      context: `${ceo} reports a defect affecting ${units}K units in the field. The board must decide how to respond.`,
+      opts: [
+        { l: 'Full Recall & Refund', detail: 'Costly but protects reputation.', priceImp: -0.04, repImp: 8, good: true },
+        { l: 'Targeted Repair Program', detail: 'Cheaper, partial fix. Some risk remains.', priceImp: -0.02, repImp: 2, good: true },
+        { l: 'Downplay & Monitor', detail: 'Cheapest option. Severe reputational risk if it worsens.', priceImp: 0.01, repImp: -10, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Supply Chain Diversification
+  (co, ceo) => {
+    const region = pick(EXPANSION_REGIONS);
+    return {
+      type: 'supply', headline: 'SUPPLY CHAIN DIVERSIFICATION',
+      context: `${ceo} proposes diversifying manufacturing into ${region} to reduce single-region dependency risk.`,
+      opts: [
+        { l: `Diversify into ${region}`, detail: 'Reduces risk, moderate setup cost.', priceImp: 0.03, repImp: 3, good: true },
+        { l: 'Dual-Source Gradually', detail: 'Slower, lower-cost hedge.', priceImp: 0.01, repImp: 1, good: true },
+        { l: 'Stay Concentrated', detail: 'Cheapest now, risk remains.', priceImp: -0.01, repImp: -1, good: false },
+      ], worstOpt: 2,
+    };
+  },
+  // Stock Split
+  (co, ceo) => {
+    const ratio = pick([2,3,4,5]);
+    return {
+      type: 'split', headline: 'STOCK SPLIT PROPOSAL',
+      context: `${ceo} proposes a ${ratio}-for-1 stock split to improve liquidity and accessibility for retail investors.`,
+      opts: [
+        { l: `Approve ${ratio}-for-1 Split`, detail: 'More liquid, no fundamental change.', priceImp: 0.02, repImp: 2, good: true },
+        { l: 'Defer Decision', detail: 'Wait for a better window.', priceImp: 0, repImp: 0, good: true },
+        { l: 'Reject Split', detail: 'Investors wanted more accessible shares.', priceImp: -0.01, repImp: -1, good: false },
+      ], worstOpt: 2,
+    };
+  },
+];
+
+// Generates a fresh, randomized board decision for the given company —
+// never the same wording twice, and never limited to a fixed short list.
+function generateDynamicDecision(co, s) {
+  const ceo = co.ceo && co.ceo !== 'You' ? co.ceo : pick(FICTIONAL_EXECS);
+  const archetype = pick(CEO_ARCHETYPES);
+  const built = archetype(co, ceo);
+  return {
+    id: 'DYN_' + co.t + '_' + s.turn + '_' + Math.random().toString(36).slice(2, 7),
+    ticker: co.t, company: co.n, ceo, turn: s.turn,
+    ...built,
+    timeLimit: 10,
+  };
+}
+
+// Inbound M&A: when the player holds majority control of a company, a rival
+// occasionally proposes buying it outright. Distinct from a normal vote —
+// handled specially in resolveDecision (accept = cash out entire stake).
+function generateBuyoutOffer(co, s) {
+  const buyer = pick(RIVAL_FIRMS);
+  const premium = 1.25 + Math.random() * 0.5;
+  const offerPrice = r2(co.price * premium);
+  const held = s.stockHoldings[co.t] || 0;
+  const totalValue = r2(offerPrice * held);
+  return {
+    id: 'BUYOUT_' + co.t + '_' + s.turn + '_' + Math.random().toString(36).slice(2, 7),
+    ticker: co.t, company: co.n, ceo: co.ceo && co.ceo !== 'You' ? co.ceo : pick(FICTIONAL_EXECS), turn: s.turn,
+    type: 'buyout_offer', headline: '💼 ACQUISITION OFFER RECEIVED',
+    context: `${buyer} has approached your board with an offer to acquire your entire stake in ${co.n} at $${offerPrice.toFixed(2)}/share — a ${Math.round((premium-1)*100)}% premium to market.`,
+    opts: [
+      { l: `Accept — Sell Stake to ${buyer}`, detail: `Cash out all ${held.toLocaleString()} shares for $${totalValue.toLocaleString()}.`, priceImp: 0, repImp: 0, good: true, isBuyoutAccept: true, offerPrice },
+      { l: 'Decline & Stay Independent', detail: 'Keep your position. Board confidence boosts the stock.', priceImp: 0.02, repImp: 3, good: true },
+    ], worstOpt: -1,
+    timeLimit: 15,
+  };
+}
 
 export function GameProvider({ children }) {
   const S = useRef(buildInitialState());
@@ -301,14 +512,27 @@ export function GameProvider({ children }) {
     // GDP drift
     s.gdp = Math.round(cl(s.gdp + (Math.random() - 0.48) * 0.5, -3, 7) * 10) / 10;
 
-    // Trigger CEO decisions at their designated turns
-    CEO_DECISIONS.forEach(dec => {
-      const alreadyPending = s.pendingDecisions.some(d => d.id === dec.id);
-      const alreadyResolved = s.resolvedDecisions.some(d => d.id === dec.id);
-      if (s.turn >= dec.turn && !alreadyPending && !alreadyResolved) {
-        s.pendingDecisions = [...s.pendingDecisions, { ...dec }];
-        addNews('👔', 'Board Decision: ' + dec.company, dec.headline + ' — visit Command Center to vote.', true);
-      }
+    // Trigger CEO decisions — dynamically generated per company you hold
+    // board access in (10%+), so scenarios never run out and never repeat
+    // verbatim. Majority-owned (50%+) companies can also draw inbound
+    // acquisition offers instead of a normal vote.
+    if (!s.lastDecisionTurn) s.lastDecisionTurn = {};
+    if (!s.nextDecisionInterval) s.nextDecisionInterval = {};
+    Object.entries(s.companyOwnership || {}).forEach(([ticker, pct]) => {
+      if (pct < 10) return;
+      const alreadyPending = s.pendingDecisions.some(d => d.ticker === ticker);
+      if (alreadyPending) return;
+      const last = s.lastDecisionTurn[ticker] || 0;
+      const interval = s.nextDecisionInterval[ticker] || randInt(20, 35);
+      if (s.turn - last < interval) return;
+      const co = s.companies.find(c => c.t === ticker);
+      if (!co) return;
+      const isBuyout = pct >= 50 && Math.random() < 0.2;
+      const dec = isBuyout ? generateBuyoutOffer(co, s) : generateDynamicDecision(co, s);
+      s.pendingDecisions = [...s.pendingDecisions, dec];
+      s.lastDecisionTurn[ticker] = s.turn;
+      s.nextDecisionInterval[ticker] = randInt(20, 40);
+      addNews('👔', 'Board Decision: ' + dec.company, dec.headline + ' — visit Command Center to vote.', true);
     });
 
     // Geopolitical events (~13% chance per turn) — 60+ events imported from events.js
@@ -550,52 +774,80 @@ export function GameProvider({ children }) {
       fm.demandTrend = cl(fm.demandTrend + (Math.random() - 0.5) * 0.05, -0.8, 0.8);
       const demandMultiplier = cl(1 + fm.demandTrend * resistanceMultiplier, 0.2, 2.2);
 
-      // Revenue is bounded by a ceiling set by the fixed founders' capital
-      // (never by the ever-growing currentCapital) and converges toward that
-      // ceiling gradually — no runaway compounding feedback loop.
-      fm.targetRevenue = r2(fm.foundersCapital * 0.02 * profile.revenueCeilingMult * demandMultiplier);
-      fm.revenue = r2(fm.revenue + (fm.targetRevenue - fm.revenue) * 0.08);
-      fm.profitMargin = profile.baseMargin;
-      fm.expenses = r2(fm.revenue * (1 - profile.baseMargin));
+      // Revenue is bounded by a ceiling set by total capital raised (founding
+      // capital + any funding rounds closed) — never by the ever-growing
+      // currentCapital — and converges toward that ceiling gradually. No
+      // runaway compounding feedback loop.
+      const capitalBase = fm.totalCapitalRaised || fm.foundersCapital;
+      fm.targetRevenue = r2(capitalBase * 0.02 * profile.revenueCeilingMult * demandMultiplier);
+      // Slow convergence (2%/turn) so early-stage burn has real weight instead
+      // of vanishing within a handful of turns — breakeven should take a
+      // genuine stretch of the game, not an eyeblink of auto-advance.
+      fm.revenue = r2(fm.revenue + (fm.targetRevenue - fm.revenue) * 0.02);
+
+      // Genuine burn: a fixed operating cost (headcount/infra funded by
+      // capital raised) plus variable cost-of-goods scaling with revenue.
+      // Early on, revenue can't cover the fixed cost — the company burns
+      // cash. As revenue climbs toward its ceiling, it crosses breakeven.
+      const baseOpex = r2(capitalBase * profile.burnIntensity);
+      fm.expenses = r2(baseOpex + fm.revenue * profile.cogsRatio);
       const profit = r2(fm.revenue - fm.expenses);
       fm.currentCapital = r2(fm.currentCapital + profit);
+      fm.profitMargin = fm.revenue > 0 ? cl(profit / fm.revenue, -5, 1) : (profit >= 0 ? 0 : -1);
+      fm.burnRate = r2(-profit);
+      fm.runwayTurns = fm.burnRate > 0 ? Math.max(0, Math.floor(fm.currentCapital / fm.burnRate)) : null;
 
-      // Stock price movement (P/E multiple based on growth and profitability)
-      const peMultiple = fm.demandTrend > 0 ? 18 : 12;
-      const eps = fm.revenue / fm.sharesOutstanding;
-      const newSharePrice = r2(eps * peMultiple);
-      fm.stock.ch = (newSharePrice - fm.stock.price) / fm.stock.price;
-      fm.stock.price = Math.max(1, newSharePrice);
-      fm.stock.hist = [...(fm.stock.hist || []).slice(-50), fm.stock.price];
+      // Bankruptcy: run out of cash and the company is gone. Loans are
+      // wiped out with it (nothing left to collect from), and if it had
+      // already gone public, the listing and your position disappear too.
+      const wentBankrupt = fm.currentCapital <= 0;
+      if (wentBankrupt) {
+        const companyId = fm.companyId;
+        addNews('💀', 'Company Bankrupt', `${fm.companyName} ran out of cash and folded. The venture is over — no payout.`, false);
+        if (companyId) {
+          s.companies = s.companies.filter(c => c.t !== companyId);
+          delete s.stockHoldings[companyId];
+          delete s.companyOwnership[companyId];
+        }
+        s.founderMode = buildInitialState().founderMode;
+      } else {
+        // Stock price movement (P/E multiple based on growth and profitability)
+        const peMultiple = fm.demandTrend > 0 ? 18 : 12;
+        const eps = fm.revenue / fm.sharesOutstanding;
+        const newSharePrice = r2(eps * peMultiple);
+        fm.stock.ch = (newSharePrice - fm.stock.price) / fm.stock.price;
+        fm.stock.price = Math.max(1, newSharePrice);
+        fm.stock.hist = [...(fm.stock.hist || []).slice(-50), fm.stock.price];
 
-      // Loan interest accrual
-      fm.loans = fm.loans.map(loan => {
-        const newOutstanding = r2(loan.outstanding + r2(loan.outstanding * (loan.rate / 365)));
-        const monthlyPayment = r2(loan.monthlyPayment || loan.outstanding / loan.termMonths);
-        const newRemaining = Math.max(0, newOutstanding - monthlyPayment);
-        return { ...loan, outstanding: newRemaining, turnsRemaining: loan.turnsRemaining - 1 };
-      }).filter(loan => loan.outstanding > 0);
+        // Loan interest accrual
+        fm.loans = fm.loans.map(loan => {
+          const newOutstanding = r2(loan.outstanding + r2(loan.outstanding * (loan.rate / 365)));
+          const monthlyPayment = r2(loan.monthlyPayment || loan.outstanding / loan.termMonths);
+          const newRemaining = Math.max(0, newOutstanding - monthlyPayment);
+          return { ...loan, outstanding: newRemaining, turnsRemaining: loan.turnsRemaining - 1 };
+        }).filter(loan => loan.outstanding > 0);
 
-      // Acquisition tender offers — a rival occasionally wants to buy the
-      // company outright. The player can accept (cash out, ends Founder Mode)
-      // or decline (keep growing). Requires the company to show real growth
-      // first, and only one offer is live at a time.
-      if (fm.pendingOffer && s.turn > fm.pendingOffer.expiresAtTurn) {
-        addNews('📉', 'Offer Expired', `The acquisition offer for ${fm.companyName} from ${fm.pendingOffer.buyer} has expired.`, false);
-        fm.pendingOffer = null;
-      }
-      const grownEnough = fm.currentCapital > fm.foundersCapital * 1.5;
-      if (!fm.pendingOffer && grownEnough && Math.random() < (fm.demandTrend > 0.3 ? 0.006 : 0.002)) {
-        const impliedSharePrice = fm.stage === 'public' ? fm.stock.price : r2(fm.currentCapital / fm.sharesOutstanding);
-        const premium = 1.2 + Math.random() * 0.4;
-        const pricePerShare = r2(impliedSharePrice * premium);
-        const totalValue = r2(pricePerShare * fm.founderShares);
-        fm.pendingOffer = {
-          id: Math.random().toString(36).slice(2),
-          buyer: FICTIONAL_ACQUIRERS[Math.floor(Math.random() * FICTIONAL_ACQUIRERS.length)],
-          pricePerShare, totalValue, turn: s.turn, expiresAtTurn: s.turn + 20,
-        };
-        addNews('💼', 'Acquisition Offer', `${fm.pendingOffer.buyer} offers $${totalValue.toLocaleString()} (${premium.toFixed(2)}x premium) to acquire ${fm.companyName}. Respond within 20 turns.`, true);
+        // Acquisition tender offers — a rival occasionally wants to buy the
+        // company outright. The player can accept (cash out, ends Founder Mode)
+        // or decline (keep growing). Requires the company to show real growth
+        // first, and only one offer is live at a time.
+        if (fm.pendingOffer && s.turn > fm.pendingOffer.expiresAtTurn) {
+          addNews('📉', 'Offer Expired', `The acquisition offer for ${fm.companyName} from ${fm.pendingOffer.buyer} has expired.`, false);
+          fm.pendingOffer = null;
+        }
+        const grownEnough = fm.currentCapital > fm.foundersCapital * 1.5;
+        if (!fm.pendingOffer && grownEnough && Math.random() < (fm.demandTrend > 0.3 ? 0.006 : 0.002)) {
+          const impliedSharePrice = fm.stage === 'public' ? fm.stock.price : r2(fm.currentCapital / fm.sharesOutstanding);
+          const premium = 1.2 + Math.random() * 0.4;
+          const pricePerShare = r2(impliedSharePrice * premium);
+          const totalValue = r2(pricePerShare * fm.founderShares);
+          fm.pendingOffer = {
+            id: Math.random().toString(36).slice(2),
+            buyer: FICTIONAL_ACQUIRERS[Math.floor(Math.random() * FICTIONAL_ACQUIRERS.length)],
+            pricePerShare, totalValue, turn: s.turn, expiresAtTurn: s.turn + 20,
+          };
+          addNews('💼', 'Acquisition Offer', `${fm.pendingOffer.buyer} offers $${totalValue.toLocaleString()} (${premium.toFixed(2)}x premium) to acquire ${fm.companyName}. Respond within 20 turns.`, true);
+        }
       }
     }
 
@@ -960,17 +1212,72 @@ export function GameProvider({ children }) {
     if (!dec) return;
     const opt = dec.opts[optIdx];
     const co = s.companies.find(c => c.t === dec.ticker);
-    if (co) {
+
+    if (opt.isBuyoutAccept) {
+      // Inbound M&A accepted: cash out the entire stake at the offered premium
+      const held = s.stockHoldings[dec.ticker] || 0;
+      const payout = r2(opt.offerPrice * held);
+      s.tradingWallet = r2(s.tradingWallet + payout);
+      delete s.stockHoldings[dec.ticker];
+      delete s.avgCostBasis[dec.ticker];
+      delete s.companyOwnership[dec.ticker];
+      logTx('ACQUISITION', 'Trading', payout, dec.company+' stake sold in acquisition · $'+payout.toLocaleString());
+      addNews('🤝', 'Acquisition Completed', `You sold your entire stake in ${dec.company} for $${payout.toLocaleString()}.`, true);
+    } else if (co) {
       co.price = Math.max(0.50, r2(co.price * (1 + opt.priceImp)));
       if (co.ceoProfile) co.ceoProfile.rep = cl(co.ceoProfile.rep + opt.repImp, 0, 100);
     }
+
     s.pendingDecisions = s.pendingDecisions.filter(d => d.id !== decId);
     s.resolvedDecisions = [{ ...dec, chosen: opt, auto: false, resolvedTurn: s.turn }, ...s.resolvedDecisions].slice(0, 20);
     s.ceoLog.unshift({ turn: s.turn, ticker: dec.ticker, msg: 'YOU DECIDED: '+opt.l+' · Price impact: '+(opt.priceImp>=0?'+':'')+Math.round(opt.priceImp*100)+'%', good: opt.good });
     addNews('👔', 'CEO Decision: '+dec.company, opt.l+' · '+opt.detail, opt.good);
     earnBadge('ceo_first');
     refresh();
-  }, [refresh, addNews, earnBadge]);
+  }, [refresh, addNews, earnBadge, logTx]);
+
+  // ── CORPORATE TAKEOVER (outbound M&A) ─────────────────────────
+  // Player-initiated hostile/friendly bid to seize control of a company they
+  // don't yet hold a majority in. Pay a premium for a real chance of success —
+  // fail and you still burn a due-diligence fee.
+  const launchTakeover = useCallback((ticker, premiumPct) => {
+    const s = S.current;
+    const co = s.companies.find(c => c.t === ticker);
+    if (!co) return 'Company not found';
+    const currentPct = s.companyOwnership[ticker] || 0;
+    if (currentPct >= 51) return 'You already control this company';
+
+    const TOTAL = { SLKT:1200000000,MRDB:800000000,FRMN:600000000,TNPT:900000000,MDCR:400000000,UTLS:300000000,TLCM:550000000,RLST:250000000,EMTS:180000000,AGRO:500000000 };
+    const totalShares = ticker === s.founderMode.companyId ? s.founderMode.sharesOutstanding : (TOTAL[ticker] || 500000000);
+    const currentHeld = s.stockHoldings[ticker] || 0;
+    const targetHeld = Math.ceil(totalShares * 0.51);
+    const sharesNeeded = Math.max(0, targetHeld - currentHeld);
+    const bidPrice = r2(co.price * (1 + premiumPct));
+    const cost = r2(sharesNeeded * bidPrice);
+    if (cost > s.tradingWallet) return `Insufficient funds — bid costs $${cost.toLocaleString()}`;
+
+    const successChance = cl(0.35 + premiumPct * 2, 0.1, 0.95);
+    const success = Math.random() < successChance;
+
+    if (success) {
+      s.tradingWallet = r2(s.tradingWallet - cost);
+      const prevHeld = s.stockHoldings[ticker] || 0;
+      s.stockHoldings[ticker] = prevHeld + sharesNeeded;
+      s.avgCostBasis[ticker] = r2(((s.avgCostBasis[ticker] || co.price) * prevHeld + cost) / s.stockHoldings[ticker]);
+      s.companyOwnership[ticker] = r2((s.stockHoldings[ticker] / totalShares) * 10000) / 100;
+      co.price = r2(co.price * (1 + premiumPct * 0.5)); // successful bids move the market
+      logTx('TAKEOVER', 'Trading', -cost, `Takeover of ${co.n} succeeded · ${sharesNeeded.toLocaleString()} shares @ $${bidPrice.toFixed(2)}`);
+      addNews('👑', 'TAKEOVER SUCCESSFUL: '+ticker, `Your bid for ${co.n} succeeded! You now control ${s.companyOwnership[ticker].toFixed(1)}%.`, true);
+      s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
+    } else {
+      const dueDiligenceFee = r2(cost * 0.1);
+      s.tradingWallet = r2(s.tradingWallet - dueDiligenceFee);
+      logTx('TAKEOVER_FAILED', 'Trading', -dueDiligenceFee, `Takeover bid for ${co.n} rejected by the board · due diligence fee $${dueDiligenceFee.toLocaleString()}`);
+      addNews('❌', 'TAKEOVER REJECTED: '+ticker, `${co.n}'s board rejected your bid. You lost $${dueDiligenceFee.toLocaleString()} in due diligence fees.`, false);
+    }
+    refresh();
+    return null;
+  }, [refresh, addNews, logTx]);
 
   // ── PLANET TRADING ───────────────────────────────────────────
   const buyPlanetStock = useCallback((planet, ticker, qty) => {
@@ -1530,11 +1837,18 @@ export function GameProvider({ children }) {
     s.founderMode.industry = industry || 'tech';
     s.founderMode.foundersCapital = capitalAmount;
     s.founderMode.currentCapital = capitalAmount;
+    s.founderMode.totalCapitalRaised = capitalAmount;
     s.founderMode.sharesOutstanding = sharesOutstanding;
     s.founderMode.founderShares = sharesOutstanding; // founder owns 100% at founding
     s.founderMode.revenue = 0;
     s.founderMode.targetRevenue = 0;
+    s.founderMode.burnRate = 0;
+    s.founderMode.runwayTurns = null;
     s.founderMode.pendingOffer = null;
+    s.founderMode.fundingRound = 'seed';
+    s.founderMode.leadInvestor = null;
+    s.founderMode.fundingHistory = [];
+    s.founderMode.lastRoundRejection = null;
     s.founderMode.stage = 'bootstrapped';
     s.founderMode.turnStarted = s.turn;
     s.founderMode.nwAtFoundation = Object.values(s.stockHoldings).reduce((x, [t, n]) => {
@@ -1589,6 +1903,73 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, addNews]);
 
+  // ── FUNDING ROUNDS (Seed -> Series A -> B -> C) ────────────────
+  const proposeFundingRound = useCallback((roundKey, preMoneyValuation) => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active) return 'Not in Founder Mode';
+    if (fm.stage === 'public') return 'Already public — funding rounds are for private companies';
+    const cfg = FUNDING_ROUNDS[roundKey];
+    if (!cfg) return 'Invalid funding round';
+    if (fm.fundingRound !== cfg.prevRound) {
+      const prevLabel = FUNDING_ROUNDS[cfg.prevRound]?.label || 'Seed';
+      return `Complete ${prevLabel} first`;
+    }
+    const profile = FOUNDER_INDUSTRY_PROFILES[fm.industry] || FOUNDER_INDUSTRY_PROFILES.tech;
+    const tractionRatio = fm.targetRevenue > 0 ? fm.revenue / fm.targetRevenue : 0;
+    if (tractionRatio < cfg.minRevenueRatio) {
+      return `Investors want to see ${Math.round(cfg.minRevenueRatio*100)}% of revenue potential proven first (currently ${Math.round(tractionRatio*100)}%)`;
+    }
+    if (preMoneyValuation <= 0) return 'Enter a valid valuation';
+
+    // Fair value: a multiple of current revenue (annualized feel), or a
+    // capital-based fallback if the company is still pre-revenue.
+    const fairValue = fm.revenue > 0 ? fm.revenue * profile.revenueMultiple * 12 : fm.currentCapital * 2;
+    const askRatio = preMoneyValuation / fairValue;
+    // Asking near or below fair value is safe; asking well above it risks rejection.
+    const rejectionChance = cl((askRatio - 1) * 0.8, 0.03, 0.9);
+    const accepted = Math.random() > rejectionChance;
+
+    if (!accepted) {
+      fm.lastRoundRejection = {
+        round: cfg.label, turn: s.turn,
+        reason: askRatio > 1.3 ? 'Valuation too aggressive relative to traction' : 'Investors passed on this round',
+      };
+      addNews('❌', cfg.label+' Round Rejected', `Investors passed on ${fm.companyName}'s ${cfg.label} round at a $${Math.round(preMoneyValuation).toLocaleString()} pre-money valuation. Try a more reasonable ask.`, false);
+      refresh();
+      return null;
+    }
+
+    const [dLo, dHi] = cfg.dilution;
+    const dilutionPct = dLo + Math.random() * (dHi - dLo);
+    const postMoney = preMoneyValuation / (1 - dilutionPct);
+    const raised = r2(postMoney - preMoneyValuation);
+    const pricePerShare = preMoneyValuation / fm.sharesOutstanding;
+    const newShares = Math.round(raised / pricePerShare);
+
+    fm.sharesOutstanding += newShares;
+    fm.currentCapital = r2(fm.currentCapital + raised);
+    fm.totalCapitalRaised = r2((fm.totalCapitalRaised || fm.foundersCapital) + raised);
+    fm.fundingRound = roundKey;
+    s.companyOwnership[fm.companyId] = r2((fm.founderShares / fm.sharesOutstanding) * 10000) / 100;
+
+    const investorName = pick(FICTIONAL_INVESTORS);
+    const investorStakePct = r2(dilutionPct * 10000) / 100;
+    if (!fm.leadInvestor || investorStakePct > (fm.leadInvestor.stakePct || 0)) {
+      fm.leadInvestor = { name: investorName, stakePct: investorStakePct };
+    }
+    fm.fundingHistory = [...fm.fundingHistory, {
+      round: cfg.label, turn: s.turn, investor: investorName, raised,
+      preMoney: preMoneyValuation, postMoney, dilutionPct: r2(dilutionPct*10000)/100,
+    }];
+    fm.lastRoundRejection = null;
+
+    logTx('FUNDING_ROUND', 'Trading', 0, `${cfg.label} closed: $${raised.toLocaleString()} raised from ${investorName} at $${Math.round(preMoneyValuation).toLocaleString()} pre-money`);
+    addNews('💰', cfg.label+' Closed!', `${investorName} led a $${raised.toLocaleString()} ${cfg.label} round in ${fm.companyName} at $${Math.round(preMoneyValuation).toLocaleString()} pre-money. You retain ${s.companyOwnership[fm.companyId].toFixed(1)}% ownership.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews, logTx]);
+
   const launchFounderIPO = useCallback((ipoShares, targetPrice) => {
     const s = S.current;
     if (!s.founderMode.active) return 'Not in Founder Mode';
@@ -1598,6 +1979,17 @@ export function GameProvider({ children }) {
     // Cap new issuance so the founder always retains a clear majority (>51%) post-IPO.
     const maxIssuable = Math.floor(fm.founderShares * 0.96);
     if (ipoShares > maxIssuable) return `Max ${maxIssuable.toLocaleString()} new shares — keeps you above 51% ownership`;
+
+    // Investor veto: a lead investor from a prior funding round with a real
+    // stake can block a lowball IPO price that shortchanges their return.
+    if (fm.leadInvestor && fm.leadInvestor.stakePct >= 15) {
+      const impliedValue = targetPrice * fm.sharesOutstanding;
+      const lastRound = fm.fundingHistory[fm.fundingHistory.length - 1];
+      const floorValue = lastRound ? lastRound.postMoney * 1.15 : fm.currentCapital * 1.5;
+      if (impliedValue < floorValue) {
+        return `${fm.leadInvestor.name} (${fm.leadInvestor.stakePct.toFixed(0)}% stake) vetoed this price — wants a valuation above $${Math.round(floorValue).toLocaleString()} (last round + growth premium). Raise your offer price.`;
+      }
+    }
 
     fm.stage = 'pre-ipo';
     fm.ipoShares = ipoShares;
@@ -1754,12 +2146,16 @@ export function GameProvider({ children }) {
       }));
       // Nested structures the UI iterates — never leave them undefined
       ['planetCompanies','cryptoPrices','cryptoHist','commodityHist','fxRates','fxHist',
-       'fundDeposits','planetWallets','planetUnlocks','shownMilestones','stats'].forEach(k => {
+       'fundDeposits','planetWallets','planetUnlocks','shownMilestones','stats',
+       'lastDecisionTurn','nextDecisionInterval'].forEach(k => {
         if (!merged[k]) merged[k] = fresh[k];
       });
       ['fxPositions','bondHoldings','etfs','geoEvents','news','txLog','badges','phiBenefits'].forEach(k => {
         if (!Array.isArray(merged[k])) merged[k] = fresh[k];
       });
+      // founderMode is a nested object — a shallow merge would drop any new
+      // field (totalCapitalRaised, fundingRound, etc.) an older save lacks.
+      merged.founderMode = { ...fresh.founderMode, ...(loaded.founderMode || {}) };
       merged.navTarget = null;
       merged.pendingMilestone = null;
       S.current = merged;
@@ -1772,7 +2168,7 @@ export function GameProvider({ children }) {
     D, S,
     advanceTurn, buyStock, sellStock, transfer, transferByAmount,
     openFoundation, takeLoan, repayLoan,
-    resolveDecision, buyPlanetStock, sellPlanetStock,
+    resolveDecision, launchTakeover, buyPlanetStock, sellPlanetStock,
     buyETF, sellETF, depositFund, withdrawFund, bookIPO, donate, spinWheel,
     spinFortune, FORTUNE_SEGS,
     buyBond,
@@ -1788,10 +2184,10 @@ export function GameProvider({ children }) {
     setPlayerAvatar, setPlayerName,
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
-    startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO,
+    startFounderMode, takeLoanFounder, proposeFundingRound, launchFounderIPO, confirmFounderIPO,
     acceptTenderOffer, declineTenderOffer,
     toggleFoundationAutopilot, liquidateFoundation,
-    FOUNDER_MIN_CAPITAL,
+    FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS,
     setMusicTrack, toggleMusic, MUSIC_PLAYLIST,
     markOnboardingShown,
   };

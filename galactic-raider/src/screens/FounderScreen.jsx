@@ -4,7 +4,7 @@ import { getT } from '../i18n';
 import { fm as formatMoney } from '../utils';
 
 export function FounderTab({ lang }) {
-  const { D, S, startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, setTradeLock } = useGame();
+  const { D, S, startFounderMode, takeLoanFounder, proposeFundingRound, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, setTradeLock } = useGame();
   const t = getT(lang);
   const fm = S.current.founderMode;
   const MIN_CAPITAL = FOUNDER_MIN_CAPITAL || 10000000;
@@ -24,6 +24,10 @@ export function FounderTab({ lang }) {
   const [ipoShares, setIpoShares] = useState(100000);
   const [ipoPrice, setIpoPrice] = useState(100);
   const [ipoErr, setIpoErr] = useState('');
+
+  const [showFundingModal, setShowFundingModal] = useState(false);
+  const [fundingValuation, setFundingValuation] = useState(50000000);
+  const [fundingErr, setFundingErr] = useState('');
 
   const industries = ['tech', 'healthcare', 'energy', 'finance', 'retail', 'utilities'];
 
@@ -194,6 +198,23 @@ export function FounderTab({ lang }) {
         </div>
       </div>
 
+      {/* Burn Rate / Runway Banner */}
+      <div style={{ padding: '10px 12px', background: fm.burnRate > 0 ? 'rgba(220,38,38,0.12)' : 'rgba(76,175,80,0.12)', borderRadius: '6px', border: '1px solid '+(fm.burnRate > 0 ? 'rgba(220,38,38,0.3)' : 'rgba(76,175,80,0.3)'), marginBottom: '12px' }}>
+        {fm.burnRate > 0 ? (
+          <>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#FCA5A5' }}>🔥 Burning ${fm.burnRate.toLocaleString()}/turn</div>
+            <div style={{ fontSize: '11px', color: '#FCA5A5', opacity: 0.85, marginTop: '2px' }}>
+              {fm.runwayTurns != null ? `${fm.runwayTurns} turns of runway left at this rate — the company folds if capital hits $0.` : 'Monitor your runway closely.'}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#86EFAC' }}>✅ Profitable — capital growing ${(-fm.burnRate).toLocaleString()}/turn</div>
+            <div style={{ fontSize: '11px', color: '#86EFAC', opacity: 0.85, marginTop: '2px' }}>Revenue now covers operating costs and cost of goods.</div>
+          </>
+        )}
+      </div>
+
       {/* Key Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
         <div style={{ padding: '10px', background: 'rgba(0,200,100,0.1)', borderRadius: '4px', border: '1px solid rgba(0,200,100,0.2)' }}>
@@ -216,10 +237,46 @@ export function FounderTab({ lang }) {
 
       {/* Revenue Formula Transparency */}
       <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px', fontSize: '11px', lineHeight: 1.7 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📊 Where revenue comes from</div>
-        <div>Revenue target = Founding Capital (${fm.foundersCapital.toLocaleString()}) × 2% × industry ceiling × demand multiplier</div>
-        <div>Profit margin: <strong>{(fm.profitMargin * 100).toFixed(0)}%</strong> · Expenses: ${fm.expenses.toLocaleString()}</div>
-        <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn — it won't run away unbounded.</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📊 Revenue &amp; Cost Breakdown</div>
+        <div>Revenue target = Total Capital Raised (${(fm.totalCapitalRaised||fm.foundersCapital).toLocaleString()}) × 2% × industry ceiling × demand multiplier</div>
+        <div>Expenses = fixed operating cost (scales with capital raised) + cost of goods (scales with revenue)</div>
+        <div>Profit margin: <strong style={{ color: fm.profitMargin >= 0 ? '#86EFAC' : '#FCA5A5' }}>{(fm.profitMargin * 100).toFixed(0)}%</strong> · Expenses: ${fm.expenses.toLocaleString()}</div>
+        <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn. Raising a funding round increases both your revenue ceiling AND your burn — bigger bets, bigger stakes.</div>
+      </div>
+
+      {/* Funding Rounds */}
+      <div style={{ padding: '10px', background: 'rgba(255,215,0,0.06)', borderRadius: '4px', border: '1px solid rgba(255,215,0,0.2)', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold' }}>💰 Funding Stage: <span style={{ textTransform: 'uppercase' }}>{fm.fundingRound}</span></div>
+        </div>
+        {fm.leadInvestor && (
+          <div style={{ fontSize: '11px', opacity: 0.85, marginBottom: '6px' }}>
+            Lead Investor: <strong>{fm.leadInvestor.name}</strong> ({fm.leadInvestor.stakePct.toFixed(1)}% stake)
+            {fm.leadInvestor.stakePct >= 15 && <span style={{ color: '#FCA5A5' }}> — can veto a lowball IPO price</span>}
+          </div>
+        )}
+        {fm.lastRoundRejection && (
+          <div style={{ fontSize: '11px', color: '#FCA5A5', marginBottom: '6px' }}>
+            ❌ {fm.lastRoundRejection.round} rejected: {fm.lastRoundRejection.reason}
+          </div>
+        )}
+        {fm.stage !== 'public' && fm.fundingRound !== 'seriesC' && (
+          <button
+            onClick={() => { setShowFundingModal(true); setTradeLock(true); }}
+            style={{ width: '100%', padding: '10px', background: '#B45309', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', marginTop: '4px' }}
+          >
+            Raise {FUNDING_ROUNDS?.[fm.fundingRound === 'seed' ? 'seriesA' : fm.fundingRound === 'seriesA' ? 'seriesB' : 'seriesC']?.label || 'Next Round'}
+          </button>
+        )}
+        {fm.fundingHistory?.length > 0 && (
+          <div style={{ marginTop: '8px' }}>
+            {fm.fundingHistory.map((r, i) => (
+              <div key={i} style={{ fontSize: '10px', opacity: 0.7, padding: '3px 0' }}>
+                {r.round}: ${r.raised.toLocaleString()} from {r.investor} @ ${Math.round(r.preMoney).toLocaleString()} pre-money ({r.dilutionPct}% dilution)
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Demand & Weather */}
@@ -386,6 +443,64 @@ export function FounderTab({ lang }) {
           </div>
         </div>
       )}
+
+      {/* Funding Round Modal */}
+      {showFundingModal && (() => {
+        const nextRoundKey = fm.fundingRound === 'seed' ? 'seriesA' : fm.fundingRound === 'seriesA' ? 'seriesB' : 'seriesC';
+        const cfg = FUNDING_ROUNDS?.[nextRoundKey];
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>Raise {cfg?.label}</div>
+              <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
+                Propose a pre-money valuation. Ask too far above what your traction supports and investors may walk away — you'll need to try again with a more reasonable number.
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>
+                  Pre-Money Valuation: ${fundingValuation.toLocaleString()}
+                </label>
+                <input
+                  type="range"
+                  min={fm.currentCapital}
+                  max={fm.currentCapital * 20}
+                  step={100000}
+                  value={fundingValuation}
+                  onChange={(e) => setFundingValuation(Math.floor(+e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(180,83,9,0.15)', borderRadius: '4px', marginBottom: '12px' }}>
+                Expected dilution: {cfg ? `${Math.round(cfg.dilution[0]*100)}-${Math.round(cfg.dilution[1]*100)}%` : '—'} · Requires {cfg ? Math.round(cfg.minRevenueRatio*100) : '—'}% of revenue potential proven
+              </div>
+
+              {fundingErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{fundingErr}</div>}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  onClick={() => { setShowFundingModal(false); setTradeLock(false); setFundingErr(''); }}
+                  style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const err = proposeFundingRound(nextRoundKey, fundingValuation);
+                    if (err) { setFundingErr(err); return; }
+                    setShowFundingModal(false);
+                    setTradeLock(false);
+                    setFundingErr('');
+                  }}
+                  style={{ padding: '8px', background: '#B45309', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Pitch Investors
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* IPO Modal */}
       {showIPOModal && (
