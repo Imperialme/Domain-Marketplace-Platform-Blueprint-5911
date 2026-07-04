@@ -58,6 +58,7 @@ const musicBlock = `
 <div id="music-controls" style="position:fixed;bottom:72px;right:10px;z-index:9999;display:flex;gap:4px">
   <button id="music-play-btn" onclick="toggleMusic()" style="width:40px;height:40px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:all 0.2s" title="Play/Pause music">🎵</button>
   <button onclick="toggleMusicMenu()" style="width:40px;height:40px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:all 0.2s" title="Playlist menu">📋</button>
+  <button onclick="toggleMusicControls()" style="width:40px;height:40px;border-radius:50%;background:rgba(10,22,40,0.90);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:all 0.2s" title="Hide/Show music player">✕</button>
 </div>
 <script>
 var _mPlaying=false;var _mAudio=document.getElementById('bgm');var _currentTrack='music_oasis_of_sol';var _tracks={
@@ -72,6 +73,7 @@ var _mPlaying=false;var _mAudio=document.getElementById('bgm');var _currentTrack
 function updateMusicBtn(){var btn=document.getElementById('music-play-btn');btn.textContent=_mPlaying?'🔊':'🔇';}
 function toggleMusicMenu(){var menu=document.getElementById('music-menu');menu.style.display=menu.style.display==='flex'?'none':'flex';}
 function closeMusicMenu(){document.getElementById('music-menu').style.display='none';}
+function toggleMusicControls(){var ctrl=document.getElementById('music-controls');ctrl.style.display=ctrl.style.display==='none'?'flex':'none';}
 function selectTrack(trackId){_currentTrack=trackId;var wasPlaying=_mPlaying;if(wasPlaying)_mAudio.pause();_mAudio.src=_tracks[trackId];_mAudio.currentTime=0;if(wasPlaying){_mAudio.volume=0.35;_mAudio.play().catch(function(){});}}
 function toggleMusic(){if(_mPlaying){_mAudio.pause();_mPlaying=false;}else{_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){_mPlaying=true;}).catch(function(){});} updateMusicBtn();}
 document.addEventListener('click',function(){if(!_mPlaying&&!_mAudio.dataset.tried){_mAudio.dataset.tried='1';_mAudio.src=_tracks[_currentTrack];_mAudio.volume=0.35;_mAudio.play().then(function(){_mPlaying=true;updateMusicBtn();}).catch(function(){});}},{once:true});
