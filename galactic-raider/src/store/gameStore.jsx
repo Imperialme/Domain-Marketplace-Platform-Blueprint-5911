@@ -2122,16 +2122,34 @@ export function GameProvider({ children }) {
   }, [refresh, addNews, logTx]);
 
   // ── SAVE / LOAD ──────────────────────────────────────────────
+  // 'autosave' is a distinct, engine-managed slot (written every 10 turns in
+  // advanceTurn) — it can be loaded like any other slot, but never manually
+  // saved over, so it always reflects the most recent auto-checkpoint.
+  const slotStorageKey = (slot) => slot === 'autosave' ? 'CC_autosave' : 'CC_save_' + slot;
+
   const saveGame = useCallback((slot='slot1') => {
+    if (slot === 'autosave') return 'Autosave is managed automatically — pick slot 1, 2, or 3';
     try {
-      localStorage.setItem('CC_save_'+slot, JSON.stringify(S.current));
+      localStorage.setItem(slotStorageKey(slot), JSON.stringify(S.current));
       return null;
     } catch(e) { return 'Save failed'; }
   }, []);
 
+  // Lightweight peek at a slot's turn/net worth without loading it into
+  // play — lets the UI show what's in each slot before committing to Load.
+  const getSlotInfo = useCallback((slot) => {
+    try {
+      const data = localStorage.getItem(slotStorageKey(slot));
+      if (!data) return null;
+      const parsed = JSON.parse(data);
+      const netWorth = (parsed.cashWallet||0) + (parsed.savingsWallet||0) + (parsed.tradingWallet||0) + (parsed.foundationBalance||0);
+      return { turn: parsed.turn || 0, netWorth };
+    } catch(e) { return null; }
+  }, []);
+
   const loadGame = useCallback((slot='slot1') => {
     try {
-      const data = localStorage.getItem('CC_save_'+slot);
+      const data = localStorage.getItem(slotStorageKey(slot));
       if (!data) return 'No save found';
       const loaded = JSON.parse(data);
       // Deep-merge over a fresh initial state: saves from older builds are missing newer
@@ -2176,7 +2194,7 @@ export function GameProvider({ children }) {
     buyCommodity, sellCommodity,
     exchangeToLocal, exchangeToUSD,
     openFxPosition, closeFxPosition, FX_QUICK_BETS,
-    saveGame, loadGame,
+    saveGame, loadGame, getSlotInfo,
     addNews, earnBadge,
     BADGE_DEFS,
     COMMODITIES,

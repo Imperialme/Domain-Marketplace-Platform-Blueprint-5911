@@ -541,7 +541,7 @@ function PhilTab() {
 
 // ── SETTINGS TAB ───────────────────────────────────────────────
 function SettingsTab({ TH, t }) {
-  const { D, setDarkMode, setLanguage, setMusicTrack, toggleMusic, MUSIC_PLAYLIST, saveGame, loadGame, S } = useGame();
+  const { D, setDarkMode, setLanguage, setMusicTrack, toggleMusic, MUSIC_PLAYLIST, saveGame, loadGame, getSlotInfo, S } = useGame();
   const [msg, setMsg] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const showMsg = m => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
@@ -614,13 +614,42 @@ function SettingsTab({ TH, t }) {
       {/* Save Slots */}
       <div style={card}>
         <div style={lbl}>{t('settings_save_slots')}</div>
-        {['slot1','slot2','slot3'].map((slot,i) => (
-          <div key={slot} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
-            <div style={{fontSize:12,color:TH.sub,width:50}}>Slot {i+1}</div>
-            <button onClick={() => { const err=saveGame(slot); showMsg(err||'✅ Saved to slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:'#059669',color:'#fff',border:'none',borderRadius:8,fontWeight:700,fontSize:11,cursor:'pointer'}}>{t('settings_save')}</button>
-            <button onClick={() => { const err=loadGame(slot); showMsg(err||'✅ Loaded slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:TH.card,color:TH.sub,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,fontSize:11,cursor:'pointer'}}>{t('settings_load')}</button>
-          </div>
-        ))}
+
+        {/* Autosave — engine-managed, load-only. Written every 10 turns. */}
+        {(() => {
+          const info = getSlotInfo('autosave');
+          return (
+            <div style={{display:'flex',gap:8,marginBottom:10,alignItems:'center',paddingBottom:10,borderBottom:'1px solid '+TH.borderSolid}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:700,color:TH.text}}>💾 Autosave</div>
+                <div style={{fontSize:10,color:TH.sub,marginTop:1}}>
+                  {info ? `Turn ${info.turn} · ${fm(info.netWorth)}` : 'No autosave yet'}
+                </div>
+              </div>
+              <button
+                disabled={!info}
+                onClick={() => { const err=loadGame('autosave'); showMsg(err||'✅ Loaded autosave'); }}
+                style={{padding:'8px 16px',background:info?TH.card:'transparent',color:info?TH.sub:TH.borderSolid,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,fontSize:11,cursor:info?'pointer':'not-allowed'}}
+              >
+                {t('settings_load')}
+              </button>
+            </div>
+          );
+        })()}
+
+        {['slot1','slot2','slot3'].map((slot,i) => {
+          const info = getSlotInfo(slot);
+          return (
+            <div key={slot} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
+              <div style={{width:60}}>
+                <div style={{fontSize:12,color:TH.sub}}>Slot {i+1}</div>
+                {info && <div style={{fontSize:9,color:TH.muted,marginTop:1}}>T{info.turn}</div>}
+              </div>
+              <button onClick={() => { const err=saveGame(slot); showMsg(err||'✅ Saved to slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:'#059669',color:'#fff',border:'none',borderRadius:8,fontWeight:700,fontSize:11,cursor:'pointer'}}>{t('settings_save')}</button>
+              <button disabled={!info} onClick={() => { const err=loadGame(slot); showMsg(err||'✅ Loaded slot '+(i+1)); }} style={{flex:1,padding:'8px 0',background:info?TH.card:'transparent',color:info?TH.sub:TH.borderSolid,border:'1px solid '+TH.borderSolid,borderRadius:8,fontWeight:700,fontSize:11,cursor:info?'pointer':'not-allowed'}}>{t('settings_load')}</button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Reset */}
