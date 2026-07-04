@@ -430,12 +430,12 @@ function EarthFXTab({ d, showMsg }) {
           <button onClick={()=>setDir('short')} style={{flex:1,padding:'10px 0',background:dir==='short'?'#DC2626':'#060B14',border:'1px solid '+(dir==='short'?'#DC2626':'#1A2744'),color:dir==='short'?'#fff':'#6B7280',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>📉 SHORT</button>
         </div>
         <div style={{display:'flex',gap:5,marginBottom:10}}>
-          {[100,500,1000,5000].map(v=>(
-            <button key={v} onClick={()=>setUsdSize(String(v))} style={{flex:1,padding:'7px 0',background:usdSize==v?'#1D4ED8':'#060B14',border:'1px solid '+(usdSize==v?'#3B82F6':'#1A2744'),color:usdSize==v?'#fff':'#6B7280',borderRadius:9,fontSize:10,fontWeight:700,cursor:'pointer'}}>${v>=1000?(v/1000)+'K':v}</button>
+          {[5000,10000,100000,500000,1000000].map(v=>(
+            <button key={v} onClick={()=>setUsdSize(String(v))} style={{flex:1,padding:'7px 0',background:usdSize==v?'#1D4ED8':'#060B14',border:'1px solid '+(usdSize==v?'#3B82F6':'#1A2744'),color:usdSize==v?'#fff':'#6B7280',borderRadius:9,fontSize:10,fontWeight:700,cursor:'pointer'}}>${v>=1000?(v/1000).toFixed(0)+'K':v}</button>
           ))}
         </div>
-        <input type="number" value={usdSize} onChange={e=>setUsdSize(e.target.value)} placeholder="USD size (min $100)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:13,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
-        <div style={{fontSize:9,color:'#4B5563',marginBottom:8}}>Trading Wallet: {fm(d.tradingWallet||0)} · Select pair below then click Open</div>
+        <input type="number" value={usdSize} onChange={e=>setUsdSize(e.target.value)} placeholder="USD size (min $100, max $10M)" style={{width:'100%',background:'#060B14',border:'1px solid #1A2744',borderRadius:8,padding:'9px 12px',color:'#F8FAFC',fontSize:13,outline:'none',boxSizing:'border-box',marginBottom:10,fontFamily:'monospace'}}/>
+        <div style={{fontSize:9,color:'#4B5563',marginBottom:8}}>Trading Wallet: {fm(d.tradingWallet||0)} · Max $10M per position (prevents leverage abuse) · Select pair below then click Open</div>
         {selected && (
           <button onClick={openPos} style={{width:'100%',padding:'12px 0',background:dir==='long'?'#059669':'#DC2626',color:'#fff',border:'none',borderRadius:12,fontWeight:800,fontSize:14,cursor:'pointer',marginBottom:10}}>
             Open {dir.toUpperCase()} {selected} — {usdSize?fm(parseFloat(usdSize)||0):'$0'}

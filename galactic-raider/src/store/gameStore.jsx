@@ -543,7 +543,14 @@ export function GameProvider({ children }) {
       s.stats.totalSavingsInterest = r2((s.stats.totalSavingsInterest||0) + int);
     }
     if (s.foundationOpen && s.foundationBalance > 0) {
-      s.foundationBalance = r2(s.foundationBalance + r2(s.foundationBalance * 0.03 / 365));
+      const growth = r2(s.foundationBalance * 0.03 / 365);
+      s.foundationBalance = r2(s.foundationBalance + growth);
+      // Maintenance charge: 5% every 300 turns (quarterly operations)
+      if (s.turn % 300 === 0 && s.foundationBalance > 0) {
+        const maintenance = r2(s.foundationBalance * 0.05);
+        s.foundationBalance = r2(s.foundationBalance - maintenance);
+        logTx('FOUNDATION_MAINT', 'Foundation', -maintenance, 'Quarterly maintenance fee (5% of balance)');
+      }
     }
 
     // Loan interest
@@ -809,16 +816,18 @@ export function GameProvider({ children }) {
   // ── FOUNDATION ───────────────────────────────────────────────
   const openFoundation = useCallback(() => {
     const s = S.current;
-    const FEE = 500000000; // $500M — late-game asset-protection vehicle
-    if (s.tradingWallet < FEE) return 'Need $500M in Trading Wallet';
-    s.tradingWallet = r2(s.tradingWallet - FEE);
+    const ENDOWMENT = 500000000; // $500M
+    if (s.tradingWallet < ENDOWMENT) return 'Need $500M in Trading Wallet';
+    const ACTIVATION_FEE = r2(ENDOWMENT * 0.80); // 80% charged as activation cost
+    const PRINCIPAL = r2(ENDOWMENT * 0.20); // 20% seeded into foundation
+    s.tradingWallet = r2(s.tradingWallet - ENDOWMENT);
     s.foundationOpen = true;
-    // The endowment IS the foundation: the $500M becomes protected principal earning 3% APR
-    s.foundationBalance = r2((s.foundationBalance || 0) + FEE);
-    logTx('FOUNDATION', 'Trading', -FEE, 'Foundation endowed with $500M. Protected principal earns 3% APR.');
+    s.foundationBalance = r2((s.foundationBalance || 0) + PRINCIPAL);
+    logTx('FOUNDATION', 'Trading', -ENDOWMENT, 'Foundation activated: $'+ACTIVATION_FEE.toLocaleString()+' fee, $'+PRINCIPAL.toLocaleString()+' principal. 3% APR growth + 5% quarterly maintenance.');
+    addNews('⚖️ Foundation established', 'Your foundation is now active. Tax relief up to 75% on capital gains. Quarterly 5% maintenance fee applies.');
     refresh();
     return null;
-  }, [refresh, logTx]);
+  }, [refresh, logTx, addNews]);
 
   // ── LOANS ────────────────────────────────────────────────────
   const takeLoan = useCallback((tier) => {
@@ -1103,6 +1112,7 @@ export function GameProvider({ children }) {
     if (!pair || !dir || !usdSize || usdSize <= 0) return 'Invalid input';
     if (usdSize > s.tradingWallet) return 'Insufficient Trading Wallet funds';
     if (usdSize < 100) return 'Minimum position: $100';
+    if (usdSize > 10000000) return 'Maximum position: $10M (prevents leverage abuse)';
     const rate = s.fxRates?.[pair];
     if (!rate) return 'Pair not found';
     s.tradingWallet = r2(s.tradingWallet - usdSize);
@@ -1114,6 +1124,8 @@ export function GameProvider({ children }) {
     refresh();
     return null;
   }, [refresh, logTx]);
+
+  const FX_QUICK_BETS = [5000, 10000, 100000, 500000, 1000000];
 
   const closeFxPosition = useCallback((posId) => {
     const s = S.current;
@@ -1595,7 +1607,7 @@ export function GameProvider({ children }) {
     buyCrypto, sellCrypto,
     buyCommodity, sellCommodity,
     exchangeToLocal, exchangeToUSD,
-    openFxPosition, closeFxPosition,
+    openFxPosition, closeFxPosition, FX_QUICK_BETS,
     saveGame, loadGame,
     addNews, earnBadge,
     BADGE_DEFS,
