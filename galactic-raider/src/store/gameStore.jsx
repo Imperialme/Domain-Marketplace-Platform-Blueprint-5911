@@ -131,6 +131,9 @@ function buildInitialState() {
     etfs: ETFS.map(e => ({ ...e, price: e.ip, units: 0, avgCost: e.ip, hist: [e.ip, e.ip], ch: 0 })),
     ipoBookings: {},
     ipoListed: {},
+    activeIPOs: [], // {id, turn, company, founder, sector, price, shares, oversubscriptionRate, allocation}
+    ipoHistory: [], // {company, founder, turn, price, performance}
+    lastIPOGenTurn: -500,
     fundDeposits: Object.fromEntries(SOVEREIGN_FUNDS.map(f => [f.id, { deposit: 0, earned: 0 }])),
     // Bonds
     bondHoldings: [],
