@@ -17,6 +17,7 @@ import { InquiryProvider } from './context/InquiryContext';
 import { AnalyticsProvider } from './context/AnalyticsContext';
 import { AuthProvider } from './context/AuthContext';
 import { VisitorProvider } from './context/VisitorContext';
+import { BlogAnalyticsProvider } from './context/BlogAnalyticsContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -26,7 +27,8 @@ function App() {
         <DomainProvider>
           <InquiryProvider>
             <AnalyticsProvider>
-              <Router>
+              <BlogAnalyticsProvider>
+                <Router>
                 <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
                   <AnimatePresence mode="wait">
                     <Routes>
@@ -50,6 +52,7 @@ function App() {
                   </AnimatePresence>
                 </div>
               </Router>
+              </BlogAnalyticsProvider>
             </AnalyticsProvider>
           </InquiryProvider>
         </DomainProvider>

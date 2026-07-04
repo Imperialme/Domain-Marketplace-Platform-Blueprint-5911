@@ -1,15 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { blogPosts } from './blogData';
+import { useBlogAnalytics } from '../context/BlogAnalyticsContext';
 
 const { FiArrowLeft, FiCalendar, FiUser, FiClock, FiTag, FiChevronRight } = FiIcons;
 
 const BlogPost = () => {
   const { slug } = useParams();
+  const { trackBlogView } = useBlogAnalytics();
   const post = blogPosts.find(p => p.slug === slug);
+
+  // Track blog view on mount
+  useEffect(() => {
+    if (post) {
+      trackBlogView(post.id, post.slug, post.category, post.readTime);
+    }
+  }, [post, trackBlogView]);
 
   if (!post) {
     return (
