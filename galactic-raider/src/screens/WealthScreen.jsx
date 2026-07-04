@@ -623,7 +623,7 @@ const DIR_LABELS = Object.fromEntries(DIR_OPTIONS);
 const SRC_NAME = { C:'Cash', T:'Trading', S:'Savings' };
 
 export default function WealthScreen() {
-  const { D, transfer, transferByAmount, openFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
+  const { D, transfer, transferByAmount, openFoundation, toggleFoundationAutopilot, liquidateFoundation, takeLoan, repayLoan, depositFund, withdrawFund, exchangeToLocal, exchangeToUSD } = useGame();
   const d = D;
   const TH = getTheme(d.darkMode);
   const t = getT(d.language);
@@ -726,21 +726,34 @@ export default function WealthScreen() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div>
               <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>🛡️ Asset Protection Foundation</div>
-              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>Your $500M endowment becomes protected principal · grows at 3% APR · shielded from debt</div>
+              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>$500M cost: 80% fee, 20% seeded as principal · 5% maintenance every 300 turns (only while funded) · shielded from debt</div>
             </div>
             {d.foundationOpen&&<div style={{background:'#14532D',color:'#34D399',padding:'3px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>OPEN</div>}
           </div>
           {d.foundationOpen?(
-            <div style={{display:'flex',gap:8}}>
-              <div style={{flex:1,background:'#060B14',borderRadius:8,padding:'8px 0',textAlign:'center'}}>
-                <div style={{fontSize:9,color:'#4B5563'}}>Foundation Balance</div>
-                <div style={{fontSize:14,fontWeight:800,color:'#34D399',fontFamily:'monospace'}}>{fm(d.foundationBalance||0)}</div>
+            <>
+              <div style={{display:'flex',gap:8,marginBottom:10}}>
+                <div style={{flex:1,background:'#060B14',borderRadius:8,padding:'8px 0',textAlign:'center'}}>
+                  <div style={{fontSize:9,color:'#4B5563'}}>Foundation Balance</div>
+                  <div style={{fontSize:14,fontWeight:800,color:'#34D399',fontFamily:'monospace'}}>{fm(d.foundationBalance||0)}</div>
+                </div>
+                <div style={{flex:1,background:'#060B14',borderRadius:8,padding:'8px 0',textAlign:'center'}}>
+                  <div style={{fontSize:9,color:'#4B5563'}}>Mode</div>
+                  <div style={{fontSize:12,fontWeight:700,color:d.foundationAutopilot?'#FBBF24':'#34D399'}}>{d.foundationAutopilot?'🚀 Autopilot':'🛡️ Safe (3% APR)'}</div>
+                </div>
               </div>
-              <div style={{flex:1,background:'#060B14',borderRadius:8,padding:'8px 0',textAlign:'center'}}>
-                <div style={{fontSize:9,color:'#4B5563'}}>Status</div>
-                <div style={{fontSize:12,fontWeight:700,color:'#34D399'}}>✅ Protected</div>
+              <div style={{fontSize:10,color:'#4B5563',marginBottom:8}}>
+                {d.foundationAutopilot ? 'Autopilot invests the balance for a higher average return (~9% APR), but with real volatility — some turns lose money.' : 'Manual mode: guaranteed 3% APR, no volatility.'}
               </div>
-            </div>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>{const e=toggleFoundationAutopilot();if(e)showMsg(e);else showMsg(d.foundationAutopilot?'Switched to manual (safe)':'Switched to autopilot');}} style={{flex:1,background:d.foundationAutopilot?'#374151':'#D97706',color:'#fff',border:'none',borderRadius:10,padding:'11px 0',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                  {d.foundationAutopilot?'Switch to Manual':'Switch to Autopilot'}
+                </button>
+                <button onClick={()=>{const e=liquidateFoundation();if(e)showMsg(e);else showMsg('Foundation liquidated — funds returned to Trading Wallet');}} style={{flex:1,background:'#7F1D1D',color:'#fff',border:'none',borderRadius:10,padding:'11px 0',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                  Liquidate to Cash
+                </button>
+              </div>
+            </>
           ):(
             <button onClick={()=>{const e=openFoundation();if(e)showMsg(e);else showMsg('Foundation opened!');}} style={{width:'100%',background:'#059669',color:'#fff',border:'none',borderRadius:10,padding:'12px 0',fontWeight:700,fontSize:14,cursor:'pointer'}}>
               Open Foundation — $500M

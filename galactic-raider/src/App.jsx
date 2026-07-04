@@ -84,12 +84,16 @@ function AppShell() {
     return () => clearInterval(autoRef.current);
   }, [autoAdv, autoSpeed, advanceTurn, D.pendingMilestone, D.uiModalOpen]);
 
-  // React to cross-screen navigation intents set via navigateTo()
+  // React to cross-screen navigation intents set via navigateTo().
+  // Keyed off the navTarget object identity (not activeTab) so a stale/unconsumed
+  // navTarget can never re-hijack a manual tab click (e.g. tapping Home).
+  const lastNavTargetRef = useRef(null);
   useEffect(() => {
-    if (D.navTarget?.screen && D.navTarget.screen !== activeTab) {
-      setActiveTab(D.navTarget.screen);
+    if (D.navTarget && D.navTarget !== lastNavTargetRef.current) {
+      lastNavTargetRef.current = D.navTarget;
+      if (D.navTarget.screen) setActiveTab(D.navTarget.screen);
     }
-  }, [D.navTarget, activeTab]);
+  }, [D.navTarget]);
 
   const pendingCEO = (D.pendingDecisions || []).length;
   const hasBoardAccess = Object.values(D.companyOwnership || {}).some(pct => pct >= 10);

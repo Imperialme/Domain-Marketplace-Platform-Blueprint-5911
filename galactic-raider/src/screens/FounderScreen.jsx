@@ -4,22 +4,26 @@ import { getT } from '../i18n';
 import { fm as formatMoney } from '../utils';
 
 export function FounderTab({ lang }) {
-  const { D, S, startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO, setTradeLock } = useGame();
+  const { D, S, startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, setTradeLock } = useGame();
   const t = getT(lang);
   const fm = S.current.founderMode;
+  const MIN_CAPITAL = FOUNDER_MIN_CAPITAL || 10000000;
 
   const [setupMode, setSetupMode] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('tech');
-  const [capitalAmount, setCapitalAmount] = useState(50000);
+  const [capitalAmount, setCapitalAmount] = useState(MIN_CAPITAL);
+  const [setupErr, setSetupErr] = useState('');
 
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [loanAmount, setLoanAmount] = useState(10000);
   const [loanTerm, setLoanTerm] = useState(12);
+  const [loanErr, setLoanErr] = useState('');
 
   const [showIPOModal, setShowIPOModal] = useState(false);
   const [ipoShares, setIpoShares] = useState(100000);
   const [ipoPrice, setIpoPrice] = useState(100);
+  const [ipoErr, setIpoErr] = useState('');
 
   const industries = ['tech', 'healthcare', 'energy', 'finance', 'retail', 'utilities'];
 
@@ -83,29 +87,42 @@ export function FounderTab({ lang }) {
                 </label>
                 <input
                   type="range"
-                  min="10000"
-                  max={D.tradingWallet}
+                  min={MIN_CAPITAL}
+                  max={Math.max(MIN_CAPITAL, D.tradingWallet)}
                   value={capitalAmount}
                   onChange={(e) => setCapitalAmount(Math.floor(+e.target.value))}
                   style={{ width: '100%' }}
+                  disabled={D.tradingWallet < MIN_CAPITAL}
                 />
-                <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>Available: ${D.tradingWallet.toLocaleString()}</div>
+                <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>
+                  Minimum: ${MIN_CAPITAL.toLocaleString()} · Available: ${D.tradingWallet.toLocaleString()}
+                </div>
+                {D.tradingWallet < MIN_CAPITAL && (
+                  <div style={{ fontSize: '11px', color: '#FF6B6B', marginTop: '6px' }}>
+                    You need at least ${MIN_CAPITAL.toLocaleString()} in your Trading Wallet to found a company.
+                  </div>
+                )}
               </div>
+
+              {setupErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{setupErr}</div>}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button
-                  onClick={() => setSetupMode(false)}
+                  onClick={() => { setSetupMode(false); setSetupErr(''); }}
                   style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <button
+                  disabled={D.tradingWallet < MIN_CAPITAL}
                   onClick={() => {
-                    if (!companyName.trim()) { alert('Please enter a company name'); return; }
-                    startFounderMode(companyName, industry, capitalAmount);
+                    if (!companyName.trim()) { setSetupErr('Please enter a company name'); return; }
+                    const err = startFounderMode(companyName, industry, capitalAmount);
+                    if (err) { setSetupErr(err); return; }
                     setSetupMode(false);
+                    setSetupErr('');
                   }}
-                  style={{ padding: '8px', background: '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  style={{ padding: '8px', background: D.tradingWallet < MIN_CAPITAL ? 'rgba(76,175,80,0.4)' : '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: D.tradingWallet < MIN_CAPITAL ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
                 >
                   Launch
                 </button>
@@ -119,16 +136,61 @@ export function FounderTab({ lang }) {
 
   // Founder mode active
   const totalDebt = fm.loans.reduce((x, l) => x + l.outstanding, 0);
-  const equityValue = fm.stock.price * fm.sharesOutstanding;
+  const ownershipPct = fm.sharesOutstanding > 0 ? (fm.founderShares / fm.sharesOutstanding) * 100 : 100;
+  const equityValue = fm.stock.price * fm.founderShares;
   const netWorth = fm.currentCapital + equityValue - totalDebt;
+  const maxLeverageRatio = fm.foundersCapital <= 10e6 ? 0.50 : fm.foundersCapital >= 100e6 ? 0.15
+    : 0.50 + (0.15 - 0.50) * ((Math.log(fm.foundersCapital) - Math.log(10e6)) / (Math.log(100e6) - Math.log(10e6)));
+  const maxTotalDebt = fm.foundersCapital * maxLeverageRatio;
+  const debtRemaining = Math.max(0, maxTotalDebt - totalDebt);
 
   return (
     <div style={{ padding: '12px', fontSize: '13px' }}>
+      {/* Tender Offer Modal */}
+      {fm.pendingOffer && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>💼 Acquisition Offer</div>
+            <div style={{ fontSize: '13px', marginBottom: '10px' }}>
+              <strong>{fm.pendingOffer.buyer}</strong> wants to acquire {fm.companyName}.
+            </div>
+            <div style={{ fontSize: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', padding: '10px', marginBottom: '12px', lineHeight: 1.7 }}>
+              <div>Offer: ${fm.pendingOffer.pricePerShare.toFixed(2)}/share</div>
+              <div>Total company value: ${fm.pendingOffer.totalValue.toLocaleString()}</div>
+              <div>Your payout ({ownershipPct.toFixed(1)}% stake): <strong style={{ color: '#4CAF50' }}>${(fm.pendingOffer.totalValue * ownershipPct / 100).toLocaleString()}</strong></div>
+              <div style={{ opacity: 0.7, marginTop: 4 }}>Expires turn {fm.pendingOffer.expiresAtTurn}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button onClick={() => declineTenderOffer()} style={{ padding: '10px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Decline
+              </button>
+              <button onClick={() => acceptTenderOffer()} style={{ padding: '10px', background: '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Accept & Cash Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Company Header */}
       <div style={{ padding: '12px', background: 'rgba(100,200,255,0.1)', borderRadius: '6px', border: '1px solid rgba(100,200,255,0.2)', marginBottom: '12px' }}>
         <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>{fm.companyName}</div>
         <div style={{ fontSize: '11px', opacity: 0.7 }}>
           Stage: <strong style={{ textTransform: 'uppercase' }}>{fm.stage}</strong> · Industry: <strong>{fm.industry}</strong>
+        </div>
+      </div>
+
+      {/* Cap Table */}
+      <div style={{ padding: '10px', background: 'rgba(255,215,0,0.08)', borderRadius: '4px', border: '1px solid rgba(255,215,0,0.25)', marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>👑 Your Ownership</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px' }}>
+          <div>Your shares: <strong>{fm.founderShares.toLocaleString()}</strong></div>
+          <div>Total shares: <strong>{fm.sharesOutstanding.toLocaleString()}</strong></div>
+          <div>Ownership: <strong style={{ color: ownershipPct >= 51 ? '#4CAF50' : '#FF6B6B' }}>{ownershipPct.toFixed(1)}%</strong></div>
+          <div>Equity value: <strong>${equityValue.toLocaleString()}</strong></div>
+        </div>
+        <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '6px' }}>
+          {ownershipPct >= 51 ? 'You hold majority control — every decision here is final board policy.' : 'Your stake has fallen below majority.'}
         </div>
       </div>
 
@@ -139,17 +201,25 @@ export function FounderTab({ lang }) {
           <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4CAF50' }}>${fm.currentCapital.toLocaleString()}</div>
         </div>
         <div style={{ padding: '10px', background: 'rgba(200,100,0,0.1)', borderRadius: '4px', border: '1px solid rgba(200,100,0,0.2)' }}>
-          <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>Monthly Revenue</div>
+          <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>Revenue (converging to ${Math.round(fm.targetRevenue).toLocaleString()})</div>
           <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#FFA500' }}>${fm.revenue.toLocaleString()}</div>
         </div>
         <div style={{ padding: '10px', background: 'rgba(255,100,100,0.1)', borderRadius: '4px', border: '1px solid rgba(255,100,100,0.2)' }}>
-          <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>Total Debt</div>
+          <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>Total Debt (max ${Math.round(maxTotalDebt).toLocaleString()})</div>
           <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#FF6B6B' }}>${totalDebt.toLocaleString()}</div>
         </div>
         <div style={{ padding: '10px', background: 'rgba(100,150,255,0.1)', borderRadius: '4px', border: '1px solid rgba(100,150,255,0.2)' }}>
           <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>Stock Price</div>
           <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#6BB6FF' }}>${fm.stock.price.toFixed(2)}</div>
         </div>
+      </div>
+
+      {/* Revenue Formula Transparency */}
+      <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px', fontSize: '11px', lineHeight: 1.7 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📊 Where revenue comes from</div>
+        <div>Revenue target = Founding Capital (${fm.foundersCapital.toLocaleString()}) × 2% × industry ceiling × demand multiplier</div>
+        <div>Profit margin: <strong>{(fm.profitMargin * 100).toFixed(0)}%</strong> · Expenses: ${fm.expenses.toLocaleString()}</div>
+        <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn — it won't run away unbounded.</div>
       </div>
 
       {/* Demand & Weather */}
@@ -216,6 +286,22 @@ export function FounderTab({ lang }) {
         )}
       </div>
 
+      {/* Pre-IPO Book Building */}
+      {fm.stage === 'pre-ipo' && fm.ipoBook?.length > 0 && (
+        <div style={{ padding: '10px', background: 'rgba(100,200,255,0.08)', borderRadius: '4px', border: '1px solid rgba(100,200,255,0.2)', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '8px' }}>📖 Institutional Interest (Book Building)</div>
+          {fm.ipoBook.map((inv, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '4px 0', borderBottom: i < fm.ipoBook.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+              <span>{inv.name}</span>
+              <strong style={{ color: inv.demandPct >= 60 ? '#4CAF50' : inv.demandPct >= 30 ? '#FFA500' : '#FF6B6B' }}>{inv.demandPct.toFixed(0)}% interest</strong>
+            </div>
+          ))}
+          <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '8px' }}>
+            Overall demand: {(fm.investorDemand * 100).toFixed(0)}% · This determines how many of your filed shares actually get allocated at launch.
+          </div>
+        </div>
+      )}
+
       {/* Loans Display */}
       {fm.loans.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
@@ -235,6 +321,11 @@ export function FounderTab({ lang }) {
           <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
             <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>Take a Loan</div>
 
+            <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '12px' }}>
+              Total debt cap: <strong>${Math.round(maxTotalDebt).toLocaleString()}</strong> ({(maxLeverageRatio*100).toFixed(0)}% of your ${fm.foundersCapital.toLocaleString()} founding capital)<br/>
+              Currently borrowed: ${totalDebt.toLocaleString()} · Remaining room: <strong>${Math.round(debtRemaining).toLocaleString()}</strong>
+            </div>
+
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>
                 Loan Amount: ${loanAmount.toLocaleString()}
@@ -242,11 +333,13 @@ export function FounderTab({ lang }) {
               <input
                 type="range"
                 min="5000"
-                max={Math.min(fm.currentCapital * 5, 1000000)}
-                value={loanAmount}
+                max={Math.max(5000, Math.floor(debtRemaining))}
+                value={Math.min(loanAmount, Math.max(5000, Math.floor(debtRemaining)))}
                 onChange={(e) => setLoanAmount(Math.floor(+e.target.value))}
                 style={{ width: '100%' }}
+                disabled={debtRemaining < 5000}
               />
+              {debtRemaining < 5000 && <div style={{ fontSize: '11px', color: '#FF6B6B', marginTop: '4px' }}>Debt cap reached — repay existing loans to borrow more.</div>}
             </div>
 
             <div style={{ marginBottom: '12px' }}>
@@ -267,18 +360,23 @@ export function FounderTab({ lang }) {
               Est. Monthly Payment: ${Math.floor(loanAmount / loanTerm).toLocaleString()}
             </div>
 
+            {loanErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{loanErr}</div>}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
-                onClick={() => { setShowLoanModal(false); setTradeLock(false); }}
+                onClick={() => { setShowLoanModal(false); setTradeLock(false); setLoanErr(''); }}
                 style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button
+                disabled={debtRemaining < 5000}
                 onClick={() => {
-                  takeLoanFounder(loanAmount, loanTerm);
+                  const err = takeLoanFounder(loanAmount, loanTerm);
+                  if (err) { setLoanErr(err); return; }
                   setShowLoanModal(false);
                   setTradeLock(false);
+                  setLoanErr('');
                 }}
                 style={{ padding: '8px', background: '#4CAF50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
@@ -292,21 +390,27 @@ export function FounderTab({ lang }) {
       {/* IPO Modal */}
       {showIPOModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>File for IPO</div>
+          <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%', maxHeight: '85vh', overflow: 'auto' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>File for IPO</div>
+            <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
+              These are newly-issued shares sold to the public — your {fm.founderShares.toLocaleString()} shares are never sold, only diluted. You'll keep at least 51% ownership.
+            </div>
 
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>
-                IPO Shares: {ipoShares.toLocaleString()}
+                New Shares to Issue: {ipoShares.toLocaleString()}
               </label>
               <input
                 type="range"
                 min="10000"
-                max={fm.sharesOutstanding / 2}
-                value={ipoShares}
+                max={Math.floor(fm.founderShares * 0.96)}
+                value={Math.min(ipoShares, Math.floor(fm.founderShares * 0.96))}
                 onChange={(e) => setIpoShares(Math.floor(+e.target.value))}
                 style={{ width: '100%' }}
               />
+              <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
+                Post-IPO ownership: {((fm.founderShares / (fm.sharesOutstanding + ipoShares)) * 100).toFixed(1)}%
+              </div>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
@@ -322,21 +426,25 @@ export function FounderTab({ lang }) {
             </div>
 
             <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(100,200,255,0.1)', borderRadius: '4px', marginBottom: '12px' }}>
-              Expected Proceeds: ${(ipoShares * ipoPrice).toLocaleString()}
+              Expected Proceeds to You: ${(ipoShares * ipoPrice).toLocaleString()}
             </div>
+
+            {ipoErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{ipoErr}</div>}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
-                onClick={() => { setShowIPOModal(false); setTradeLock(false); }}
+                onClick={() => { setShowIPOModal(false); setTradeLock(false); setIpoErr(''); }}
                 style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  launchFounderIPO(ipoShares, ipoPrice);
+                  const err = launchFounderIPO(ipoShares, ipoPrice);
+                  if (err) { setIpoErr(err); return; }
                   setShowIPOModal(false);
                   setTradeLock(false);
+                  setIpoErr('');
                 }}
                 style={{ padding: '8px', background: '#FF8C42', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >

@@ -1162,13 +1162,16 @@ export default function UniverseScreen() {
   const TABS=[{id:'earth',ico:'🌍',l:t('tab_earth')},{id:'planets',ico:'🪐',l:t('tab_planets')},{id:'etf',ico:'📊',l:t('tab_etf')},{id:'ipo',ico:'🚀',l:t('tab_ipo')},{id:'bonds',ico:'🏦',l:t('tab_bonds')},{id:'crypto',ico:'₿',l:t('tab_crypto')},{id:'commodities',ico:'⛏️',l:t('tab_rawmats')},{id:'founder',ico:'💼',l:'Founder'}];
 
   // Switch to the correct sub-tab when navigated from portfolio
+  // Only earth/planets/crypto/commodities sub-tabs deep-select a ticker/id and
+  // clear navTarget themselves — every other tab (etf/ipo/bonds/founder) has no
+  // deep-selection, so it must be cleared here or it lingers forever and can
+  // hijack later navigation (e.g. tapping Home snaps back to this screen).
+  const DEEP_LINK_TABS = ['earth','planets','crypto','commodities'];
   useEffect(()=>{
     const nt=D.navTarget;
     if(nt&&nt.screen==='markets'&&nt.tab){
       setTab(nt.tab);
-      // clearNavTarget is called by the sub-tab after it consumes ticker/id
-      // For tabs without deep-selection, clear here
-      if(!nt.ticker&&!nt.id&&!nt.planet){
+      if(!DEEP_LINK_TABS.includes(nt.tab)){
         clearNavTarget();
       }
     }

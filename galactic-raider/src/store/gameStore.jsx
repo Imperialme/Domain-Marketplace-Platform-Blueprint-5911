@@ -65,6 +65,7 @@ function buildInitialState() {
     tradingWallet: 800000,
     foundationOpen: false,
     foundationBalance: 0,
+    foundationAutopilot: false, // false = safe 3% APR; true = invests balance, higher avg return, some volatility
     activeLoan: null,
     loanHistory: [],
     autoBuys: [],
@@ -134,6 +135,8 @@ function buildInitialState() {
     activeIPOs: [], // {id, turn, company, founder, sector, price, shares, oversubscriptionRate, allocation}
     ipoHistory: [], // {company, founder, turn, price, performance}
     lastIPOGenTurn: -500,
+    lastBulletinTaxSnapshot: 0,
+    lastBulletinTurn: 0,
     fundDeposits: Object.fromEntries(SOVEREIGN_FUNDS.map(f => [f.id, { deposit: 0, earned: 0 }])),
     // Bonds
     bondHoldings: [],
@@ -210,26 +213,57 @@ function buildInitialState() {
       companyName: null,
       industry: null,  // 'tech', 'healthcare', 'energy', 'finance', 'retail'
       stage: 'setup',  // 'setup' -> 'bootstrapped' -> 'pre-ipo' -> 'public'
-      foundersCapital: 0,
-      currentCapital: 0,
+      foundersCapital: 0,   // fixed at founding — the basis for loan leverage caps, never grows
+      currentCapital: 0,    // operating cash position — moves with profit/loss
       loans: [],
       revenue: 0,
+      targetRevenue: 0,     // the bounded ceiling revenue is converging toward this turn
       expenses: 0,
       profitMargin: 0.15,
       sharesOutstanding: 1000000,
+      founderShares: 1000000, // shares the founder personally holds (100% at founding)
       shareholderPrice: 100,
       ipoShares: 0,
       ipoPrice: 0,
       investorDemand: 0,
+      ipoBook: [],          // [{name, demandPct}] — flavor: institutional interest shown before confirming
       demandTrend: 0,
       weatherResistance: 0.5,
       turnStarted: 0,
       decisions: [],
       stock: { price: 100, ch: 0, hist: [100, 100] },
       nwAtFoundation: 0,
+      pendingOffer: null,   // {id, buyer, pricePerShare, totalValue, turn, expiresAtTurn}
     },
   };
 }
+
+const FOUNDER_MIN_CAPITAL = 10000000; // $10M minimum to start a company
+
+const FOUNDER_INDUSTRY_PROFILES = {
+  tech:       { weatherResistance: 0.4, revenueCeilingMult: 3.5, baseMargin: 0.25 },
+  healthcare: { weatherResistance: 0.7, revenueCeilingMult: 2.2, baseMargin: 0.20 },
+  energy:     { weatherResistance: 0.5, revenueCeilingMult: 2.5, baseMargin: 0.18 },
+  finance:    { weatherResistance: 0.6, revenueCeilingMult: 2.8, baseMargin: 0.22 },
+  retail:     { weatherResistance: 0.3, revenueCeilingMult: 1.8, baseMargin: 0.12 },
+  utilities:  { weatherResistance: 0.8, revenueCeilingMult: 1.4, baseMargin: 0.15 },
+};
+
+// Diminishing-leverage curve: smaller companies can borrow a larger % of their
+// founding capital; larger companies are capped tighter. Prevents the loan
+// amount from ever compounding off itself (it's always pegged to the fixed
+// foundersCapital, never to the ever-growing currentCapital).
+function founderMaxLeverageRatio(foundersCapital) {
+  const LO = { capital: 10e6, ratio: 0.50 };
+  const HI = { capital: 100e6, ratio: 0.15 };
+  if (foundersCapital <= LO.capital) return LO.ratio;
+  if (foundersCapital >= HI.capital) return HI.ratio;
+  const t = (Math.log(foundersCapital) - Math.log(LO.capital)) / (Math.log(HI.capital) - Math.log(LO.capital));
+  return LO.ratio + (HI.ratio - LO.ratio) * t;
+}
+
+const FICTIONAL_INVESTORS = ['Nova Capital Partners','Meridian Growth Fund','Zenith Ventures','Apex Horizon Capital','Silverline Investments','Vantage Point Capital','Northstar Equity Group','Bluewave Asset Management'];
+const FICTIONAL_ACQUIRERS = ['Orbital Holdings Group','Continuum Industries','Paragon Consolidated','Everstream Capital','Ironbridge Enterprises','Halcyon Ventures Group'];
 
 export function GameProvider({ children }) {
   const S = useRef(buildInitialState());
@@ -506,7 +540,7 @@ export function GameProvider({ children }) {
     // ── FOUNDER MODE ─────────────────────────────────────────────
     if (s.founderMode.active && s.founderMode.stage !== 'setup') {
       const fm = s.founderMode;
-      const era = TAX_ERAS[s.eraIdx];
+      const profile = FOUNDER_INDUSTRY_PROFILES[fm.industry] || FOUNDER_INDUSTRY_PROFILES.tech;
 
       // Weather impact on demand (GDP-based)
       const weatherImpact = (s.gdp - 2.5) / 5;  // -1 to 1 scale based on GDP
@@ -514,12 +548,16 @@ export function GameProvider({ children }) {
 
       // Demand trend evolution (S-curve from decision trajectory + economic weather)
       fm.demandTrend = cl(fm.demandTrend + (Math.random() - 0.5) * 0.05, -0.8, 0.8);
-      const demandMultiplier = 1 + fm.demandTrend * resistanceMultiplier;
+      const demandMultiplier = cl(1 + fm.demandTrend * resistanceMultiplier, 0.2, 2.2);
 
-      // Revenue calculation based on demand and profitability
-      fm.revenue = r2(fm.currentCapital * 0.02 * demandMultiplier);
-      fm.expenses = r2(fm.currentCapital * 0.01);
-      const profit = fm.revenue - fm.expenses;
+      // Revenue is bounded by a ceiling set by the fixed founders' capital
+      // (never by the ever-growing currentCapital) and converges toward that
+      // ceiling gradually — no runaway compounding feedback loop.
+      fm.targetRevenue = r2(fm.foundersCapital * 0.02 * profile.revenueCeilingMult * demandMultiplier);
+      fm.revenue = r2(fm.revenue + (fm.targetRevenue - fm.revenue) * 0.08);
+      fm.profitMargin = profile.baseMargin;
+      fm.expenses = r2(fm.revenue * (1 - profile.baseMargin));
+      const profit = r2(fm.revenue - fm.expenses);
       fm.currentCapital = r2(fm.currentCapital + profit);
 
       // Stock price movement (P/E multiple based on growth and profitability)
@@ -537,7 +575,32 @@ export function GameProvider({ children }) {
         const newRemaining = Math.max(0, newOutstanding - monthlyPayment);
         return { ...loan, outstanding: newRemaining, turnsRemaining: loan.turnsRemaining - 1 };
       }).filter(loan => loan.outstanding > 0);
+
+      // Acquisition tender offers — a rival occasionally wants to buy the
+      // company outright. The player can accept (cash out, ends Founder Mode)
+      // or decline (keep growing). Requires the company to show real growth
+      // first, and only one offer is live at a time.
+      if (fm.pendingOffer && s.turn > fm.pendingOffer.expiresAtTurn) {
+        addNews('📉', 'Offer Expired', `The acquisition offer for ${fm.companyName} from ${fm.pendingOffer.buyer} has expired.`, false);
+        fm.pendingOffer = null;
+      }
+      const grownEnough = fm.currentCapital > fm.foundersCapital * 1.5;
+      if (!fm.pendingOffer && grownEnough && Math.random() < (fm.demandTrend > 0.3 ? 0.006 : 0.002)) {
+        const impliedSharePrice = fm.stage === 'public' ? fm.stock.price : r2(fm.currentCapital / fm.sharesOutstanding);
+        const premium = 1.2 + Math.random() * 0.4;
+        const pricePerShare = r2(impliedSharePrice * premium);
+        const totalValue = r2(pricePerShare * fm.founderShares);
+        fm.pendingOffer = {
+          id: Math.random().toString(36).slice(2),
+          buyer: FICTIONAL_ACQUIRERS[Math.floor(Math.random() * FICTIONAL_ACQUIRERS.length)],
+          pricePerShare, totalValue, turn: s.turn, expiresAtTurn: s.turn + 20,
+        };
+        addNews('💼', 'Acquisition Offer', `${fm.pendingOffer.buyer} offers $${totalValue.toLocaleString()} (${premium.toFixed(2)}x premium) to acquire ${fm.companyName}. Respond within 20 turns.`, true);
+      }
     }
+
+    // Foundation maintenance charge and autopilot returns are handled below
+    // alongside the wallet-interest block.
 
     // Savings wallet interest
     if (s.savingsWallet > 0) {
@@ -546,13 +609,37 @@ export function GameProvider({ children }) {
       s.stats.totalSavingsInterest = r2((s.stats.totalSavingsInterest||0) + int);
     }
     if (s.foundationOpen && s.foundationBalance > 0) {
-      const growth = r2(s.foundationBalance * 0.03 / 365);
-      s.foundationBalance = r2(s.foundationBalance + growth);
-      // Maintenance charge: 5% every 300 turns (quarterly operations)
+      if (s.foundationAutopilot) {
+        // Autopilot invests the endowment in a diversified basket: higher
+        // average return than the safe 3% APR, but with real volatility —
+        // some turns lose money, unlike the guaranteed manual rate.
+        const dailyMean = 0.09 / 365;
+        const dailyVol = 0.4 / 365;
+        const dailyReturn = dailyMean + (Math.random() - 0.5) * 2 * dailyVol;
+        s.foundationBalance = r2(Math.max(0, s.foundationBalance * (1 + dailyReturn)));
+      } else {
+        const growth = r2(s.foundationBalance * 0.03 / 365);
+        s.foundationBalance = r2(s.foundationBalance + growth);
+      }
+      // Maintenance charge: 5% every 300 turns — only ever charged while the
+      // foundation actually holds a balance; an empty foundation is never billed.
       if (s.turn % 300 === 0 && s.foundationBalance > 0) {
         const maintenance = r2(s.foundationBalance * 0.05);
         s.foundationBalance = r2(s.foundationBalance - maintenance);
         logTx('FOUNDATION_MAINT', 'Foundation', -maintenance, 'Quarterly maintenance fee (5% of balance)');
+      }
+    }
+
+    // Quarterly tax bulletin — every 300 turns, summarize taxes collected
+    // since the last bulletin as a flavor news item.
+    if (s.turn % 300 === 0 && s.turn > 0 && s.turn !== s.lastBulletinTurn) {
+      const collected = r2((s.stats.totalTaxPaid || 0) - (s.lastBulletinTaxSnapshot || 0));
+      s.lastBulletinTaxSnapshot = s.stats.totalTaxPaid || 0;
+      s.lastBulletinTurn = s.turn;
+      if (collected > 0) {
+        const causes = ['infrastructure modernization', 'environmental restoration', 'public healthcare expansion', 'colony development grants', 'education initiatives', 'planetary defense systems'];
+        const pick = causes[Math.floor(Math.random() * causes.length)];
+        addNews('📜', 'Quarterly Treasury Bulletin', `Over the last 300 turns, $${collected.toLocaleString()} in capital gains tax was collected and allocated toward ${pick}.`, false);
       }
     }
 
@@ -707,10 +794,11 @@ export function GameProvider({ children }) {
     s.tradingWallet = r2(s.tradingWallet - cost);
 
     const TOTAL = { SLKT:1200000000,MRDB:800000000,FRMN:600000000,TNPT:900000000,MDCR:400000000,UTLS:300000000,TLCM:550000000,RLST:250000000,EMTS:180000000,AGRO:500000000 };
-    s.companyOwnership[ticker] = Math.round((s.stockHoldings[ticker] / (TOTAL[ticker] || 500000000)) * 10000) / 100;
+    const totalShares = ticker === s.founderMode.companyId ? s.founderMode.sharesOutstanding : (TOTAL[ticker] || 500000000);
+    s.companyOwnership[ticker] = Math.round((s.stockHoldings[ticker] / totalShares) * 10000) / 100;
 
     const pct = s.companyOwnership[ticker];
-    if (pct >= 50 && (s.companyOwnership[ticker] - qty / (TOTAL[ticker]||500000000) * 100) < 50)
+    if (pct >= 50 && (s.companyOwnership[ticker] - qty / totalShares * 100) < 50)
       addNews('👑', 'MAJORITY CONTROL: '+ticker, 'You own '+pct.toFixed(2)+'% of '+co.n+'. You can now replace the CEO.', true);
     else if (pct >= 25 && !s._board25?.[ticker])
       { s._board25 = s._board25 || {}; s._board25[ticker] = true; addNews('🎯', 'SIGNIFICANT CONTROL: '+ticker, 'You own '+pct.toFixed(2)+'% of '+co.n+'. You can propose strategy.', true); }
@@ -744,7 +832,8 @@ export function GameProvider({ children }) {
     s.stockHoldings[ticker] = held - qty;
     if (!s.stockHoldings[ticker]) delete s.stockHoldings[ticker];
     const TOTAL = { SLKT:1200000000,MRDB:800000000,FRMN:600000000,TNPT:900000000,MDCR:400000000 };
-    s.companyOwnership[ticker] = Math.round(((s.stockHoldings[ticker]||0) / (TOTAL[ticker] || 500000000)) * 10000) / 100;
+    const totalShares = ticker === s.founderMode.companyId ? s.founderMode.sharesOutstanding : (TOTAL[ticker] || 500000000);
+    s.companyOwnership[ticker] = Math.round(((s.stockHoldings[ticker]||0) / totalShares) * 10000) / 100;
 
     // Stats tracking
     s.stats.tradesTotal = (s.stats.tradesTotal||0) + 1;
@@ -1430,15 +1519,22 @@ export function GameProvider({ children }) {
   // ── FOUNDER MODE ─────────────────────────────────────────────
   const startFounderMode = useCallback((companyName, industry, capitalAmount) => {
     const s = S.current;
+    if (capitalAmount < FOUNDER_MIN_CAPITAL) return `Minimum $${FOUNDER_MIN_CAPITAL.toLocaleString()} required to found a company`;
     if (capitalAmount > s.tradingWallet) return 'Insufficient funds';
 
     const companyId = 'FOUNDER_' + Math.random().toString(36).substr(2, 9);
+    const sharesOutstanding = Math.max(1000000, Math.round(capitalAmount / 10));
     s.founderMode.active = true;
     s.founderMode.companyId = companyId;
     s.founderMode.companyName = companyName.trim() || 'Founder Corp';
     s.founderMode.industry = industry || 'tech';
     s.founderMode.foundersCapital = capitalAmount;
     s.founderMode.currentCapital = capitalAmount;
+    s.founderMode.sharesOutstanding = sharesOutstanding;
+    s.founderMode.founderShares = sharesOutstanding; // founder owns 100% at founding
+    s.founderMode.revenue = 0;
+    s.founderMode.targetRevenue = 0;
+    s.founderMode.pendingOffer = null;
     s.founderMode.stage = 'bootstrapped';
     s.founderMode.turnStarted = s.turn;
     s.founderMode.nwAtFoundation = Object.values(s.stockHoldings).reduce((x, [t, n]) => {
@@ -1448,14 +1544,10 @@ export function GameProvider({ children }) {
 
     s.tradingWallet = r2(s.tradingWallet - capitalAmount);
 
-    // Weather resistance varies by industry
-    const resistanceByIndustry = {
-      'tech': 0.4, 'healthcare': 0.7, 'energy': 0.5,
-      'finance': 0.6, 'retail': 0.3, 'utilities': 0.8
-    };
-    s.founderMode.weatherResistance = resistanceByIndustry[industry] || 0.5;
+    const profile = FOUNDER_INDUSTRY_PROFILES[industry] || FOUNDER_INDUSTRY_PROFILES.tech;
+    s.founderMode.weatherResistance = profile.weatherResistance;
 
-    addNews('🚀', 'Founder Mode Started', `You founded ${companyName} in ${industry} with $${capitalAmount.toLocaleString()}.`, true);
+    addNews('🚀', 'Founder Mode Started', `You founded ${companyName} in ${industry} with $${capitalAmount.toLocaleString()}. You hold 100% (${sharesOutstanding.toLocaleString()} shares).`, true);
     refresh();
     return null;
   }, [refresh, addNews]);
@@ -1463,12 +1555,19 @@ export function GameProvider({ children }) {
   const takeLoanFounder = useCallback((amount, termMonths) => {
     const s = S.current;
     if (!s.founderMode.active) return 'Not in Founder Mode';
-    if (amount > s.founderMode.currentCapital * 5) return 'Loan amount exceeds 5x current capital';
+    const fm = s.founderMode;
+    const existingDebt = fm.loans.reduce((x, l) => x + l.outstanding, 0);
+    const maxLeverage = founderMaxLeverageRatio(fm.foundersCapital);
+    const maxTotalDebt = r2(fm.foundersCapital * maxLeverage);
+    if (existingDebt + amount > maxTotalDebt) {
+      const remaining = Math.max(0, r2(maxTotalDebt - existingDebt));
+      return `Loan capped at ${(maxLeverage*100).toFixed(0)}% of invested capital ($${maxTotalDebt.toLocaleString()} total). You can still borrow $${remaining.toLocaleString()}.`;
+    }
 
     const loanId = Math.random().toString(36).substr(2, 9);
     // Loan rate varies by term and profitability
     const baseRate = termMonths <= 12 ? 0.05 : termMonths <= 36 ? 0.07 : 0.09;
-    const profitRate = s.founderMode.revenue > 0 ? 0.02 : 0.05;
+    const profitRate = fm.revenue > 0 ? 0.02 : 0.05;
     const rate = baseRate + profitRate;
 
     const loan = {
@@ -1482,8 +1581,8 @@ export function GameProvider({ children }) {
       turnTaken: s.turn,
     };
 
-    s.founderMode.loans.push(loan);
-    s.founderMode.currentCapital = r2(s.founderMode.currentCapital + amount);
+    fm.loans.push(loan);
+    fm.currentCapital = r2(fm.currentCapital + amount);
 
     addNews('🏦', 'Founder Loan', `Borrowed $${amount.toLocaleString()} at ${(rate*100).toFixed(1)}% over ${termMonths} months.`, true);
     refresh();
@@ -1496,6 +1595,10 @@ export function GameProvider({ children }) {
     if (s.founderMode.stage === 'public') return 'Already public';
 
     const fm = s.founderMode;
+    // Cap new issuance so the founder always retains a clear majority (>51%) post-IPO.
+    const maxIssuable = Math.floor(fm.founderShares * 0.96);
+    if (ipoShares > maxIssuable) return `Max ${maxIssuable.toLocaleString()} new shares — keeps you above 51% ownership`;
+
     fm.stage = 'pre-ipo';
     fm.ipoShares = ipoShares;
     fm.ipoPrice = targetPrice;
@@ -1505,7 +1608,14 @@ export function GameProvider({ children }) {
     const demandScore = Math.min(1, (fm.demandTrend + 1) / 2);
     fm.investorDemand = r2(profitabilityScore * 0.6 + demandScore * 0.4);
 
-    addNews('📋', 'IPO Filed', `${fm.companyName} filed for IPO: ${ipoShares.toLocaleString()} shares @ $${targetPrice}. Investor demand: ${(fm.investorDemand * 100).toFixed(0)}%.`, true);
+    // Book-building flavor: a handful of institutional investors express interest
+    const shuffled = [...FICTIONAL_INVESTORS].sort(() => Math.random() - 0.5).slice(0, 4);
+    fm.ipoBook = shuffled.map(name => ({
+      name,
+      demandPct: r2(cl(fm.investorDemand * (0.6 + Math.random() * 0.8), 0.05, 1) * 100),
+    }));
+
+    addNews('📋', 'IPO Filed', `${fm.companyName} filed for IPO: ${ipoShares.toLocaleString()} new shares @ $${targetPrice}. Investor demand: ${(fm.investorDemand * 100).toFixed(0)}%.`, true);
     refresh();
     return null;
   }, [refresh, addNews]);
@@ -1546,19 +1656,78 @@ export function GameProvider({ children }) {
       });
     }
 
-    // Player gets own shares in the IPO
-    s.stockHoldings[companyId] = (s.stockHoldings[companyId] || 0) + allocation;
-    s.avgCostBasis[companyId] = fm.ipoPrice;
+    // Newly issued shares dilute — they are NOT handed to the player. The
+    // founder keeps their original share count; proceeds are the founder's
+    // cash payout for selling that slice of future ownership to the public.
+    fm.sharesOutstanding = fm.sharesOutstanding + allocation;
+    s.companyOwnership[companyId] = r2((fm.founderShares / fm.sharesOutstanding) * 10000) / 100;
     s.tradingWallet = r2(s.tradingWallet + proceeds);
 
     fm.stage = 'public';
     fm.stock.price = fm.ipoPrice;
     fm.stock.hist = [fm.ipoPrice, fm.ipoPrice];
 
-    addNews('🎉', 'IPO Successful', `${fm.companyName} went public! ${allocation.toLocaleString()} shares allocated. Proceeds: $${proceeds.toLocaleString()}.`, true);
+    addNews('🎉', 'IPO Successful', `${fm.companyName} went public! ${allocation.toLocaleString()} new shares sold to investors. You received $${proceeds.toLocaleString()}. You retain ${s.companyOwnership[companyId].toFixed(1)}% ownership.`, true);
     refresh();
     return null;
   }, [refresh, addNews]);
+
+  const acceptTenderOffer = useCallback(() => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active || !fm.pendingOffer) return 'No active offer';
+    const offer = fm.pendingOffer;
+    // Founder's cut is proportional to their ownership stake
+    const founderOwnershipPct = fm.founderShares / fm.sharesOutstanding;
+    const payout = r2(offer.totalValue * founderOwnershipPct);
+    s.tradingWallet = r2(s.tradingWallet + payout);
+    const companyId = fm.companyId;
+    logTx('ACQUISITION', 'Trading', payout, `${fm.companyName} acquired by ${offer.buyer} — your ${(founderOwnershipPct*100).toFixed(1)}% stake paid out`);
+    addNews('🤝', 'Acquisition Accepted', `${fm.companyName} was acquired by ${offer.buyer} for $${offer.totalValue.toLocaleString()}. You received $${payout.toLocaleString()} for your stake.`, true);
+    // Reset founder mode entirely — player can start a new company later
+    if (companyId) s.companies = s.companies.filter(c => c.t !== companyId);
+    delete s.stockHoldings[companyId];
+    delete s.companyOwnership[companyId];
+    s.founderMode = buildInitialState().founderMode;
+    refresh();
+    return null;
+  }, [refresh, addNews, logTx]);
+
+  const declineTenderOffer = useCallback(() => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.pendingOffer) return 'No active offer';
+    addNews('🚫', 'Offer Declined', `You declined ${fm.pendingOffer.buyer}'s $${fm.pendingOffer.totalValue.toLocaleString()} offer for ${fm.companyName}.`, false);
+    fm.pendingOffer = null;
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  // ── FOUNDATION AUTOPILOT ───────────────────────────────────────
+  const toggleFoundationAutopilot = useCallback(() => {
+    const s = S.current;
+    if (!s.foundationOpen) return 'Open a foundation first';
+    s.foundationAutopilot = !s.foundationAutopilot;
+    addNews('⚖️', 'Foundation Mode Changed', s.foundationAutopilot
+      ? 'Foundation switched to autopilot: invests the balance for a higher average return, with real volatility.'
+      : 'Foundation switched to manual: safe, guaranteed 3% APR.', false);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  const liquidateFoundation = useCallback(() => {
+    const s = S.current;
+    if (!s.foundationOpen) return 'No foundation to liquidate';
+    const amt = s.foundationBalance;
+    s.tradingWallet = r2(s.tradingWallet + amt);
+    s.foundationBalance = 0;
+    s.foundationOpen = false;
+    s.foundationAutopilot = false;
+    logTx('FOUNDATION_LIQUIDATE', 'Trading', amt, 'Foundation liquidated: $'+amt.toLocaleString()+' returned to Trading Wallet. Tax relief benefits ended.');
+    addNews('💰', 'Foundation Liquidated', `$${amt.toLocaleString()} returned to your Trading Wallet. Foundation closed — tax relief benefits ended.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews, logTx]);
 
   // ── SAVE / LOAD ──────────────────────────────────────────────
   const saveGame = useCallback((slot='slot1') => {
@@ -1620,6 +1789,9 @@ export function GameProvider({ children }) {
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
     startFounderMode, takeLoanFounder, launchFounderIPO, confirmFounderIPO,
+    acceptTenderOffer, declineTenderOffer,
+    toggleFoundationAutopilot, liquidateFoundation,
+    FOUNDER_MIN_CAPITAL,
     setMusicTrack, toggleMusic, MUSIC_PLAYLIST,
     markOnboardingShown,
   };
