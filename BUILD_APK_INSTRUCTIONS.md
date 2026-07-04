@@ -33,7 +33,7 @@ EAS will queue the build on Expo's servers. When complete (~5–10 min), you'll 
 
 ---
 
-## App 2: Galactic Raider (React Web / Capacitor)
+## App 2: Cosmos Capital (React Web / Capacitor)
 **Location:** `galactic-raider/`
 **Method:** Capacitor + Android Studio — requires Android SDK
 

@@ -82,7 +82,7 @@ const SLIDES = [
   },
   {
     title: "You're Ready!",
-    subtitle: 'Good luck, Raider',
+    subtitle: 'Good luck, Trader',
     content: 'Start with $1M across 3 wallets. Grow through strategy, timing, and a bit of luck. Remember: mean reversion bounds all prices. Diversify. Have fun trading!',
     emoji: '🌟',
   },

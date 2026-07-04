@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.domainmarketplace.galacticraider"
+    namespace "com.domainmarketplace.cosmoscapital"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.domainmarketplace.galacticraider"
+        applicationId "com.domainmarketplace.cosmoscapital"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

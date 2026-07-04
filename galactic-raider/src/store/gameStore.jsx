@@ -166,7 +166,7 @@ function buildInitialState() {
     spinHistory: [],
     // News
     news: [
-      { id:1, t:1, ico:'🌌', ti:'Galactic Raider — Capital Exchange', bo:'You start with $1,000,000. Grow it into a multi-billion empire. Unlock planets as your net worth grows.', g:true },
+      { id:1, t:1, ico:'🌌', ti:'Cosmos Capital — Market Exchange', bo:'You start with $1,000,000. Grow it into a multi-billion empire. Unlock planets as your net worth grows.', g:true },
       { id:2, t:1, ico:'⚖️', ti:'Economic Governor Active', bo:'P/E bounds enforced. Prices anchored to fundamentals. All 8 rules running.', g:true },
     ],
     txLog: [
@@ -189,7 +189,7 @@ function buildInitialState() {
       totalSavingsInterest: 0,
     },
     badges: [],
-    playerName: 'Raider',
+    playerName: 'Trader',
     playerAvatar: '🚀',
     // Earth FX positions
     fxRates: {
@@ -1771,7 +1771,7 @@ export function GameProvider({ children }) {
   }, [refresh]);
 
   const setPlayerName = useCallback((name) => {
-    S.current.playerName = name.trim() || 'Raider';
+    S.current.playerName = name.trim() || 'Trader';
     refresh();
   }, [refresh]);
 

@@ -1,4 +1,4 @@
-package com.domainmarketplace.galacticraider;
+package com.domainmarketplace.cosmoscapital;
 
 import com.getcapacitor.BridgeActivity;
 

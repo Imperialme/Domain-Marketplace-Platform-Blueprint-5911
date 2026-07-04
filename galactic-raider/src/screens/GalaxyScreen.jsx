@@ -50,7 +50,7 @@ const SPACE_AVATARS = [
   { id:'👑', label:'Space Baron',  color:'#F59E0B', glow:'#FDE68A', anim:'shimmer',bg:'linear-gradient(135deg,#713f12,#92400e)' },
   { id:'🔭', label:'The Watcher',  color:'#6366F1', glow:'#818CF8', anim:'orbit',  bg:'linear-gradient(135deg,#1e1b4b,#312e81)' },
   { id:'🌙', label:'Moon Sentinel',color:'#94A3B8', glow:'#E2E8F0', anim:'glow',   bg:'linear-gradient(135deg,#1e293b,#0f172a)' },
-  { id:'☄️', label:'Comet Raider', color:'#EF4444', glow:'#FCA5A5', anim:'streak', bg:'linear-gradient(135deg,#7f1d1d,#991b1b)' },
+  { id:'☄️', label:'Comet Chaser', color:'#EF4444', glow:'#FCA5A5', anim:'streak', bg:'linear-gradient(135deg,#7f1d1d,#991b1b)' },
   { id:'🪐', label:'Ring Master',  color:'#7C3AED', glow:'#C4B5FD', anim:'ring',   bg:'linear-gradient(135deg,#4c1d95,#2e1065)' },
 ];
 
@@ -169,7 +169,7 @@ function InsightsPanel({onBack}) {
                 display:'inline-block',
                 animation: avatarDef ? `cc-${avatarDef.anim} 2.5s ease-in-out infinite` : 'none',
               }}>{d.playerAvatar||'🚀'}</div>
-              <div style={{fontSize:20,fontWeight:900,color:T.text}}>{d.playerName||'Raider'}</div>
+              <div style={{fontSize:20,fontWeight:900,color:T.text}}>{d.playerName||'Trader'}</div>
               {avatarDef && <div style={{fontSize:11,color:avatarDef.glow,fontWeight:700,marginTop:2}}>{avatarDef.label}</div>}
               <div style={{fontSize:12,color:T.muted,marginTop:4}}>Turn {d.turn} · {(d.badges||[]).length} badges earned</div>
             </div>
@@ -834,7 +834,7 @@ function SettingsPanelGalaxy({onBack}) {
   const {D,setPlayerAvatar,setPlayerName}=useGame();
   const d=D;
   const TH = getTheme(D.darkMode);
-  const [name,setName]=useState(d.playerName||'Raider');
+  const [name,setName]=useState(d.playerName||'Trader');
   const [msg,setMsg]=useState('');
   const [currentAvatar,setCurrentAvatar]=useState(d.playerAvatar||'🚀');
   const showMsg=m=>{setMsg(m);setTimeout(()=>setMsg(''),3000);};
@@ -985,7 +985,7 @@ export default function GalaxyScreen() {
               animation: avatarDef ? `cc-${avatarDef.anim} 2.5s ease-in-out infinite` : 'none',
               lineHeight:1,
             }}>{D.playerAvatar||'🚀'}</div>
-            <div style={{fontSize:9,color: avatarDef ? avatarDef.glow : TH.muted,fontWeight:700,marginTop:4,letterSpacing:.3}}>{D.playerName||'Raider'}</div>
+            <div style={{fontSize:9,color: avatarDef ? avatarDef.glow : TH.muted,fontWeight:700,marginTop:4,letterSpacing:.3}}>{D.playerName||'Trader'}</div>
           </div>
         </div>
       </div>
