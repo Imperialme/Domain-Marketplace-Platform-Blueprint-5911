@@ -4,110 +4,65 @@ const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
+
+const isLocalDev = () =>
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock users for demonstration
-  const mockUsers = [
-    {
-      id: 1,
-      email: 'admin@netzone.me',
-      password: 'admin123',
-      name: 'Admin User',
-      role: 'admin',
-      avatar: null,
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      email: 'user@example.com',
-      password: 'user123',
-      name: 'Regular User',
-      role: 'user',
-      avatar: null,
-      created_at: new Date().toISOString()
-    }
-  ];
-
   useEffect(() => {
-    // Check for existing session
     const savedUser = localStorage.getItem('netzone_user');
     if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('netzone_user');
-      }
+      try { setUser(JSON.parse(savedUser)); } catch { localStorage.removeItem('netzone_user'); }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     setLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-      
-      if (!foundUser) {
+      const effectiveEmail = localStorage.getItem('dm_admin_email') || 'admin@netzone.me';
+
+      if (email.toLowerCase() !== effectiveEmail.toLowerCase()) {
         throw new Error('Invalid email or password');
       }
 
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = foundUser;
-      
-      setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
+      let passwordValid = false;
 
-  const register = async (userData) => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if user already exists
-      const existingUser = mockUsers.find(u => u.email === userData.email);
-      if (existingUser) {
-        throw new Error('User with this email already exists');
+      if (isLocalDev()) {
+        // Local dev: compare against localStorage override or default
+        const localPw = localStorage.getItem('dm_admin_password') || 'admin123';
+        passwordValid = password === localPw;
+      } else {
+        // Production: verify against server-side hashed password (cross-browser)
+        try {
+          const res = await fetch('/api/admin-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', password }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            passwordValid = data.ok;
+          }
+        } catch {
+          // Server unreachable — fall back to localStorage
+          const localPw = localStorage.getItem('dm_admin_password') || 'admin123';
+          passwordValid = password === localPw;
+        }
       }
 
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        role: 'user',
-        avatar: null,
-        created_at: new Date().toISOString()
-      };
+      if (!passwordValid) throw new Error('Invalid email or password');
 
-      // Add to mock users (in real app, this would be an API call)
-      mockUsers.push(newUser);
-      
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = newUser;
-      
-      setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
-      
+      const userObj = { id: 1, email: effectiveEmail, name: 'Admin', role: 'admin' };
+      setUser(userObj);
+      localStorage.setItem('netzone_user', JSON.stringify(userObj));
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -122,37 +77,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateProfile = async (updates) => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('netzone_user', JSON.stringify(updatedUser));
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    updateProfile,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin'
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    localStorage.setItem('netzone_user', JSON.stringify(updatedUser));
+    return { success: true };
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      updateProfile,
+      isAuthenticated: !!user,
+      isAdmin: user?.role === 'admin',
+    }}>
       {children}
     </AuthContext.Provider>
   );

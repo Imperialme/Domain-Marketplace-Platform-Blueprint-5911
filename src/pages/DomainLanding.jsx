@@ -1,195 +1,732 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useDomains } from '../context/DomainContext';
 import { useInquiries } from '../context/InquiryContext';
-import InquiryForm from '../components/InquiryForm';
+import { useVisitor } from '../context/VisitorContext';
+import {
+  submitToNetlify,
+  sendEmailNotifications,
+} from '../services/emailService';
 
-const { FiGlobe, FiCheck, FiDollarSign, FiMail, FiShield } = FiIcons;
+const {
+  FiGlobe, FiShield, FiCheck, FiSend, FiClock, FiLock,
+  FiMail, FiUser, FiDollarSign, FiAlertCircle, FiStar,
+  FiPhone, FiArrowDown, FiZap, FiX,
+} = FiIcons;
+
+// Detect if being served from a custom/forwarded domain
+const getDetectedDomain = () => {
+  const h = window.location.hostname;
+  if (
+    h === 'localhost' || h === '127.0.0.1' ||
+    h.includes('vercel.app') || h.includes('netlify.app') ||
+    h.includes('netzone.me') || h.includes('shahid.me')
+  ) return null;
+  return h;
+};
+
+// Build Escrow.com checkout link for a domain at a specific price
+const buildEscrowLink = (domainName, price) => {
+  const params = new URLSearchParams({
+    Type: 'domain_name',
+    'Initiate[type]': 'domain_name_transfer',
+    'Initiate[domain]': domainName,
+    'Initiate[price]': price,
+    'Initiate[currency]': 'USD',
+  });
+  return `https://www.escrow.com/checkout/new?${params.toString()}`;
+};
+
+const PAYMENT_METHODS = [
+  {
+    id: 'escrow',
+    label: 'Escrow.com',
+    icon: '🔐',
+    tagline: 'Recommended · Most Secure',
+    description: 'Funds held safely by Escrow.com until domain is transferred. Industry standard.',
+    badge: 'RECOMMENDED',
+    badgeColor: 'bg-green-100 text-green-700',
+    border: 'border-green-400',
+    bg: 'bg-green-50',
+  },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    icon: '🅿️',
+    tagline: 'Fast · Buyer Protection',
+    description: 'Pay instantly via PayPal. Buyer protection included on eligible purchases.',
+    badge: 'FAST',
+    badgeColor: 'bg-blue-100 text-blue-700',
+    border: 'border-blue-400',
+    bg: 'bg-blue-50',
+  },
+  {
+    id: 'crypto',
+    label: 'Cryptocurrency',
+    icon: '₿',
+    tagline: 'BTC · ETH · USDT',
+    description: 'Pay with Bitcoin, Ethereum, or USDT. Wallet address provided after agreement.',
+    badge: 'CRYPTO',
+    badgeColor: 'bg-orange-100 text-orange-700',
+    border: 'border-orange-400',
+    bg: 'bg-orange-50',
+  },
+];
+
+const TrustBadge = ({ emoji, label }) => (
+  <div className="flex flex-col items-center gap-1.5 min-w-0">
+    <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-lg">
+      {emoji}
+    </div>
+    <span className="text-xs text-blue-100 font-medium text-center leading-tight">{label}</span>
+  </div>
+);
 
 const DomainLanding = () => {
-  const { domainName } = useParams();
-  const { getDomainByName } = useDomains();
-  const domain = getDomainByName(domainName);
+  const { domainName: paramDomainName } = useParams();
+  const { getDomainByName, domainsLoading } = useDomains();
+  const { addInquiry } = useInquiries();
+  const { startSession, trackPriceTyped, trackFormStarted, trackFormSubmitted, trackEmailEntered, currentSession } = useVisitor();
 
-  const getThemeColors = (variant) => {
-    const themes = {
-      1: { bg: 'from-blue-600 to-purple-700', accent: 'blue' },
-      2: { bg: 'from-green-600 to-teal-700', accent: 'green' },
-      3: { bg: 'from-orange-600 to-red-700', accent: 'orange' },
-      default: { bg: 'from-primary-600 to-primary-700', accent: 'primary' }
-    };
-    return themes[variant] || themes.default;
+  const detectedHostname = getDetectedDomain();
+  const domain = detectedHostname
+    ? (getDomainByName(detectedHostname) || getDomainByName(paramDomainName))
+    : getDomainByName(paramDomainName);
+
+  const [formData, setFormData] = useState({
+    name: '', email: '', phone: '', offerAmount: '', message: '',
+  });
+  const [paymentMethod, setPaymentMethod] = useState('escrow');
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [formTouched, setFormTouched] = useState(false);
+  const priceDebounceRef = useRef(null);
+  const formSectionRef = useRef(null);
+
+  // One-time session start on mount
+  const startSessionRef = useRef(startSession);
+  startSessionRef.current = startSession;
+  useEffect(() => {
+    const name = domain?.domain_name || detectedHostname || paramDomainName;
+    if (name) startSessionRef.current(name);
+  }, []); // intentionally runs once
+
+  const scrollToForm = () => {
+    formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  if (!domain) {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+
+    if (name === 'offerAmount') {
+      clearTimeout(priceDebounceRef.current);
+      priceDebounceRef.current = setTimeout(() => {
+        const n = parseFloat(value);
+        if (!isNaN(n) && n > 0) trackPriceTyped(n);
+      }, 500);
+    }
+  };
+
+  const handleFocus = () => {
+    if (!formTouched) {
+      setFormTouched(true);
+      trackFormStarted();
+    }
+  };
+
+  const handleEmailBlur = () => {
+    if (formData.email && /\S+@\S+\.\S+/.test(formData.email)) {
+      trackEmailEntered(formData.email);
+    }
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!formData.email.trim()) errs.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Invalid email address';
+    if (!formData.name.trim()) errs.name = 'Name is required';
+    if (!formData.offerAmount || parseFloat(formData.offerAmount) <= 0)
+      errs.offerAmount = 'Please enter your offer amount';
+    else if (domain?.min_offer && parseFloat(formData.offerAmount) < domain.min_offer)
+      errs.offerAmount = `Minimum offer is $${Number(domain.min_offer).toLocaleString()}`;
+    return errs;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    setSubmitting(true);
+
+    const displayDomain = domain?.domain_name || detectedHostname || paramDomainName;
+    const session = currentSession;
+
+    // Calculate time spent on page before submission
+    const timeOnPage = session?.startTime
+      ? Math.round((Date.now() - new Date(session.startTime).getTime()) / 1000)
+      : null;
+
+    // Save inquiry FIRST so we have the ref number to include in the email
+    const inquiry = addInquiry({
+      domain_id:      domain?.id,
+      domain_name:    displayDomain,
+      name:           formData.name,
+      email:          formData.email,
+      phone:          formData.phone,
+      offerAmount:    parseFloat(formData.offerAmount),
+      message:        formData.message,
+      paymentMethod,
+      referrer:       document.referrer || 'Direct',
+      userAgent:      navigator.userAgent,
+      ip:             session?.ip || null,
+      country:        session?.country || null,
+      countryName:    session?.countryName || null,
+      city:           session?.city || null,
+      referrerSource: session?.referrerSource || 'Direct',
+      device:         session?.device || null,
+      browser:        session?.browser || null,
+      timezone:       session?.timezone || null,
+      currency:       session?.currency || null,
+      timeOnPage,
+    });
+
+    // Fire email channels in parallel — both now include the ref number
+    await Promise.allSettled([
+      // 1. Netlify Forms: zero-config capture
+      submitToNetlify({
+        domain_name:      displayDomain,
+        buyer_name:       formData.name,
+        buyer_email:      formData.email,
+        buyer_phone:      formData.phone || '',
+        offer_amount:     String(parseFloat(formData.offerAmount)),
+        payment_method:   paymentMethod,
+        message:          formData.message || '',
+        ref:              inquiry.ref || '',
+        visitor_country:  session?.countryName || '',
+        visitor_city:     session?.city || '',
+        visitor_ip:       session?.ip || '',
+        visitor_source:   session?.referrerSource || 'Direct',
+        visitor_device:   session?.device || '',
+      }),
+      // 2. Mailgun: admin notification + buyer confirmation (includes ref)
+      sendEmailNotifications({
+        domainName:     displayDomain,
+        buyerName:      formData.name,
+        buyerEmail:     formData.email,
+        buyerPhone:     formData.phone,
+        offerAmount:    parseFloat(formData.offerAmount),
+        message:        formData.message,
+        paymentMethod,
+        ref:            inquiry.ref,
+        timeOnPage,
+        country:        session?.countryName || session?.country,
+        city:           session?.city,
+        ip:             session?.ip,
+        referrerSource: session?.referrerSource,
+      }),
+    ]);
+
+    trackFormSubmitted(inquiry.id);
+    setSubmitting(false);
+    setSubmitted(true);
+  };
+
+  // ─── Loading: wait for server domains before showing fallback ────────────
+  if (domainsLoading && !domain) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <SafeIcon icon={FiGlobe} className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Domain Not Found</h1>
-          <p className="text-gray-600 mb-4">The domain you're looking for doesn't exist.</p>
-          <Link to="/" className="text-primary-600 hover:text-primary-700">
-            Return to Homepage
-          </Link>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm">Loading domain info…</p>
         </div>
       </div>
     );
   }
 
-  const theme = getThemeColors(domain.theme_variant);
+  // ─── Domain not in system (forwarded but not added yet) ───────────────────
+  if (!domain) {
+    const displayName = detectedHostname || paramDomainName || 'this domain';
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">🌐</div>
+          <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">{displayName}</h1>
+          <p className="text-slate-300 text-lg mb-2">This domain may be for sale.</p>
+          <p className="text-slate-400 text-sm mb-8">Contact the owner to inquire about acquiring this domain.</p>
+          <a href="mailto:ask@netzone.me"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-7 py-3.5 rounded-2xl font-semibold transition-colors text-sm shadow-lg shadow-blue-900/40">
+            <SafeIcon icon={FiMail} className="h-4 w-4" />
+            Contact the Owner
+          </a>
+        </motion.div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <motion.header 
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="bg-white/90 backdrop-blur-md border-b border-gray-200"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center space-x-2">
-              <SafeIcon icon={FiGlobe} className="h-8 w-8 text-primary-600" />
-              <span className="text-2xl font-bold text-gray-900">Netzone</span>
-            </Link>
-            <div className="flex items-center space-x-2">
-              <SafeIcon icon={FiShield} className="h-5 w-5 text-green-600" />
-              <span className="text-sm text-green-600 font-medium">Verified Domain</span>
+  const buyNowPrice = domain.buy_now_price || null;
+  const minOffer = domain.min_offer || null;
+  const askingPrice = buyNowPrice || domain.price || null;
+  const domainName = domain.domain_name;
+  const escrowLink = askingPrice ? buildEscrowLink(domainName, askingPrice) : null;
+
+  // ─── Success screen ────────────────────────────────────────────────────────
+  if (submitted) {
+    const pm = PAYMENT_METHODS.find(m => m.id === paymentMethod);
+    const handleClose = () => {
+      setSubmitted(false);
+      setFormData({ name: '', email: '', phone: '', offerAmount: '', message: '' });
+      setErrors({});
+      setFormTouched(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center relative">
+
+          {/* Close button */}
+          <button onClick={handleClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Close">
+            <SafeIcon icon={FiX} className="h-5 w-5" />
+          </button>
+
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+            transition={{ type: 'spring', delay: 0.2 }}
+            className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+            ✅
+          </motion.div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer Received!</h2>
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            Thank you, <strong className="text-gray-900">{formData.name}</strong>. We will be in touch with you shortly to finalize the details and see how we can move forward with the negotiation.
+          </p>
+
+          <div className="bg-gray-50 rounded-2xl p-5 text-left space-y-3 mb-6">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Domain</span>
+              <span className="font-semibold text-gray-900">{domainName}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Your Offer</span>
+              <span className="font-bold text-green-600 text-lg">${parseFloat(formData.offerAmount).toLocaleString()}</span>
+            </div>
+            {askingPrice && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Asking Price</span>
+                <span className="text-gray-700">${askingPrice.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Payment via</span>
+              <span className="text-gray-700">{pm?.icon} {pm?.label}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Contact</span>
+              <span className="text-gray-700">{formData.email}</span>
             </div>
           </div>
-        </div>
-      </motion.header>
 
-      {/* Hero Section */}
-      <section className={`bg-gradient-to-r ${theme.bg} text-white py-20`}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <SafeIcon icon={FiGlobe} className="h-16 w-16 mx-auto mb-6 opacity-90" />
-            <h1 className="text-4xl lg:text-6xl font-bold mb-4">
-              {domain.domain_name}
-            </h1>
-            <p className="text-xl lg:text-2xl opacity-90 mb-8">
-              {domain.tagline}
-            </p>
-            <div className="flex items-center justify-center space-x-8 text-lg">
-              <div className="flex items-center space-x-2">
-                <SafeIcon icon={FiDollarSign} className="h-6 w-6" />
-                <span className="font-semibold">${domain.price.toLocaleString()}</span>
+          <button onClick={handleClose}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl font-semibold text-sm transition-colors mb-3">
+            Back to {domainName}
+          </button>
+          <a href="/#/browse"
+            className="block w-full text-center text-slate-400 hover:text-blue-400 text-sm transition-colors py-1">
+            Browse all NetZone domains →
+          </a>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ─── Main landing page ────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-slate-950">
+
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-10 pb-20 px-4">
+        <div className="max-w-4xl mx-auto">
+
+          {/* NetZone nav bar */}
+          <div className="flex items-center justify-between mb-14">
+            <Link to="/browse" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+              <svg viewBox="0 0 36 36" width="34" height="34" fill="none">
+                <circle cx="18" cy="18" r="16" stroke="#60a5fa" strokeWidth="1.8"/>
+                <ellipse cx="18" cy="18" rx="7" ry="16" stroke="#60a5fa" strokeWidth="1.4"/>
+                <line x1="2" y1="18" x2="34" y2="18" stroke="#60a5fa" strokeWidth="1.4"/>
+              </svg>
+              <span className="font-extrabold text-lg text-white tracking-tight">
+                Net<span className="text-blue-400">Zone</span>
+              </span>
+            </Link>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              Domain Available
+            </div>
+          </div>
+
+          <div className="text-center">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+              <div className="inline-flex items-center gap-2 bg-white/8 backdrop-blur border border-white/12 rounded-full px-4 py-1.5 mb-8">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm text-slate-300 font-medium">Premium Domain · Available Now</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <SafeIcon icon={FiCheck} className="h-6 w-6" />
-                <span>Verified & Ready</span>
+
+              <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight text-white mb-5 leading-none">
+                {domainName}
+              </h1>
+
+              {domain.tagline && (
+                <p className="text-slate-400 text-lg md:text-xl mb-10 max-w-xl mx-auto">{domain.tagline}</p>
+              )}
+
+              {/* Price + CTAs */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+                {/* Buy Now — only shown if buy_now_price is set */}
+                {buyNowPrice && escrowLink && (
+                  <a href={escrowLink} target="_blank" rel="noopener noreferrer"
+                    className="group flex items-center gap-3 bg-white text-slate-900 hover:bg-slate-100 px-7 py-4 rounded-2xl font-bold text-base transition-all shadow-xl shadow-black/40">
+                    <span className="text-xl">🔐</span>
+                    <div className="text-left">
+                      <div className="text-xs text-slate-500 font-medium leading-none mb-0.5">BUY NOW via Escrow</div>
+                      <div className="text-green-700 font-black text-lg leading-none">${buyNowPrice.toLocaleString()}</div>
+                    </div>
+                    <SafeIcon icon={FiArrowDown} className="h-4 w-4 text-slate-400 rotate-[-90deg]" />
+                  </a>
+                )}
+
+                {/* Make Offer */}
+                <button onClick={scrollToForm}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-7 py-4 rounded-2xl font-bold text-base transition-colors shadow-lg shadow-blue-900/50">
+                  <SafeIcon icon={FiDollarSign} className="h-5 w-5" />
+                  {buyNowPrice ? 'Make an Offer' : 'Make an Offer'}
+                </button>
               </div>
+
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-6 sm:gap-10 flex-wrap">
+              <TrustBadge emoji="🔐" label="Escrow Protected" />
+              <TrustBadge emoji="⚡" label="Fast Transfer" />
+              <TrustBadge emoji="🕐" label="24h Response" />
+              <TrustBadge emoji="✅" label="Verified Seller" />
+              <TrustBadge emoji="🌍" label="Worldwide" />
             </div>
           </motion.div>
         </div>
-      </section>
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Domain Info */}
-            <motion.div
-              initial={{ x: -30, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Domain Details</h2>
-              
-              <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Domain Name</span>
-                    <span className="font-semibold text-gray-900">{domain.domain_name}</span>
+      {/* ── PAYMENT OPTIONS ROW ──────────────────────────────────────────── */}
+      <div className="bg-slate-900/60 border-y border-white/8 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-center text-xs text-slate-500 uppercase tracking-widest font-semibold mb-6">
+            Accepted Payment Methods
+          </p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {PAYMENT_METHODS.map(pm => (
+              <div key={pm.id} className="bg-white/5 rounded-2xl border border-white/10 p-5 hover:bg-white/8 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-2xl">{pm.icon}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pm.badgeColor}`}>{pm.badge}</span>
+                </div>
+                <h3 className="font-bold text-white text-sm mb-1">{pm.label}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{pm.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 py-14">
+        <div className="grid lg:grid-cols-5 gap-10">
+
+          {/* Left panel: domain details */}
+          <motion.div className="lg:col-span-2 space-y-5"
+            initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Domain Details</h3>
+              <dl className="space-y-3">
+                {[
+                  ['Domain', domainName],
+                  ['Extension', '.' + domainName.split('.').slice(1).join('.')],
+                  buyNowPrice ? ['Buy Now', `$${buyNowPrice.toLocaleString()}`] : null,
+                  minOffer ? ['Min. Offer', `$${minOffer.toLocaleString()}`] : null,
+                  ['Availability', null],
+                  ['Transfer', 'Full ownership'],
+                ].filter(Boolean).map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center py-2 border-b border-white/8 last:border-0">
+                    <dt className="text-sm text-slate-400">{label}</dt>
+                    {value === null
+                      ? <dd className="inline-flex items-center gap-1 bg-green-500/20 text-green-400 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />Available
+                        </dd>
+                      : <dd className="text-sm font-semibold text-white">{value}</dd>
+                    }
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Price</span>
-                    <span className="font-bold text-2xl text-primary-600">
-                      ${domain.price.toLocaleString()}
-                    </span>
+                ))}
+              </dl>
+            </div>
+
+            <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">What's Included</h3>
+              <ul className="space-y-2.5">
+                {[
+                  'Full ownership transfer',
+                  'Clean domain history',
+                  'Transfer support & guidance',
+                  'Works with all registrars',
+                  'SSL certificate ready',
+                  'No hidden fees',
+                ].map(item => (
+                  <li key={item} className="flex items-center gap-3 text-sm text-slate-300">
+                    <div className="w-5 h-5 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <SafeIcon icon={FiCheck} className="h-3 w-3 text-blue-400" />
+                    </div>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Direct Escrow CTA */}
+            {escrowLink && (
+              <a href={escrowLink} target="_blank" rel="noopener noreferrer"
+                className="block bg-gradient-to-br from-green-600/90 to-emerald-700/90 rounded-2xl p-6 text-white hover:from-green-600 hover:to-emerald-600 transition-all border border-green-500/30">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">🔐</span>
+                  <div>
+                    <p className="font-bold text-sm">Buy via Escrow.com</p>
+                    <p className="text-green-200 text-xs">Safest way to buy a domain</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Status</span>
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                      {domain.status === 'active' ? 'Available' : domain.status}
-                    </span>
+                </div>
+                <p className="text-green-100/80 text-xs leading-relaxed">
+                  Escrow.com holds your payment securely until the domain is in your account. Industry-trusted for 25+ years.
+                </p>
+                <div className="mt-3 text-white text-xs font-semibold">Start Escrow Transaction →</div>
+              </a>
+            )}
+          </motion.div>
+
+          {/* Right panel: offer form */}
+          <motion.div ref={formSectionRef} className="lg:col-span-3"
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+
+            <div className="bg-slate-800/60 backdrop-blur rounded-3xl border border-white/10 overflow-hidden shadow-2xl shadow-black/40">
+              {/* Form header */}
+              <div className="bg-gradient-to-r from-blue-600/30 to-indigo-700/30 border-b border-white/10 px-8 py-6">
+                <h2 className="text-xl font-bold text-white">Make Your Offer</h2>
+                <p className="text-slate-300 text-sm mt-1">
+                  Submit your offer for <span className="text-white font-semibold">{domainName}</span> — we'll respond within 24 hours.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-8 space-y-5">
+
+                {/* EMAIL — first so we capture it even on abandonment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Your Email <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <SafeIcon icon={FiMail} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input type="email" name="email" value={formData.email}
+                      onChange={handleChange} onFocus={handleFocus} onBlur={handleEmailBlur}
+                      placeholder="you@company.com" autoComplete="email"
+                      className={`w-full pl-10 pr-4 py-3.5 border rounded-xl text-sm outline-none transition-all bg-slate-900/60 text-white placeholder-slate-500
+                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                        ${errors.email ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Nameservers</span>
-                    <div className="text-right">
-                      {domain.nameservers.map((ns, index) => (
-                        <div key={index} className="text-sm text-gray-700">{ns}</div>
-                      ))}
+                  {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
+                </div>
+
+                {/* Name + Phone */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                      Full Name <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <SafeIcon icon={FiUser} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input type="text" name="name" value={formData.name}
+                        onChange={handleChange} onFocus={handleFocus}
+                        placeholder="John Smith"
+                        className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm outline-none transition-all bg-slate-900/60 text-white placeholder-slate-500
+                          focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                          ${errors.name ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
+                    </div>
+                    {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                      Phone <span className="text-slate-500 font-normal normal-case">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <SafeIcon icon={FiPhone} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input type="tel" name="phone" value={formData.phone}
+                        onChange={handleChange} onFocus={handleFocus}
+                        placeholder="+1 (555) 000-0000"
+                        className="w-full pl-10 pr-4 py-3 border border-slate-600 bg-slate-900/60 text-white placeholder-slate-500 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Features */}
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">What's Included</h3>
-                <ul className="space-y-3">
-                  <li className="flex items-center space-x-3">
-                    <SafeIcon icon={FiCheck} className="h-5 w-5 text-green-600" />
-                    <span>Full ownership transfer</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <SafeIcon icon={FiCheck} className="h-5 w-5 text-green-600" />
-                    <span>Professional transfer assistance</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <SafeIcon icon={FiCheck} className="h-5 w-5 text-green-600" />
-                    <span>SSL certificate ready</span>
-                  </li>
-                  <li className="flex items-center space-x-3">
-                    <SafeIcon icon={FiCheck} className="h-5 w-5 text-green-600" />
-                    <span>Clean history verification</span>
-                  </li>
-                </ul>
-              </div>
-            </motion.div>
-
-            {/* Inquiry Form */}
-            <motion.div
-              initial={{ x: 30, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <div className="text-center mb-6">
-                  <SafeIcon icon={FiMail} className="h-12 w-12 text-primary-600 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Interested in this domain?</h3>
-                  <p className="text-gray-600">Get in touch and we'll help you acquire it.</p>
+                {/* Offer Amount ← debounce-tracked even without submit */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Your Offer Amount <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg select-none">$</span>
+                    <input type="number" name="offerAmount" value={formData.offerAmount}
+                      onChange={handleChange} onFocus={handleFocus}
+                      min="1" step="1"
+                      placeholder={minOffer ? minOffer.toLocaleString() : '5000'}
+                      className={`w-full pl-9 pr-4 py-4 border rounded-xl text-2xl font-bold outline-none transition-all bg-slate-900/60 text-white placeholder-slate-600
+                        focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                        ${errors.offerAmount ? 'border-red-500/60 bg-red-900/20' : 'border-slate-600 focus:bg-slate-900'}`} />
+                  </div>
+                  {errors.offerAmount
+                    ? <p className="mt-1 text-xs text-red-400">{errors.offerAmount}</p>
+                    : <p className="mt-1 text-xs text-slate-500">
+                        {minOffer && <span>Minimum offer: <span className="font-semibold text-slate-400">${minOffer.toLocaleString()}</span>. </span>}
+                        {buyNowPrice && <span>Buy now price: <span className="font-semibold text-green-400">${buyNowPrice.toLocaleString()}</span>.</span>}
+                        {!minOffer && !buyNowPrice && 'Counter-offers are welcome.'}
+                      </p>
+                  }
                 </div>
-                
-                <InquiryForm domain={domain} />
+
+                {/* Payment Method Selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                    Preferred Payment Method
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PAYMENT_METHODS.map(pm => (
+                      <button key={pm.id} type="button" onClick={() => setPaymentMethod(pm.id)}
+                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center
+                          ${paymentMethod === pm.id
+                            ? 'border-blue-500 bg-blue-500/15 shadow-sm shadow-blue-500/20'
+                            : 'border-slate-600 bg-slate-800/40 hover:border-slate-500'
+                          }`}>
+                        {paymentMethod === pm.id && (
+                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                            <SafeIcon icon={FiCheck} className="h-3 w-3 text-white" />
+                          </div>
+                        )}
+                        <span className="text-xl">{pm.icon}</span>
+                        <span className="text-xs font-semibold text-white leading-tight">{pm.label}</span>
+                        <span className="text-xs text-slate-400 leading-tight">{pm.tagline}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {paymentMethod === 'escrow' && (
+                    <div className="mt-2 flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2 text-xs text-green-400">
+                      <span>🔐</span> Escrow.com holds funds safely until domain is in your account. Zero risk.
+                    </div>
+                  )}
+                  {paymentMethod === 'paypal' && (
+                    <div className="mt-2 flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-blue-400">
+                      <span>🅿️</span> PayPal payment link sent to your email after offer is accepted.
+                    </div>
+                  )}
+                  {paymentMethod === 'crypto' && (
+                    <div className="mt-2 flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2 text-xs text-orange-400">
+                      <span>₿</span> Wallet address (BTC / ETH / USDT) provided after acceptance.
+                    </div>
+                  )}
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                    Message <span className="text-slate-500 font-normal normal-case">(optional)</span>
+                  </label>
+                  <textarea name="message" rows={3} value={formData.message}
+                    onChange={handleChange} onFocus={handleFocus}
+                    placeholder="What do you plan to use this domain for?"
+                    className="w-full px-4 py-3 border border-slate-600 bg-slate-900/60 text-white placeholder-slate-500 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none" />
+                </div>
+
+                {/* Submit */}
+                <motion.button type="submit" disabled={submitting}
+                  whileHover={{ scale: submitting ? 1 : 1.01 }}
+                  whileTap={{ scale: submitting ? 1 : 0.99 }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600
+                    text-white py-4 px-6 rounded-2xl font-bold text-base transition-all
+                    disabled:opacity-60 disabled:cursor-not-allowed
+                    flex items-center justify-center gap-2 shadow-lg shadow-blue-900/50">
+                  {submitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending Offer…
+                    </>
+                  ) : (
+                    <>
+                      <SafeIcon icon={FiSend} className="h-5 w-5" />
+                      Submit My Offer for {domainName}
+                    </>
+                  )}
+                </motion.button>
+
+                <div className="flex items-center justify-center gap-5 text-xs text-slate-500 pt-1">
+                  <span className="flex items-center gap-1"><SafeIcon icon={FiLock} className="h-3 w-3" /> SSL Encrypted</span>
+                  <span className="flex items-center gap-1"><SafeIcon icon={FiShield} className="h-3 w-3" /> No Spam</span>
+                  <span className="flex items-center gap-1"><SafeIcon icon={FiAlertCircle} className="h-3 w-3" /> No Obligation</span>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+      <div className="border-t border-white/8 py-14 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-white text-center mb-10">How It Works</h2>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { step: '1', title: 'Submit Your Offer', desc: 'Enter your email, name, and offer amount. Choose your preferred payment method.', icon: '📝' },
+              { step: '2', title: 'We Review & Respond', desc: 'The seller reviews your offer and responds within 24 hours via email.', icon: '💬' },
+              { step: '3', title: 'Secure Transfer', desc: 'Payment via Escrow.com, PayPal, or Crypto. Domain transferred immediately after confirmation.', icon: '🔐' },
+            ].map(({ step, title, desc, icon }) => (
+              <div key={step} className="bg-white/5 rounded-2xl p-6 border border-white/8 text-center">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">{icon}</div>
+                <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">Step {step}</div>
+                <h3 className="font-bold text-white mb-2">{title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
               </div>
-            </motion.div>
+            ))}
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <SafeIcon icon={FiGlobe} className="h-6 w-6" />
-              <span className="text-xl font-bold">Netzone</span>
-            </div>
-            <div className="text-gray-400 text-center md:text-right">
-              <p>contact@netzone.me | +1 (555) 123-4567</p>
-              <p className="text-sm mt-1">&copy; 2024 Netzone. All rights reserved.</p>
-            </div>
+      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/8 py-8 px-4">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <svg viewBox="0 0 36 36" width="24" height="24" fill="none">
+              <circle cx="18" cy="18" r="16" stroke="#60a5fa" strokeWidth="1.8"/>
+              <ellipse cx="18" cy="18" rx="7" ry="16" stroke="#60a5fa" strokeWidth="1.4"/>
+              <line x1="2" y1="18" x2="34" y2="18" stroke="#60a5fa" strokeWidth="1.4"/>
+            </svg>
+            <span className="font-extrabold text-sm text-white">Net<span className="text-blue-400">Zone</span></span>
+            <span className="text-slate-600 text-sm">· {domainName} is for sale</span>
           </div>
+          <div className="text-slate-400 text-sm">
+            Questions? <a href="mailto:ask@netzone.me" className="text-blue-400 hover:text-blue-300 font-medium">ask@netzone.me</a>
+          </div>
+          <p className="text-slate-700 text-xs">&copy; {new Date().getFullYear()} · Secure Domain Transfer</p>
         </div>
       </footer>
     </div>

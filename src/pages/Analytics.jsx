@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useAnalytics } from '../context/AnalyticsContext';
+import { useBlogAnalytics } from '../context/BlogAnalyticsContext';
 import { useDomains } from '../context/DomainContext';
 import AdminLayout from '../components/AdminLayout';
 import MetricCard from '../components/analytics/MetricCard';
@@ -25,9 +26,11 @@ const {
 
 const Analytics = () => {
   const { pageViews, conversionData, getOverallMetrics, getDomainAnalytics } = useAnalytics();
+  const { getBlogMetrics, getBlogAnalyticsByDay } = useBlogAnalytics();
   const { domains } = useDomains();
   const [timeRange, setTimeRange] = useState(30);
   const [selectedDomain, setSelectedDomain] = useState('all');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const overallMetrics = getOverallMetrics();
 
@@ -122,8 +125,28 @@ const Analytics = () => {
           </div>
         </div>
 
+        {/* Analytics Tabs */}
+        <div className="flex space-x-4 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 font-semibold ${activeTab === 'overview' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600'}`}
+          >
+            Domain Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('blog')}
+            className={`px-4 py-2 font-semibold ${activeTab === 'blog' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-600'}`}
+          >
+            Blog Analytics
+          </button>
+        </div>
+
         {/* Real-time Widget */}
-        <RealtimeWidget />
+        {activeTab === 'overview' && <RealtimeWidget />}
+
+        {/* Domain Analytics Tab */}
+        {activeTab === 'overview' && (
+        <>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -299,6 +322,105 @@ const Analytics = () => {
             </div>
           </div>
         </div>
+        </>
+        )}
+
+        {/* Blog Analytics Tab */}
+        {activeTab === 'blog' && (
+        <>
+          {(() => {
+            const blogMetrics = getBlogMetrics();
+            const blogChartData = getBlogAnalyticsByDay(timeRange);
+
+            return (
+              <>
+                {/* Blog Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <MetricCard
+                    title="Total Blog Views"
+                    value={blogMetrics.total_blog_views}
+                    change={Math.random() * 30 - 10}
+                    icon={FiEye}
+                  />
+                  <MetricCard
+                    title="Unique Articles"
+                    value={blogMetrics.unique_articles}
+                    change={0}
+                    icon={FiPercent}
+                  />
+                  <MetricCard
+                    title="Avg Views per Article"
+                    value={blogMetrics.average_views_per_article}
+                    change={0}
+                    icon={FiTrendingUp}
+                  />
+                  <MetricCard
+                    title="Top Article Views"
+                    value={blogMetrics.top_articles[0]?.total_views || 0}
+                    change={0}
+                    icon={FiUsers}
+                  />
+                </div>
+
+                {/* Blog Charts */}
+                <div className="grid lg:grid-cols-2 gap-8">
+                  <div className="bg-white rounded-xl shadow-sm p-8">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Blog Views Over Time</h3>
+                    <LineChart
+                      data={blogChartData.map(day => ({
+                        date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        value: day.views
+                      }))}
+                      height={300}
+                    />
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-8">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Views by Category</h3>
+                    <PieChart
+                      data={Object.entries(blogMetrics.views_by_category).map(([category, count]) => ({
+                        name: category.replace('.me', ' (.ME)').replace('.africa', ' (.AFRICA)'),
+                        value: count
+                      }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Top Blog Articles */}
+                <div className="bg-white rounded-xl shadow-sm p-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Top Blog Articles</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="py-3 px-6 text-left text-sm font-semibold text-gray-900">Article Title</th>
+                          <th className="py-3 px-6 text-right text-sm font-semibold text-gray-900">Views</th>
+                          <th className="py-3 px-6 text-right text-sm font-semibold text-gray-900">Category</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {blogMetrics.top_articles.map((article, index) => (
+                          <motion.tr
+                            key={article.article_id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="border-b border-gray-100 hover:bg-gray-50"
+                          >
+                            <td className="py-3 px-6 text-sm text-gray-900">{article.article_slug.replace(/-/g, ' ')}</td>
+                            <td className="py-3 px-6 text-sm text-gray-900 text-right">{article.total_views}</td>
+                            <td className="py-3 px-6 text-sm text-gray-900 text-right">{article.article_category}</td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </>
+        )}
       </div>
     </AdminLayout>
   );
