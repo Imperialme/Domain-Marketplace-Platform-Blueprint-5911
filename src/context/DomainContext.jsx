@@ -1,94 +1,193 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const DomainContext = createContext();
 
 export const useDomains = () => {
   const context = useContext(DomainContext);
-  if (!context) {
-    throw new Error('useDomains must be used within a DomainProvider');
-  }
+  if (!context) throw new Error('useDomains must be used within a DomainProvider');
   return context;
 };
 
-export const DomainProvider = ({ children }) => {
-  const [domains, setDomains] = useState([]);
-  const [loading, setLoading] = useState(false);
+const STORAGE_KEY = 'dm_domains';
 
-  // Mock data for demonstration
+const DEFAULT_DOMAINS = [
+  {
+    id: 1,
+    domain_name: 'techstartup.com',
+    status: 'active',
+    buy_now_price: 15000,
+    min_offer: 3000,
+    tagline: 'Perfect for your next tech venture',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    domain_name: 'digitalagency.net',
+    status: 'active',
+    buy_now_price: 8500,
+    min_offer: 1500,
+    tagline: 'Ideal for digital marketing agencies',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    domain_name: 'ecommercehub.io',
+    status: 'active',
+    buy_now_price: null,
+    min_offer: 2000,
+    tagline: 'E-commerce ready domain',
+    created_at: new Date().toISOString(),
+  },
+];
+
+const loadDomains = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (_e) { /* storage unavailable */ }
+  return DEFAULT_DOMAINS;
+};
+
+const isLocalDev = () =>
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const DomainProvider = ({ children }) => {
+  const [domains, setDomains] = useState(loadDomains);
+  // True while we're fetching server domains (only in production)
+  const [domainsLoading, setDomainsLoading] = useState(!isLocalDev());
+
+  // Tracks whether server data is currently being applied (prevents sync loop)
+  const serverFetchRef = useRef(false);
+  // True once server load has completed (or we're in local dev)
+  const serverLoadedRef = useRef(isLocalDev());
+
+  // ── Fetch canonical domain list from Netlify Blobs on mount ───────────────
   useEffect(() => {
-    const mockDomains = [
-      {
-        id: 1,
-        domain_name: 'techstartup.com',
-        nameservers: ['ns1.netzone.me', 'ns2.netzone.me'],
-        status: 'active',
-        price: 15000,
-        tagline: 'Perfect for your next tech venture',
-        theme_variant: 1,
-        verified_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        domain_name: 'digitalagency.net',
-        nameservers: ['ns1.netzone.me', 'ns2.netzone.me'],
-        status: 'active',
-        price: 8500,
-        tagline: 'Ideal for digital marketing agencies',
-        theme_variant: 2,
-        verified_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 3,
-        domain_name: 'ecommercehub.io',
-        nameservers: ['ns1.netzone.me', 'ns2.netzone.me'],
-        status: 'pending_verification',
-        price: 12000,
-        tagline: 'E-commerce ready domain',
-        theme_variant: 3,
-        created_at: new Date().toISOString()
-      }
-    ];
-    setDomains(mockDomains);
+    if (isLocalDev()) return; // use localStorage in dev
+
+    fetch('/api/get-domains')
+      .then(r => r.json())
+      .then(serverDomains => {
+        if (Array.isArray(serverDomains) && serverDomains.length > 0) {
+          serverFetchRef.current = true; // signal: this setDomains came from server
+          setDomains(serverDomains);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serverDomains)); } catch (_e) { /* storage full */ }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        serverLoadedRef.current = true;
+        setDomainsLoading(false);
+      });
   }, []);
+
+  // ── Persist to localStorage + sync to Blobs whenever domains change ────────
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(domains)); } catch (_e) { /* storage full */ }
+
+    // Don't write back to server before we've loaded from it (avoids overwriting with stale data)
+    if (!serverLoadedRef.current) return;
+
+    // Don't write back the data we just received FROM the server (prevents loop)
+    if (serverFetchRef.current) {
+      serverFetchRef.current = false;
+      return;
+    }
+
+    if (isLocalDev()) return;
+
+    fetch('/api/set-domains', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domains),
+    }).catch(() => {});
+  }, [domains]);
 
   const addDomain = (domainData) => {
     const newDomain = {
       id: Date.now(),
-      ...domainData,
       status: 'pending_verification',
-      created_at: new Date().toISOString()
+      buy_now_price: domainData.buy_now_price || null,
+      min_offer: domainData.min_offer || null,
+      tagline: domainData.tagline || '',
+      ...domainData,
+      created_at: new Date().toISOString(),
     };
     setDomains(prev => [...prev, newDomain]);
     return newDomain;
   };
 
+  const bulkImportDomains = (rows) => {
+    const now = new Date().toISOString();
+    const newDomains = rows.map((row, i) => ({
+      id: Date.now() + i,
+      status: 'active',
+      tagline: '',
+      ...row,
+      created_at: now,
+    }));
+    setDomains(prev => {
+      const existingNames = new Set(prev.map(d => d.domain_name.toLowerCase()));
+      const toAdd = newDomains.filter(d => !existingNames.has(d.domain_name.toLowerCase()));
+      return [...prev, ...toAdd];
+    });
+    return newDomains;
+  };
+
   const updateDomain = (id, updates) => {
-    setDomains(prev => prev.map(domain => 
-      domain.id === id ? { ...domain, ...updates } : domain
+    setDomains(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+  };
+
+  // Soft delete — keeps the domain in the list with status 'deleted'
+  const deleteDomain = (id) => {
+    setDomains(prev => prev.map(d =>
+      d.id === id ? { ...d, status: 'deleted', deleted_at: new Date().toISOString() } : d
     ));
   };
 
-  const deleteDomain = (id) => {
-    setDomains(prev => prev.filter(domain => domain.id !== id));
+  // Restore a soft-deleted domain back to pending_verification
+  const restoreDomain = (id) => {
+    setDomains(prev => prev.map(d =>
+      d.id === id ? { ...d, status: 'pending_verification', deleted_at: null } : d
+    ));
+  };
+
+  // Permanent removal — only call from the Deleted tab
+  const permanentlyDeleteDomain = (id) => {
+    setDomains(prev => prev.filter(d => d.id !== id));
   };
 
   const getDomainByName = (domainName) => {
-    return domains.find(domain => domain.domain_name === domainName);
+    if (!domainName) return null;
+    const lower = domainName.toLowerCase();
+    return domains.find(d => d.domain_name.toLowerCase() === lower) || null;
   };
 
-  const value = {
-    domains,
-    loading,
-    addDomain,
-    updateDomain,
-    deleteDomain,
-    getDomainByName
+  // Push the current domain list to Blobs — called by admin panel on load
+  // so that domains added before Blobs was deployed get synced immediately.
+  const syncToServer = () => {
+    if (isLocalDev()) return Promise.resolve();
+    return fetch('/api/set-domains', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domains),
+    });
   };
 
   return (
-    <DomainContext.Provider value={value}>
+    <DomainContext.Provider value={{
+      domains,
+      domainsLoading,
+      addDomain,
+      bulkImportDomains,
+      updateDomain,
+      deleteDomain,
+      restoreDomain,
+      permanentlyDeleteDomain,
+      getDomainByName,
+      syncToServer,
+    }}>
       {children}
     </DomainContext.Provider>
   );

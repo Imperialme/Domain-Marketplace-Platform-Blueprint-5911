@@ -1,0 +1,25 @@
+# systemd unit for the drop-catcher daemon.
+# Install:
+#   sudo cp deploy/dropcatcher.service /etc/systemd/system/
+#   sudo systemctl edit dropcatcher   # add your Environment= secrets there
+#   sudo systemctl enable --now dropcatcher
+[Unit]
+Description=Domain drop catcher daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust to wherever you cloned the repo on the VPS:
+WorkingDirectory=/opt/dropcatcher
+# "web" = catching daemon + browser dashboard on port 8053.
+# Use "run" instead for headless mode with no dashboard.
+ExecStart=/usr/bin/node src/cli.js web 8053
+Restart=always
+RestartSec=5
+# Put secrets in a drop-in (systemctl edit) or an EnvironmentFile, not here:
+# EnvironmentFile=/etc/dropcatcher.env
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

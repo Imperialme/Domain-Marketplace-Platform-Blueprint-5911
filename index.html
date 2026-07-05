@@ -4,9 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>Domain For Sale</title>
   </head>
   <body>
+    <!--
+      Hidden form — Netlify scans this at build time to register the form.
+      The React app submits to it via fetch(). Do not remove.
+    -->
+    <form name="domain-inquiry" netlify netlify-honeypot="bot-field" hidden>
+      <input name="bot-field" />
+      <input name="domain_name" />
+      <input name="buyer_name" />
+      <input name="buyer_email" />
+      <input name="buyer_phone" />
+      <input name="offer_amount" />
+      <input name="payment_method" />
+      <input name="message" />
+      <input name="visitor_country" />
+      <input name="visitor_city" />
+      <input name="visitor_ip" />
+      <input name="visitor_source" />
+      <input name="visitor_device" />
+    </form>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

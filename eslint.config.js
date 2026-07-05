@@ -4,7 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist'] },
+  // dropcatcher/ is a standalone Node.js server tool with its own runtime,
+  // not part of the Vite site build.
+  { ignores: ['dist', 'dropcatcher'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],
