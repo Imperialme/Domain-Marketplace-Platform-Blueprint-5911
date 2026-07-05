@@ -37,6 +37,23 @@ That's it. The engine checks your domains hourly, shows their status (registered
 
 **Embed it in your Netzone site:** the marketplace app now has a **Drop Catcher** page in the admin sidebar (`/admin/dropcatcher`). Paste your engine address there once and manage everything from inside your own site.
 
+### Plesk VPS (Node.js app manager)
+
+If your VPS is managed by Plesk, skip `install.sh` and use Plesk's built-in Node.js hosting (Passenger) instead — it's fully point-and-click and gives you free SSL on a real subdomain instead of a bare IP:port link.
+
+1. **Get the code onto the server.** Easiest: Plesk's **Git** extension — Websites & Domains → your domain → **Git** → paste this repo's URL, branch `claude/domain-drop-catcher-1la4e1`, deploy. (Or upload via File Manager / SSH `git clone`.)
+2. **Create a subdomain**, e.g. `dropcatcher.yourdomain.com` (Websites & Domains → Add Subdomain).
+3. Open that subdomain's settings → **Node.js**.
+   - **Node.js version**: 18 or newer
+   - **Document root**: the `dropcatcher` folder from the repo
+   - **Application root**: same `dropcatcher` folder
+   - **Application startup file**: `app.js`
+4. Click **NPM install**, then **Enable Node.js** (or **Restart App**).
+5. Go to **SSL/TLS Certificates** for that subdomain → **Get free certificate** (Let's Encrypt).
+6. Visit `https://dropcatcher.yourdomain.com` — you'll land on the same setup screen (create password → paste Dynadot API key → add domains).
+
+Because it's on `https://`, it'll also embed directly in the Netzone admin **Drop Catcher** page without the "open in new tab" fallback.
+
 ### Manual/advanced start (optional)
 
 ```bash
