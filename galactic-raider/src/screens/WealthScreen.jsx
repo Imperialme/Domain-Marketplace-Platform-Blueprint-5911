@@ -726,10 +726,17 @@ export default function WealthScreen() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div>
               <div style={{fontSize:13,fontWeight:800,color:'#F8FAFC'}}>🛡️ Asset Protection Foundation</div>
-              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>$500M cost: 80% fee, 20% seeded as principal · 5% maintenance every 300 turns (only while funded) · shielded from debt</div>
+              <div style={{fontSize:10,color:'#4B5563',marginTop:2}}>A permanent tax-planning vehicle, not just a savings account</div>
             </div>
             {d.foundationOpen&&<div style={{background:'#14532D',color:'#34D399',padding:'3px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>OPEN</div>}
           </div>
+          {!d.foundationOpen && (
+            <div style={{background:'#060B14',borderRadius:8,padding:'10px 12px',marginBottom:10,fontSize:11,color:'#94A3B8',lineHeight:1.7}}>
+              <div><strong style={{color:'#34D399'}}>What you get:</strong> +5% permanent capital-gains tax relief (stacks with donations, capped at 75% total) for as long as it stays open, plus 3% APR growth on its principal (or ~9% with volatility on Autopilot).</div>
+              <div style={{marginTop:6}}><strong style={{color:'#FBBF24'}}>What it costs:</strong> $500M total — 80% ($400M) is a one-time setup fee, 20% ($100M) becomes the protected principal. A 5% maintenance fee is taken from the balance every 300 turns, only while it holds money.</div>
+              <div style={{marginTop:6}}><strong style={{color:'#EF4444'}}>Closing it:</strong> Liquidating returns the current balance to your Trading Wallet but ends the tax relief immediately — it's an all-or-nothing switch, not a partial withdrawal.</div>
+            </div>
+          )}
           {d.foundationOpen?(
             <>
               <div style={{display:'flex',gap:8,marginBottom:10}}>
@@ -741,6 +748,9 @@ export default function WealthScreen() {
                   <div style={{fontSize:9,color:'#4B5563'}}>Mode</div>
                   <div style={{fontSize:12,fontWeight:700,color:d.foundationAutopilot?'#FBBF24':'#34D399'}}>{d.foundationAutopilot?'🚀 Autopilot':'🛡️ Safe (3% APR)'}</div>
                 </div>
+              </div>
+              <div style={{background:'#14532D',borderRadius:8,padding:'8px 12px',marginBottom:10,fontSize:11,color:'#6EE7B7'}}>
+                ✅ +5% permanent tax relief active · Total relief: {Math.round((d.taxRelief||0)*100)}%
               </div>
               <div style={{fontSize:10,color:'#4B5563',marginBottom:8}}>
                 {d.foundationAutopilot ? 'Autopilot invests the balance for a higher average return (~9% APR), but with real volatility — some turns lose money.' : 'Manual mode: guaranteed 3% APR, no volatility.'}

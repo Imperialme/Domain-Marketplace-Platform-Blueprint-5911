@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { getT } from '../i18n';
-import { fm as formatMoney } from '../utils';
+import { fm as formatMoney, cl } from '../utils';
 
 export function FounderTab({ lang }) {
-  const { D, S, startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, proposeFundingRound, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, setTradeLock } = useGame();
+  const { D, S, startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, setDividendPolicy, resolveDistressEmergencyRaise, resolveDistressLayoffs, proposeFundingRound, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, founderCompanyValuation, setTradeLock } = useGame();
   const t = getT(lang);
   const fm = S.current.founderMode;
   const MIN_CAPITAL = FOUNDER_MIN_CAPITAL || 10000000;
@@ -36,6 +36,10 @@ export function FounderTab({ lang }) {
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [marketingBudget, setMarketingBudget] = useState(100000);
   const [marketingErr, setMarketingErr] = useState('');
+
+  const [showDividendModal, setShowDividendModal] = useState(false);
+  const [dividendPct, setDividendPct] = useState(0);
+  const [dividendErr, setDividendErr] = useState('');
 
   const industries = ['tech', 'healthcare', 'energy', 'finance', 'retail', 'utilities'];
 
@@ -215,6 +219,30 @@ export function FounderTab({ lang }) {
         </div>
       </div>
 
+      {/* Financial Distress — real choices instead of sudden bankruptcy */}
+      {fm.distressEvent && (
+        <div style={{ padding: '12px', background: 'rgba(220,38,38,0.18)', borderRadius: '6px', border: '2px solid #DC2626', marginBottom: '12px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#FCA5A5', marginBottom: '4px' }}>🚨 Cash Crisis</div>
+          <div style={{ fontSize: '11px', color: '#FCA5A5', opacity: 0.9, marginBottom: '10px' }}>
+            Runway is critically low. The board must act now, or risk the company folding entirely with no payout.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              onClick={() => resolveDistressEmergencyRaise()}
+              style={{ padding: '10px', background: '#B45309', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+            >
+              💸 Emergency Shares<br/><span style={{ fontWeight: 'normal', fontSize: '10px' }}>Raise cash at 20% discount, dilutes you</span>
+            </button>
+            <button
+              onClick={() => resolveDistressLayoffs()}
+              style={{ padding: '10px', background: '#7C2D12', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+            >
+              ✂️ Layoffs<br/><span style={{ fontWeight: 'normal', fontSize: '10px' }}>Cut ~30% of staff, hurts demand</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Burn Rate / Runway Banner */}
       <div style={{ padding: '10px 12px', background: fm.burnRate > 0 ? 'rgba(220,38,38,0.12)' : 'rgba(76,175,80,0.12)', borderRadius: '6px', border: '1px solid '+(fm.burnRate > 0 ? 'rgba(220,38,38,0.3)' : 'rgba(76,175,80,0.3)'), marginBottom: '12px' }}>
         {fm.burnRate > 0 ? (
@@ -267,6 +295,30 @@ export function FounderTab({ lang }) {
         <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn. Raising a funding round or hiring increases both your ceiling AND your burn — bigger bets, bigger stakes.</div>
       </div>
 
+      {/* Itemized Expense Breakdown — where the money actually goes */}
+      {fm.expenseBreakdown && (
+        <div style={{ padding: '10px', background: 'rgba(255,100,100,0.05)', borderRadius: '4px', border: '1px solid rgba(255,100,100,0.15)', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '8px' }}>💵 Where The Money Goes (per turn)</div>
+          {[
+            ['👤 Salaries', fm.expenseBreakdown.salaries],
+            ['📦 Cost of Goods', fm.expenseBreakdown.costOfGoods],
+            ['🔬 R&D', fm.expenseBreakdown.rnd],
+            ['📣 Marketing Upkeep', fm.expenseBreakdown.marketing],
+            ['⚖️ Legal & Admin', fm.expenseBreakdown.legalAdmin],
+            ['🏢 Rent & Facilities', fm.expenseBreakdown.rentFacilities],
+          ].map(([label, val]) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+              <span style={{ opacity: 0.8 }}>{label}</span>
+              <strong>${Math.round(val||0).toLocaleString()}</strong>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '5px 0 0', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)', fontWeight: 'bold' }}>
+            <span>Total Expenses</span>
+            <span>${Math.round(fm.expenses).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
       {/* Team & Marketing */}
       <div style={{ padding: '10px', background: 'rgba(56,189,248,0.08)', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '12px' }}>
         <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>👥 Team &amp; Marketing</div>
@@ -276,7 +328,7 @@ export function FounderTab({ lang }) {
           <div>Dividend Yield: <strong>{(fm.dividendYield||0).toFixed(1)}%</strong></div>
           <div>Demand Trend: <strong style={{ color: fm.demandTrend > 0 ? '#4CAF50' : '#FF6B6B' }}>{(fm.demandTrend*100).toFixed(0)}%</strong></div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
           <button onClick={() => { setShowHireModal(true); setTradeLock(true); }} style={{ padding: '10px', background: 'rgba(56,189,248,0.2)', border: '1px solid rgba(56,189,248,0.4)', color: '#7DD3FC', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
             👥 Hire Employees
           </button>
@@ -284,6 +336,9 @@ export function FounderTab({ lang }) {
             📣 Marketing Campaign
           </button>
         </div>
+        <button onClick={() => { setDividendPct(fm.dividendYield||0); setShowDividendModal(true); setTradeLock(true); }} style={{ width: '100%', padding: '10px', background: 'rgba(250,204,21,0.15)', border: '1px solid rgba(250,204,21,0.4)', color: '#FDE047', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+          💰 Set Dividend Policy
+        </button>
       </div>
 
       {/* Funding Rounds */}
@@ -302,14 +357,18 @@ export function FounderTab({ lang }) {
             ❌ {fm.lastRoundRejection.round} rejected: {fm.lastRoundRejection.reason}
           </div>
         )}
-        {fm.stage !== 'public' && fm.fundingRound !== 'seriesC' && (
-          <button
-            onClick={() => { setShowFundingModal(true); setTradeLock(true); }}
-            style={{ width: '100%', padding: '10px', background: '#B45309', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', marginTop: '4px' }}
-          >
-            Raise {FUNDING_ROUNDS?.[fm.fundingRound === 'seed' ? 'seriesA' : fm.fundingRound === 'seriesA' ? 'seriesB' : 'seriesC']?.label || 'Next Round'}
-          </button>
-        )}
+        {fm.stage !== 'public' && fm.fundingRound !== 'seriesC' && (() => {
+          const onCooldown = fm.fundingCooldownUntilTurn && D.turn < fm.fundingCooldownUntilTurn;
+          return (
+            <button
+              disabled={onCooldown}
+              onClick={() => { setShowFundingModal(true); setTradeLock(true); }}
+              style={{ width: '100%', padding: '10px', background: onCooldown ? 'rgba(180,83,9,0.3)' : '#B45309', color: onCooldown ? 'rgba(255,255,255,0.5)' : '#fff', border: 'none', borderRadius: '4px', cursor: onCooldown ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 'bold', marginTop: '4px' }}
+            >
+              {onCooldown ? `Investors unavailable (${fm.fundingCooldownUntilTurn - D.turn} turns)` : 'Raise ' + (FUNDING_ROUNDS?.[fm.fundingRound === 'seed' ? 'seriesA' : fm.fundingRound === 'seriesA' ? 'seriesB' : 'seriesC']?.label || 'Next Round')}
+            </button>
+          );
+        })()}
         {fm.fundingHistory?.length > 0 && (
           <div style={{ marginTop: '8px' }}>
             {fm.fundingHistory.map((r, i) => (
@@ -490,12 +549,15 @@ export function FounderTab({ lang }) {
       {showFundingModal && (() => {
         const nextRoundKey = fm.fundingRound === 'seed' ? 'seriesA' : fm.fundingRound === 'seriesA' ? 'seriesB' : 'seriesC';
         const cfg = FUNDING_ROUNDS?.[nextRoundKey];
+        const fairValue = Math.max(founderCompanyValuation(fm), fm.currentCapital);
+        const minAsk = Math.round(fairValue * 0.5);
+        const maxAsk = Math.round(fairValue * 2);
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
               <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>Raise {cfg?.label}</div>
               <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
-                Propose a pre-money valuation. Ask too far above what your traction supports and investors may walk away — you'll need to try again with a more reasonable number.
+                Fair value estimate: ${fairValue.toLocaleString()}. Investors won't discuss anything above ${maxAsk.toLocaleString()} (2x fair value) — asking near or below fair value is safe, asking well above it risks rejection and a 25-turn cooldown.
               </div>
 
               <div style={{ marginBottom: '12px' }}>
@@ -504,10 +566,10 @@ export function FounderTab({ lang }) {
                 </label>
                 <input
                   type="range"
-                  min={fm.currentCapital}
-                  max={fm.currentCapital * 20}
-                  step={100000}
-                  value={fundingValuation}
+                  min={minAsk}
+                  max={maxAsk}
+                  step={Math.max(1, Math.round((maxAsk-minAsk)/100))}
+                  value={cl(fundingValuation, minAsk, maxAsk)}
                   onChange={(e) => setFundingValuation(Math.floor(+e.target.value))}
                   style={{ width: '100%' }}
                 />
@@ -516,6 +578,12 @@ export function FounderTab({ lang }) {
               <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(180,83,9,0.15)', borderRadius: '4px', marginBottom: '12px' }}>
                 Expected dilution: {cfg ? `${Math.round(cfg.dilution[0]*100)}-${Math.round(cfg.dilution[1]*100)}%` : '—'} · Requires {cfg ? Math.round(cfg.minRevenueRatio*100) : '—'}% of revenue potential proven
               </div>
+
+              {fm.fundingCooldownUntilTurn && D.turn < fm.fundingCooldownUntilTurn && (
+                <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>
+                  Investors need {fm.fundingCooldownUntilTurn - D.turn} more turns after the last rejection before they'll talk again.
+                </div>
+              )}
 
               {fundingErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{fundingErr}</div>}
 
@@ -599,6 +667,36 @@ export function FounderTab({ lang }) {
           </div>
         </div>
       )}
+
+      {/* Dividend Policy Modal */}
+      {showDividendModal && (() => {
+        const industryBase = { tech: 0.3, healthcare: 1.2, energy: 3.5, finance: 2.8, retail: 1.5, utilities: 4.2 }[fm.industry] || 0.3;
+        const maxYield = industryBase * 3;
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>💰 Dividend Policy</div>
+              <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
+                Set your target yield — 0% pauses dividends entirely, retaining all cash for growth. The actual payout each quarter is still capped at 25% of cash on hand, so declaring a high yield you can't afford just gets cut short.
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>Dividend Yield: {dividendPct.toFixed(1)}%</label>
+                <input type="range" min="0" max={maxYield} step="0.1" value={dividendPct} onChange={(e) => setDividendPct(+e.target.value)} style={{ width: '100%' }} />
+                <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '4px' }}>Max for {fm.industry}: {maxYield.toFixed(1)}%</div>
+              </div>
+              {dividendErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{dividendErr}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button onClick={() => { setShowDividendModal(false); setTradeLock(false); setDividendErr(''); }} style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => {
+                  const err = setDividendPolicy(dividendPct);
+                  if (err) { setDividendErr(err); return; }
+                  setShowDividendModal(false); setTradeLock(false); setDividendErr('');
+                }} style={{ padding: '8px', background: '#CA8A04', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Set Policy</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* IPO Modal */}
       {showIPOModal && (

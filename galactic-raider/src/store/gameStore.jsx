@@ -242,10 +242,14 @@ function buildInitialState() {
       leadInvestor: null,   // {name, stakePct} — set once a VC round closes; can veto IPO terms
       fundingHistory: [],   // [{round, turn, investor, raised, preMoney, postMoney, dilutionPct}]
       lastRoundRejection: null, // {round, reason, turn} — feedback shown after a rejected raise
+      fundingCooldownUntilTurn: null, // no re-pitching until this turn — closes the reject-and-retry exploit
+      distressEvent: null,  // {id, kind, turn} — active financial-crisis prompt requiring a response
+      lastLayoffTurn: null,
       valuation: 0,         // book equity (cash - debt) + capitalized earnings — see founderCompanyValuation()
       revenueRampProgress: 0, // 0-1: how far revenue has climbed toward its target
       dividendYield: 0,     // annual % — set at founding by industry, actually paid out once public
       employees: 20,        // headcount — hiring more raises the revenue ceiling and ongoing opex
+      expenseBreakdown: { salaries: 0, costOfGoods: 0, rnd: 0, marketing: 0, legalAdmin: 0, rentFacilities: 0 },
       totalCapitalRaised: 0,
     },
   };
@@ -612,14 +616,27 @@ export function GameProvider({ children }) {
       });
       // A founder's own majority stake is tracked separately as
       // fm.founderShares, not in stockHoldings, so it's never covered by the
-      // loop above — pay it out here or a majority owner never actually
-      // receives the dividend their own company declares.
+      // loop above — pay it out here. Crucially, this cash actually leaves
+      // the company's own currentCapital (it didn't before — dividends were
+      // conjured from the stock price with no cost to the business, which is
+      // how payouts reached the billions/trillions), and the total payout is
+      // capped at a sane fraction of cash on hand — a company can't
+      // distribute more than it can actually afford.
       if (s.founderMode.active && s.founderMode.stage === 'public' && s.founderMode.companyId) {
         const fm = s.founderMode;
         const co = s.companies.find(c => c.t === fm.companyId);
-        if (co && fm.founderShares > 0) {
-          const d = r2(co.price * ((fm.dividendYield||0) / 100 / 4) * fm.founderShares * (1 - (era.divTax || 0.15)));
-          if (d > 0) { s.savingsWallet = r2(s.savingsWallet + d); totalDiv += d; }
+        if (co && fm.dividendYield > 0 && fm.sharesOutstanding > 0) {
+          const declaredPayout = r2(co.price * (fm.dividendYield / 100 / 4) * fm.sharesOutstanding);
+          const maxPayout = r2(fm.currentCapital * 0.25);
+          const actualPayout = Math.min(declaredPayout, Math.max(0, maxPayout));
+          if (actualPayout > 0) {
+            fm.currentCapital = r2(fm.currentCapital - actualPayout);
+            const founderCut = r2(actualPayout * (fm.founderShares / fm.sharesOutstanding) * (1 - (era.divTax || 0.15)));
+            if (founderCut > 0) { s.savingsWallet = r2(s.savingsWallet + founderCut); totalDiv += founderCut; }
+            if (actualPayout < declaredPayout) {
+              addNews('⚠️', 'Dividend Cut Short', `${fm.companyName} declared $${declaredPayout.toLocaleString()} but could only afford $${actualPayout.toLocaleString()} in cash.`, false);
+            }
+          }
         }
       }
       if (totalDiv > 0) addNews('💰', 'Quarterly Dividends: $'+Math.round(totalDiv).toLocaleString(), 'Dividends credited to Savings Wallet after '+Math.round((era.divTax||.15)*100)+'% dividend tax.', true);
@@ -827,10 +844,25 @@ export function GameProvider({ children }) {
       // Early on, revenue can't cover the fixed cost — the company burns
       // cash. As revenue climbs toward its ceiling, it crosses breakeven.
       const employeeOpex = (fm.employees || 0) * 2000;
-      const baseOpex = r2(capitalBase * profile.burnIntensity + employeeOpex);
-      fm.expenses = r2(baseOpex + fm.revenue * profile.cogsRatio);
+      const facilitiesOverhead = r2(capitalBase * profile.burnIntensity);
+      const costOfGoods = r2(fm.revenue * profile.cogsRatio);
+      const baseOpex = r2(facilitiesOverhead + employeeOpex);
+      fm.expenses = r2(baseOpex + costOfGoods);
       const profit = r2(fm.revenue - fm.expenses);
       fm.currentCapital = r2(fm.currentCapital + profit);
+      // Itemized breakdown so the dashboard can show where the money is
+      // actually going instead of one opaque "expenses" total. Facilities &
+      // Overhead (rent/legal/R&D/admin, lumped as one operating line) is
+      // split into labeled flavor categories for readability only — it's one
+      // real cost mechanically, presented as its real-world components.
+      fm.expenseBreakdown = {
+        salaries: employeeOpex,
+        costOfGoods,
+        rnd: r2(facilitiesOverhead * 0.35),
+        marketing: r2(facilitiesOverhead * 0.25),
+        legalAdmin: r2(facilitiesOverhead * 0.20),
+        rentFacilities: r2(facilitiesOverhead * 0.20),
+      };
       // Profit margin is only a meaningful, stable number once revenue is a
       // real fraction of its target — dividing by a near-zero revenue swings
       // the % wildly (e.g. -50000%) and reads as broken. Below that threshold
@@ -841,10 +873,28 @@ export function GameProvider({ children }) {
       fm.burnRate = r2(-profit);
       fm.runwayTurns = fm.burnRate > 0 ? Math.max(0, Math.floor(fm.currentCapital / fm.burnRate)) : null;
 
+      // Financial distress: a low-runway warning with real choices, instead
+      // of the company just silently evaporating one day. Gives the player
+      // a window to act — emergency (discounted) share issuance or layoffs —
+      // before bankruptcy actually hits.
+      if (!fm.distressEvent && fm.runwayTurns !== null && fm.runwayTurns <= 15) {
+        fm.distressEvent = { id: Math.random().toString(36).slice(2), turn: s.turn, triggeredAtRunway: fm.runwayTurns };
+        addNews('🚨', 'Cash Crisis', `${fm.companyName} has only ${fm.runwayTurns} turns of runway left. The board must act — visit Founder Mode to respond.`, false);
+      } else if (fm.distressEvent && fm.currentCapital > fm.foundersCapital * 0.3 && (fm.runwayTurns === null || fm.runwayTurns > 30)) {
+        fm.distressEvent = null;
+        addNews('✅', 'Crisis Averted', `${fm.companyName}'s cash position has recovered.`, true);
+      }
+
       // Bankruptcy: run out of cash and the company is gone. Loans are
       // wiped out with it (nothing left to collect from), and if it had
       // already gone public, the listing and your position disappear too.
-      const wentBankrupt = fm.currentCapital <= 0;
+      // A distress event just triggered this same turn gets a real grace
+      // period (10 turns) before bankruptcy can finalize — otherwise a sharp
+      // burn spike could set currentCapital negative in the very turn the
+      // crisis banner appears, and the player would never actually get a
+      // chance to see it or respond before the company was already gone.
+      const inGracePeriod = fm.distressEvent && (s.turn - fm.distressEvent.turn < 10);
+      const wentBankrupt = fm.currentCapital <= 0 && !inGracePeriod;
       if (wentBankrupt) {
         const companyId = fm.companyId;
         addNews('💀', 'Company Bankrupt', `${fm.companyName} ran out of cash and folded. The venture is over — no payout.`, false);
@@ -860,7 +910,13 @@ export function GameProvider({ children }) {
         // founderCompanyValuation(). It can never imply the company is worth
         // less than the cash sitting in its account.
         fm.valuation = founderCompanyValuation(fm);
-        const newSharePrice = r2(fm.valuation / fm.sharesOutstanding);
+        const rawSharePrice = r2(fm.valuation / fm.sharesOutstanding);
+        // Defensive backstop: no single turn can move the price more than 15%
+        // either way, however the valuation got there. This is what actually
+        // prevents any future exploit (or a lucky funding round) from turning
+        // into an instant multi-trillion jump — growth has to happen turn by
+        // turn, not in one leap.
+        const newSharePrice = cl(rawSharePrice, fm.stock.price * 0.85, fm.stock.price * 1.15);
         fm.stock.ch = (newSharePrice - fm.stock.price) / fm.stock.price;
         fm.stock.price = Math.max(0.01, newSharePrice);
         fm.stock.hist = [...(fm.stock.hist || []).slice(-50), fm.stock.price];
@@ -886,7 +942,10 @@ export function GameProvider({ children }) {
           const impliedSharePrice = fm.stage === 'public' ? fm.stock.price : r2(fm.currentCapital / fm.sharesOutstanding);
           const premium = 1.2 + Math.random() * 0.4;
           const pricePerShare = r2(impliedSharePrice * premium);
-          const totalValue = r2(pricePerShare * fm.founderShares);
+          // Hard sanity ceiling on the whole offer, independent of how big the
+          // stock price has grown — no acquirer pays an unbounded multiple of
+          // what you actually put in.
+          const totalValue = Math.min(r2(pricePerShare * fm.founderShares), fm.foundersCapital * 150);
           fm.pendingOffer = {
             id: Math.random().toString(36).slice(2),
             buyer: FICTIONAL_ACQUIRERS[Math.floor(Math.random() * FICTIONAL_ACQUIRERS.length)],
@@ -963,7 +1022,11 @@ export function GameProvider({ children }) {
 
     // Philanthropy decay
     s.phiBenefits = (s.phiBenefits || []).map(b => ({ ...b, rem: b.rem - 1 })).filter(b => b.rem > 0);
-    s.taxRelief = Math.min(0.75, s.phiBenefits.reduce((x, b) => x + b.rate, 0));
+    // An open foundation grants a permanent +5% tax relief on top of any
+    // active donation relief (real-world foundations are, among other
+    // things, a tax-planning vehicle) — this is the actual concrete benefit
+    // the $500M buys, beyond just the 3%/9% APR growth on its balance.
+    s.taxRelief = Math.min(0.75, s.phiBenefits.reduce((x, b) => x + b.rate, 0) + (s.foundationOpen ? 0.05 : 0));
 
     // Bond maturity payouts
     const maturingBonds = (s.bondHoldings||[]).filter(b => b.purchaseTurn + b.maturity <= s.turn);
@@ -1213,8 +1276,9 @@ export function GameProvider({ children }) {
     s.tradingWallet = r2(s.tradingWallet - ENDOWMENT);
     s.foundationOpen = true;
     s.foundationBalance = r2((s.foundationBalance || 0) + PRINCIPAL);
-    logTx('FOUNDATION', 'Trading', -ENDOWMENT, 'Foundation activated: $'+ACTIVATION_FEE.toLocaleString()+' fee, $'+PRINCIPAL.toLocaleString()+' principal. 3% APR growth + 5% quarterly maintenance.');
-    addNews('⚖️ Foundation established', 'Your foundation is now active. Tax relief up to 75% on capital gains. Quarterly 5% maintenance fee applies.');
+    s.taxRelief = Math.min(0.75, (s.phiBenefits||[]).reduce((x, b) => x + b.rate, 0) + 0.05);
+    logTx('FOUNDATION', 'Trading', -ENDOWMENT, 'Foundation activated: $'+ACTIVATION_FEE.toLocaleString()+' fee, $'+PRINCIPAL.toLocaleString()+' principal. 3% APR growth (9% on autopilot) + permanent 5% tax relief. 5% maintenance fee every 300 turns while funded.');
+    addNews('⚖️ Foundation established', 'Your foundation is now active: +5% permanent tax relief on capital gains (stacks with donations, capped at 75% total), plus 3% APR growth on its principal. A 5% maintenance fee applies every 300 turns while it holds a balance.');
     refresh();
     return null;
   }, [refresh, logTx, addNews]);
@@ -1499,7 +1563,7 @@ export function GameProvider({ children }) {
     const pts = Math.round(amount / 1000 * c.mult);
     s.redeemPts = Math.min(5000, (s.redeemPts||0) + pts);
     s.phiBenefits = [...(s.phiBenefits||[]), { rate: c.rate, rem: c.dur, name: c.n }];
-    s.taxRelief = Math.min(0.75, s.phiBenefits.reduce((x, b) => x + b.rate, 0));
+    s.taxRelief = Math.min(0.75, s.phiBenefits.reduce((x, b) => x + b.rate, 0) + (s.foundationOpen ? 0.05 : 0));
     s.donHistory = [{ turn: s.turn, cat: c.n, amt: amount, pts }, ...(s.donHistory||[])].slice(0, 20);
     if ((s.redeemPts||0) >= 500 && s.donCount >= 2) {
       s.spinTokens = (s.spinTokens||0) + 1;
@@ -1900,6 +1964,13 @@ export function GameProvider({ children }) {
     s.founderMode.employees = 20;
     s.founderMode.valuation = capitalAmount;
     s.founderMode.revenueRampProgress = 0;
+    s.founderMode.fundingCooldownUntilTurn = null;
+    s.founderMode.distressEvent = null;
+    // Seed the per-share price at the real founding valuation, not the
+    // generic default — otherwise the 15%/turn price-growth cap spends its
+    // first ~15 turns just correcting a mismatched starting number.
+    const initialPricePerShare = r2(capitalAmount / sharesOutstanding);
+    s.founderMode.stock = { price: initialPricePerShare, ch: 0, hist: [initialPricePerShare, initialPricePerShare] };
     s.founderMode.nwAtFoundation = Object.values(s.stockHoldings).reduce((x, [t, n]) => {
       const co = s.companies.find(c => c.t === t);
       return x + (co ? co.price * n : 0);
@@ -1989,12 +2060,83 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, addNews]);
 
+  // ── DIVIDEND POLICY ──────────────────────────────────────────
+  // The founder sets the rate; the actual payout each quarter is still
+  // capped against real cash on hand (see the quarterly dividend block in
+  // advanceTurn), so cranking this up doesn't create free money — it just
+  // determines what the company WOULD pay out if it can afford to.
+  const setDividendPolicy = useCallback((yieldPct) => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active) return 'Not in Founder Mode';
+    if (yieldPct < 0) return 'Dividend yield cannot be negative';
+    const profile = FOUNDER_INDUSTRY_PROFILES[fm.industry] || FOUNDER_INDUSTRY_PROFILES.tech;
+    const maxYield = profile.dividendYield * 3;
+    if (yieldPct > maxYield) return `Max dividend yield for ${fm.industry} is ${maxYield.toFixed(1)}%`;
+    fm.dividendYield = r2(yieldPct * 100) / 100;
+    if (fm.stage === 'public') {
+      const co = s.companies.find(c => c.t === fm.companyId);
+      if (co) co.div = fm.dividendYield;
+    }
+    addNews('📋', 'Dividend Policy Updated', yieldPct === 0
+      ? 'Dividends paused — all cash retained for growth.'
+      : `Dividend yield set to ${fm.dividendYield.toFixed(1)}%. Actual payout each quarter is still capped by cash on hand.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  // ── FINANCIAL DISTRESS RESPONSES ───────────────────────────────
+  const resolveDistressEmergencyRaise = useCallback(() => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active || !fm.distressEvent) return 'No active crisis';
+    // A company deep enough in crisis to need this has, by definition, a
+    // valuation already floored near $0 — basing the raise on a % of that
+    // (as an earlier version did) computes a $0 rescue exactly when it's
+    // needed most. Guarantee it actually helps: cover any cash deficit, plus
+    // a real cushion, regardless of how far the valuation has fallen.
+    const deficit = Math.max(0, -fm.currentCapital);
+    const raiseTarget = r2(deficit + fm.foundersCapital * 0.20);
+    const baseValuation = Math.max(founderCompanyValuation(fm), fm.foundersCapital * 0.10);
+    const currentPrice = r2(baseValuation / fm.sharesOutstanding);
+    const discountPrice = Math.max(0.01, r2(currentPrice * 0.80));
+    const newShares = Math.round(raiseTarget / discountPrice);
+    fm.sharesOutstanding += newShares;
+    fm.currentCapital = r2(fm.currentCapital + raiseTarget);
+    fm.totalCapitalRaised = r2((fm.totalCapitalRaised || fm.foundersCapital) + raiseTarget);
+    if (fm.stage === 'public') {
+      s.companyOwnership[fm.companyId] = r2((fm.founderShares / fm.sharesOutstanding) * 10000) / 100;
+    }
+    fm.distressEvent = null;
+    logTx('EMERGENCY_RAISE', 'Trading', 0, `${fm.companyName} issued emergency shares at a 20% discount ($${discountPrice.toFixed(2)}/share) — raised $${raiseTarget.toLocaleString()}`);
+    addNews('💸', 'Emergency Shares Issued', `Raised $${raiseTarget.toLocaleString()} at a 20% discount to survive the cash crisis. Ownership diluted to ${(fm.founderShares/fm.sharesOutstanding*100).toFixed(1)}%.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews, logTx]);
+
+  const resolveDistressLayoffs = useCallback(() => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active || !fm.distressEvent) return 'No active crisis';
+    const cut = Math.max(1, Math.ceil((fm.employees || 20) * 0.3));
+    fm.employees = Math.max(5, (fm.employees || 20) - cut);
+    fm.demandTrend = cl(fm.demandTrend - 0.08, -0.8, 0.8);
+    fm.distressEvent = null;
+    fm.lastLayoffTurn = s.turn;
+    addNews('✂️', 'Emergency Layoffs', `Cut ${cut} jobs to reduce burn. Salary expense down, but demand and morale took a hit.`, false);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
   // ── FUNDING ROUNDS (Seed -> Series A -> B -> C) ────────────────
   const proposeFundingRound = useCallback((roundKey, preMoneyValuation) => {
     const s = S.current;
     const fm = s.founderMode;
     if (!fm.active) return 'Not in Founder Mode';
     if (fm.stage === 'public') return 'Already public — funding rounds are for private companies';
+    if (fm.fundingCooldownUntilTurn && s.turn < fm.fundingCooldownUntilTurn) {
+      return `Investors are still recovering from the last pitch — try again at turn ${fm.fundingCooldownUntilTurn} (${fm.fundingCooldownUntilTurn - s.turn} turns).`;
+    }
     const cfg = FUNDING_ROUNDS[roundKey];
     if (!cfg) return 'Invalid funding round';
     if (fm.fundingRound !== cfg.prevRound) {
@@ -2011,6 +2153,14 @@ export function GameProvider({ children }) {
     // book equity plus a capitalized-earnings premium — so "valuation" means
     // one consistent thing everywhere in Founder Mode, not three formulas.
     const fairValue = Math.max(founderCompanyValuation(fm), fm.currentCapital);
+    // Hard bound: investors won't even entertain more than 2x fair value.
+    // Without this, a rejected pitch could just be resubmitted at an ever
+    // more absurd number until the dice eventually landed — this is what let
+    // a $10M company snowball into trillions through pure retries.
+    const maxAsk = r2(fairValue * 2);
+    if (preMoneyValuation > maxAsk) {
+      return `Investors won't discuss valuations above $${maxAsk.toLocaleString()} (2x fair value of $${Math.round(fairValue).toLocaleString()}).`;
+    }
     const askRatio = preMoneyValuation / fairValue;
     // Asking near or below fair value is safe; asking well above it risks rejection.
     const rejectionChance = cl((askRatio - 1) * 0.8, 0.03, 0.9);
@@ -2021,11 +2171,16 @@ export function GameProvider({ children }) {
         round: cfg.label, turn: s.turn,
         reason: askRatio > 1.3 ? 'Valuation too aggressive relative to traction' : 'Investors passed on this round',
       };
-      addNews('❌', cfg.label+' Round Rejected', `Investors passed on ${fm.companyName}'s ${cfg.label} round at a $${Math.round(preMoneyValuation).toLocaleString()} pre-money valuation. Try a more reasonable ask.`, false);
+      // A rejection isn't free to shrug off — investors need real time (and
+      // real improved traction) before they'll sit down again. No more
+      // spam-clicking through a rejection until the odds finally hit.
+      fm.fundingCooldownUntilTurn = s.turn + 25;
+      addNews('❌', cfg.label+' Round Rejected', `Investors passed on ${fm.companyName}'s ${cfg.label} round at a $${Math.round(preMoneyValuation).toLocaleString()} pre-money valuation. They won't reconsider for 25 turns.`, false);
       refresh();
       return null;
     }
 
+    fm.fundingCooldownUntilTurn = null;
     const [dLo, dHi] = cfg.dilution;
     const dilutionPct = dLo + Math.random() * (dHi - dLo);
     const postMoney = preMoneyValuation / (1 - dilutionPct);
@@ -2209,6 +2364,7 @@ export function GameProvider({ children }) {
     s.foundationBalance = 0;
     s.foundationOpen = false;
     s.foundationAutopilot = false;
+    s.taxRelief = Math.min(0.75, (s.phiBenefits||[]).reduce((x, b) => x + b.rate, 0));
     logTx('FOUNDATION_LIQUIDATE', 'Trading', amt, 'Foundation liquidated: $'+amt.toLocaleString()+' returned to Trading Wallet. Tax relief benefits ended.');
     addNews('💰', 'Foundation Liquidated', `$${amt.toLocaleString()} returned to your Trading Wallet. Foundation closed — tax relief benefits ended.`, true);
     refresh();
@@ -2296,10 +2452,12 @@ export function GameProvider({ children }) {
     setPlayerAvatar, setPlayerName,
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
-    startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, proposeFundingRound, launchFounderIPO, confirmFounderIPO,
+    startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, setDividendPolicy,
+    resolveDistressEmergencyRaise, resolveDistressLayoffs,
+    proposeFundingRound, launchFounderIPO, confirmFounderIPO,
     acceptTenderOffer, declineTenderOffer,
     toggleFoundationAutopilot, liquidateFoundation,
-    FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS,
+    FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, founderCompanyValuation,
     setMusicTrack, toggleMusic, MUSIC_PLAYLIST,
     markOnboardingShown,
   };
