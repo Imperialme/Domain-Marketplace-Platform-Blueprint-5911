@@ -13,4 +13,4 @@ if (!fs.existsSync(configPath)) {
   fs.copyFileSync(path.join(__dirname, 'config.example.json'), configPath);
 }
 
-startServer(Number(process.env.PORT) || 8053);
+startServer(Number(process.env.PORT) || 8053, process.env.HOST || '0.0.0.0');

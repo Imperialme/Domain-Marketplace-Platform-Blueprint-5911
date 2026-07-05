@@ -97,7 +97,7 @@ const VALID_DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{2,63})+$/;
 
 /* ---------- server ---------- */
 
-export function startServer(port = 8053) {
+export function startServer(port = 8053, host = '0.0.0.0') {
   const engine = new Engine();
   ensureWebSecrets(readRawConfig());
 
@@ -268,9 +268,9 @@ export function startServer(port = 8053) {
     }
   });
 
-  server.listen(port, () => {
-    log.info(`dashboard listening on http://0.0.0.0:${port}`);
-    log.info(`open http://YOUR-SERVER-IP:${port} in a browser to finish setup`);
+  server.listen(port, host, () => {
+    log.info(`dashboard listening on http://${host}:${port}`);
+    if (host === '0.0.0.0') log.info(`open http://YOUR-SERVER-IP:${port} in a browser to finish setup`);
   });
 
   // The engine always runs; with no API key it just monitors, and picks the

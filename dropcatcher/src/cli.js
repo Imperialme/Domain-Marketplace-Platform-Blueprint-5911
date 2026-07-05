@@ -129,7 +129,7 @@ async function main() {
         fs.copyFileSync(path.join(ROOT, 'config.example.json'), CONFIG_PATH);
       }
       const { startServer } = await import('./server.js');
-      startServer(Number(args[0]) || Number(process.env.PORT) || 8053);
+      startServer(Number(args[0]) || Number(process.env.PORT) || 8053, process.env.HOST || '0.0.0.0');
       return;
     }
 
