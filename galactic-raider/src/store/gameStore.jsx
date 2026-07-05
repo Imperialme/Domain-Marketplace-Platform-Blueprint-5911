@@ -242,6 +242,11 @@ function buildInitialState() {
       leadInvestor: null,   // {name, stakePct} — set once a VC round closes; can veto IPO terms
       fundingHistory: [],   // [{round, turn, investor, raised, preMoney, postMoney, dilutionPct}]
       lastRoundRejection: null, // {round, reason, turn} — feedback shown after a rejected raise
+      valuation: 0,         // book equity (cash - debt) + capitalized earnings — see founderCompanyValuation()
+      revenueRampProgress: 0, // 0-1: how far revenue has climbed toward its target
+      dividendYield: 0,     // annual % — set at founding by industry, actually paid out once public
+      employees: 20,        // headcount — hiring more raises the revenue ceiling and ongoing opex
+      totalCapitalRaised: 0,
     },
   };
 }
@@ -253,14 +258,32 @@ const FOUNDER_MIN_CAPITAL = 10000000; // $10M minimum to start a company
 // with revenue). cogsRatio: variable cost as a fraction of revenue. A company
 // is burning cash whenever revenue*(1-cogsRatio) < burnIntensity*capitalBase —
 // which is exactly true early on, and becomes profitable as revenue grows.
+// dividendYield: annual %, only actually paid out once public (matches how
+// real capital-intensive/utility businesses pay more than growth-stage tech).
 const FOUNDER_INDUSTRY_PROFILES = {
-  tech:       { weatherResistance: 0.4, revenueCeilingMult: 3.5, revenueMultiple: 12, burnIntensity: 0.030, cogsRatio: 0.25 },
-  healthcare: { weatherResistance: 0.7, revenueCeilingMult: 2.2, revenueMultiple: 8,  burnIntensity: 0.022, cogsRatio: 0.35 },
-  energy:     { weatherResistance: 0.5, revenueCeilingMult: 2.5, revenueMultiple: 6,  burnIntensity: 0.018, cogsRatio: 0.45 },
-  finance:    { weatherResistance: 0.6, revenueCeilingMult: 2.8, revenueMultiple: 7,  burnIntensity: 0.020, cogsRatio: 0.30 },
-  retail:     { weatherResistance: 0.3, revenueCeilingMult: 1.8, revenueMultiple: 4,  burnIntensity: 0.012, cogsRatio: 0.55 },
-  utilities:  { weatherResistance: 0.8, revenueCeilingMult: 1.4, revenueMultiple: 5,  burnIntensity: 0.010, cogsRatio: 0.50 },
+  tech:       { weatherResistance: 0.4, revenueCeilingMult: 3.5, revenueMultiple: 12, burnIntensity: 0.030, cogsRatio: 0.25, dividendYield: 0.3 },
+  healthcare: { weatherResistance: 0.7, revenueCeilingMult: 2.2, revenueMultiple: 8,  burnIntensity: 0.022, cogsRatio: 0.35, dividendYield: 1.2 },
+  energy:     { weatherResistance: 0.5, revenueCeilingMult: 2.5, revenueMultiple: 6,  burnIntensity: 0.018, cogsRatio: 0.45, dividendYield: 3.5 },
+  finance:    { weatherResistance: 0.6, revenueCeilingMult: 2.8, revenueMultiple: 7,  burnIntensity: 0.020, cogsRatio: 0.30, dividendYield: 2.8 },
+  retail:     { weatherResistance: 0.3, revenueCeilingMult: 1.8, revenueMultiple: 4,  burnIntensity: 0.012, cogsRatio: 0.55, dividendYield: 1.5 },
+  utilities:  { weatherResistance: 0.8, revenueCeilingMult: 1.4, revenueMultiple: 5,  burnIntensity: 0.010, cogsRatio: 0.50, dividendYield: 4.2 },
 };
+
+// Single source of truth for what the company is worth — used for the stock
+// price, the funding-round fair-value check, and the IPO price veto floor, so
+// "valuation" always means the same number everywhere instead of three
+// disconnected formulas. Equity can never be worth less than the cash it
+// holds net of debt (book value) — a growth/earnings premium sits on top of
+// that floor, it never replaces it. This is what fixes a company sitting on
+// $3B cash but showing a $173M "equity value": the old formula priced shares
+// purely off revenue and ignored the balance sheet entirely.
+function founderCompanyValuation(fm) {
+  const totalDebt = (fm.loans || []).reduce((x, l) => x + l.outstanding, 0);
+  const bookEquity = Math.max(0, fm.currentCapital - totalDebt);
+  const annualizedProfit = Math.max(0, (fm.revenue || 0) - (fm.expenses || 0)) * 365;
+  const peMultiple = fm.demandTrend > 0 ? 18 : 12;
+  return r2(bookEquity + annualizedProfit * peMultiple);
+}
 
 // Funding round ladder — each round requires more traction than the last,
 // takes a smaller (but still real) dilution bite, and getting greedy on
@@ -587,6 +610,18 @@ export function GameProvider({ children }) {
           if (d > 0) { s.savingsWallet = r2(s.savingsWallet + d); totalDiv += d; }
         }
       });
+      // A founder's own majority stake is tracked separately as
+      // fm.founderShares, not in stockHoldings, so it's never covered by the
+      // loop above — pay it out here or a majority owner never actually
+      // receives the dividend their own company declares.
+      if (s.founderMode.active && s.founderMode.stage === 'public' && s.founderMode.companyId) {
+        const fm = s.founderMode;
+        const co = s.companies.find(c => c.t === fm.companyId);
+        if (co && fm.founderShares > 0) {
+          const d = r2(co.price * ((fm.dividendYield||0) / 100 / 4) * fm.founderShares * (1 - (era.divTax || 0.15)));
+          if (d > 0) { s.savingsWallet = r2(s.savingsWallet + d); totalDiv += d; }
+        }
+      }
       if (totalDiv > 0) addNews('💰', 'Quarterly Dividends: $'+Math.round(totalDiv).toLocaleString(), 'Dividends credited to Savings Wallet after '+Math.round((era.divTax||.15)*100)+'% dividend tax.', true);
     }
 
@@ -777,9 +812,11 @@ export function GameProvider({ children }) {
       // Revenue is bounded by a ceiling set by total capital raised (founding
       // capital + any funding rounds closed) — never by the ever-growing
       // currentCapital — and converges toward that ceiling gradually. No
-      // runaway compounding feedback loop.
+      // runaway compounding feedback loop. Headcount above the starting 20
+      // adds real capacity (the payoff for the salary expense it costs).
       const capitalBase = fm.totalCapitalRaised || fm.foundersCapital;
-      fm.targetRevenue = r2(capitalBase * 0.02 * profile.revenueCeilingMult * demandMultiplier);
+      const capacityMultiplier = cl(1 + ((fm.employees || 20) - 20) * 0.005, 0.5, 3);
+      fm.targetRevenue = r2(capitalBase * 0.02 * profile.revenueCeilingMult * demandMultiplier * capacityMultiplier);
       // Slow convergence (2%/turn) so early-stage burn has real weight instead
       // of vanishing within a handful of turns — breakeven should take a
       // genuine stretch of the game, not an eyeblink of auto-advance.
@@ -789,11 +826,18 @@ export function GameProvider({ children }) {
       // capital raised) plus variable cost-of-goods scaling with revenue.
       // Early on, revenue can't cover the fixed cost — the company burns
       // cash. As revenue climbs toward its ceiling, it crosses breakeven.
-      const baseOpex = r2(capitalBase * profile.burnIntensity);
+      const employeeOpex = (fm.employees || 0) * 2000;
+      const baseOpex = r2(capitalBase * profile.burnIntensity + employeeOpex);
       fm.expenses = r2(baseOpex + fm.revenue * profile.cogsRatio);
       const profit = r2(fm.revenue - fm.expenses);
       fm.currentCapital = r2(fm.currentCapital + profit);
-      fm.profitMargin = fm.revenue > 0 ? cl(profit / fm.revenue, -5, 1) : (profit >= 0 ? 0 : -1);
+      // Profit margin is only a meaningful, stable number once revenue is a
+      // real fraction of its target — dividing by a near-zero revenue swings
+      // the % wildly (e.g. -50000%) and reads as broken. Below that threshold
+      // the UI shows "Ramping Up" instead of a number.
+      const revenueRampProgress = fm.targetRevenue > 0 ? cl(fm.revenue / fm.targetRevenue, 0, 1) : 0;
+      fm.profitMargin = revenueRampProgress >= 0.1 && fm.revenue > 0 ? cl(profit / fm.revenue, -1, 1) : null;
+      fm.revenueRampProgress = revenueRampProgress;
       fm.burnRate = r2(-profit);
       fm.runwayTurns = fm.burnRate > 0 ? Math.max(0, Math.floor(fm.currentCapital / fm.burnRate)) : null;
 
@@ -811,12 +855,14 @@ export function GameProvider({ children }) {
         }
         s.founderMode = buildInitialState().founderMode;
       } else {
-        // Stock price movement (P/E multiple based on growth and profitability)
-        const peMultiple = fm.demandTrend > 0 ? 18 : 12;
-        const eps = fm.revenue / fm.sharesOutstanding;
-        const newSharePrice = r2(eps * peMultiple);
+        // Stock price is now anchored to the company's actual balance sheet
+        // (cash net of debt) plus a capitalized-earnings premium — see
+        // founderCompanyValuation(). It can never imply the company is worth
+        // less than the cash sitting in its account.
+        fm.valuation = founderCompanyValuation(fm);
+        const newSharePrice = r2(fm.valuation / fm.sharesOutstanding);
         fm.stock.ch = (newSharePrice - fm.stock.price) / fm.stock.price;
-        fm.stock.price = Math.max(1, newSharePrice);
+        fm.stock.price = Math.max(0.01, newSharePrice);
         fm.stock.hist = [...(fm.stock.hist || []).slice(-50), fm.stock.price];
 
         // Loan interest accrual
@@ -1851,6 +1897,9 @@ export function GameProvider({ children }) {
     s.founderMode.lastRoundRejection = null;
     s.founderMode.stage = 'bootstrapped';
     s.founderMode.turnStarted = s.turn;
+    s.founderMode.employees = 20;
+    s.founderMode.valuation = capitalAmount;
+    s.founderMode.revenueRampProgress = 0;
     s.founderMode.nwAtFoundation = Object.values(s.stockHoldings).reduce((x, [t, n]) => {
       const co = s.companies.find(c => c.t === t);
       return x + (co ? co.price * n : 0);
@@ -1860,6 +1909,7 @@ export function GameProvider({ children }) {
 
     const profile = FOUNDER_INDUSTRY_PROFILES[industry] || FOUNDER_INDUSTRY_PROFILES.tech;
     s.founderMode.weatherResistance = profile.weatherResistance;
+    s.founderMode.dividendYield = profile.dividendYield;
 
     addNews('🚀', 'Founder Mode Started', `You founded ${companyName} in ${industry} with $${capitalAmount.toLocaleString()}. You hold 100% (${sharesOutstanding.toLocaleString()} shares).`, true);
     refresh();
@@ -1903,6 +1953,42 @@ export function GameProvider({ children }) {
     return null;
   }, [refresh, addNews]);
 
+  // ── HIRING ───────────────────────────────────────────────────
+  // A concrete, visible expense lever instead of a hidden autopilot cost:
+  // hiring raises the revenue ceiling (more capacity to serve demand) but
+  // also raises ongoing opex (salaries) — a real, explained tradeoff.
+  const hireEmployees = useCallback((count) => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active) return 'Not in Founder Mode';
+    if (count <= 0) return 'Enter a valid headcount';
+    const onboardingCost = r2(count * 80000);
+    if (onboardingCost > fm.currentCapital) return `Onboarding costs $${onboardingCost.toLocaleString()} — insufficient company capital`;
+    fm.currentCapital = r2(fm.currentCapital - onboardingCost);
+    fm.employees = (fm.employees || 20) + count;
+    addNews('👥', 'Hired '+count.toLocaleString()+' Employees', `Onboarding cost: $${onboardingCost.toLocaleString()}. Headcount now ${fm.employees.toLocaleString()} — raises both capacity and ongoing salary expense ($${(count*2000).toLocaleString()}/turn).`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
+  // ── MARKETING CAMPAIGN ─────────────────────────────────────────
+  // A one-time spend that gives an immediate, visible demand boost instead
+  // of demand drifting on its own with no player lever to pull.
+  const runMarketingCampaign = useCallback((budget) => {
+    const s = S.current;
+    const fm = s.founderMode;
+    if (!fm.active) return 'Not in Founder Mode';
+    if (budget <= 0) return 'Enter a valid budget';
+    if (budget > fm.currentCapital) return 'Insufficient company capital';
+    fm.currentCapital = r2(fm.currentCapital - budget);
+    const capitalBase = fm.totalCapitalRaised || fm.foundersCapital;
+    const boost = cl(budget / capitalBase * 1.5, 0, 0.35);
+    fm.demandTrend = cl(fm.demandTrend + boost, -0.8, 0.8);
+    addNews('📣', 'Marketing Campaign Launched', `Spent $${budget.toLocaleString()}. Demand trend +${Math.round(boost*100)}pp — the effect fades gradually over time like any campaign.`, true);
+    refresh();
+    return null;
+  }, [refresh, addNews]);
+
   // ── FUNDING ROUNDS (Seed -> Series A -> B -> C) ────────────────
   const proposeFundingRound = useCallback((roundKey, preMoneyValuation) => {
     const s = S.current;
@@ -1915,16 +2001,16 @@ export function GameProvider({ children }) {
       const prevLabel = FUNDING_ROUNDS[cfg.prevRound]?.label || 'Seed';
       return `Complete ${prevLabel} first`;
     }
-    const profile = FOUNDER_INDUSTRY_PROFILES[fm.industry] || FOUNDER_INDUSTRY_PROFILES.tech;
     const tractionRatio = fm.targetRevenue > 0 ? fm.revenue / fm.targetRevenue : 0;
     if (tractionRatio < cfg.minRevenueRatio) {
       return `Investors want to see ${Math.round(cfg.minRevenueRatio*100)}% of revenue potential proven first (currently ${Math.round(tractionRatio*100)}%)`;
     }
     if (preMoneyValuation <= 0) return 'Enter a valid valuation';
 
-    // Fair value: a multiple of current revenue (annualized feel), or a
-    // capital-based fallback if the company is still pre-revenue.
-    const fairValue = fm.revenue > 0 ? fm.revenue * profile.revenueMultiple * 12 : fm.currentCapital * 2;
+    // Fair value uses the same yardstick as the stock price and IPO floor —
+    // book equity plus a capitalized-earnings premium — so "valuation" means
+    // one consistent thing everywhere in Founder Mode, not three formulas.
+    const fairValue = Math.max(founderCompanyValuation(fm), fm.currentCapital);
     const askRatio = preMoneyValuation / fairValue;
     // Asking near or below fair value is safe; asking well above it risks rejection.
     const rejectionChance = cl((askRatio - 1) * 0.8, 0.03, 0.9);
@@ -1980,10 +2066,18 @@ export function GameProvider({ children }) {
     const maxIssuable = Math.floor(fm.founderShares * 0.96);
     if (ipoShares > maxIssuable) return `Max ${maxIssuable.toLocaleString()} new shares — keeps you above 51% ownership`;
 
+    // Hard floor: the IPO can never imply a valuation below what the company
+    // is actually worth on paper (cash net of debt) — no one prices a
+    // company below its own bank balance.
+    const impliedValue = targetPrice * fm.sharesOutstanding;
+    const bookFloor = founderCompanyValuation(fm);
+    if (impliedValue < bookFloor) {
+      return `Price too low — implies a $${Math.round(impliedValue).toLocaleString()} valuation, below the company's actual worth of $${Math.round(bookFloor).toLocaleString()}.`;
+    }
+
     // Investor veto: a lead investor from a prior funding round with a real
-    // stake can block a lowball IPO price that shortchanges their return.
+    // stake can additionally block a price that undercuts their own return.
     if (fm.leadInvestor && fm.leadInvestor.stakePct >= 15) {
-      const impliedValue = targetPrice * fm.sharesOutstanding;
       const lastRound = fm.fundingHistory[fm.fundingHistory.length - 1];
       const floorValue = lastRound ? lastRound.postMoney * 1.15 : fm.currentCapital * 1.5;
       if (impliedValue < floorValue) {
@@ -2031,10 +2125,10 @@ export function GameProvider({ children }) {
         pe: 18,
         ch: 0,
         hist: [fm.ipoPrice, fm.ipoPrice],
-        div: 0.3,
+        div: fm.dividendYield || 0.3,
         b: 1.5,
         yr: 2024,
-        emp: 50,
+        emp: fm.employees || 50,
         hq: 'Earth',
         ip: fm.ipoPrice,
         pe0: 18,
@@ -2202,7 +2296,7 @@ export function GameProvider({ children }) {
     setPlayerAvatar, setPlayerName,
     clearMilestone,
     navigateTo, clearNavTarget, setTradeLock,
-    startFounderMode, takeLoanFounder, proposeFundingRound, launchFounderIPO, confirmFounderIPO,
+    startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, proposeFundingRound, launchFounderIPO, confirmFounderIPO,
     acceptTenderOffer, declineTenderOffer,
     toggleFoundationAutopilot, liquidateFoundation,
     FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS,

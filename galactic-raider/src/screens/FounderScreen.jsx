@@ -4,7 +4,7 @@ import { getT } from '../i18n';
 import { fm as formatMoney } from '../utils';
 
 export function FounderTab({ lang }) {
-  const { D, S, startFounderMode, takeLoanFounder, proposeFundingRound, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, setTradeLock } = useGame();
+  const { D, S, startFounderMode, takeLoanFounder, hireEmployees, runMarketingCampaign, proposeFundingRound, launchFounderIPO, confirmFounderIPO, acceptTenderOffer, declineTenderOffer, FOUNDER_MIN_CAPITAL, FUNDING_ROUNDS, setTradeLock } = useGame();
   const t = getT(lang);
   const fm = S.current.founderMode;
   const MIN_CAPITAL = FOUNDER_MIN_CAPITAL || 10000000;
@@ -28,6 +28,14 @@ export function FounderTab({ lang }) {
   const [showFundingModal, setShowFundingModal] = useState(false);
   const [fundingValuation, setFundingValuation] = useState(50000000);
   const [fundingErr, setFundingErr] = useState('');
+
+  const [showHireModal, setShowHireModal] = useState(false);
+  const [hireCount, setHireCount] = useState(10);
+  const [hireErr, setHireErr] = useState('');
+
+  const [showMarketingModal, setShowMarketingModal] = useState(false);
+  const [marketingBudget, setMarketingBudget] = useState(100000);
+  const [marketingErr, setMarketingErr] = useState('');
 
   const industries = ['tech', 'healthcare', 'energy', 'finance', 'retail', 'utilities'];
 
@@ -184,6 +192,15 @@ export function FounderTab({ lang }) {
         </div>
       </div>
 
+      {/* Company Valuation */}
+      <div style={{ padding: '10px', background: 'rgba(139,92,246,0.1)', borderRadius: '4px', border: '1px solid rgba(139,92,246,0.3)', marginBottom: '12px' }}>
+        <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>💎 Company Valuation</div>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#C4B5FD' }}>${Math.round(fm.valuation||0).toLocaleString()}</div>
+        <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
+          = Cash net of debt (${Math.max(0, fm.currentCapital - totalDebt).toLocaleString()}) + capitalized earnings premium. Never below what's actually in the bank.
+        </div>
+      </div>
+
       {/* Cap Table */}
       <div style={{ padding: '10px', background: 'rgba(255,215,0,0.08)', borderRadius: '4px', border: '1px solid rgba(255,215,0,0.25)', marginBottom: '12px' }}>
         <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>👑 Your Ownership</div>
@@ -191,7 +208,7 @@ export function FounderTab({ lang }) {
           <div>Your shares: <strong>{fm.founderShares.toLocaleString()}</strong></div>
           <div>Total shares: <strong>{fm.sharesOutstanding.toLocaleString()}</strong></div>
           <div>Ownership: <strong style={{ color: ownershipPct >= 51 ? '#4CAF50' : '#FF6B6B' }}>{ownershipPct.toFixed(1)}%</strong></div>
-          <div>Equity value: <strong>${equityValue.toLocaleString()}</strong></div>
+          <div>Your equity value: <strong>${Math.round(equityValue).toLocaleString()}</strong></div>
         </div>
         <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '6px' }}>
           {ownershipPct >= 51 ? 'You hold majority control — every decision here is final board policy.' : 'Your stake has fallen below majority.'}
@@ -238,10 +255,35 @@ export function FounderTab({ lang }) {
       {/* Revenue Formula Transparency */}
       <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '12px', fontSize: '11px', lineHeight: 1.7 }}>
         <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📊 Revenue &amp; Cost Breakdown</div>
-        <div>Revenue target = Total Capital Raised (${(fm.totalCapitalRaised||fm.foundersCapital).toLocaleString()}) × 2% × industry ceiling × demand multiplier</div>
-        <div>Expenses = fixed operating cost (scales with capital raised) + cost of goods (scales with revenue)</div>
-        <div>Profit margin: <strong style={{ color: fm.profitMargin >= 0 ? '#86EFAC' : '#FCA5A5' }}>{(fm.profitMargin * 100).toFixed(0)}%</strong> · Expenses: ${fm.expenses.toLocaleString()}</div>
-        <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn. Raising a funding round increases both your revenue ceiling AND your burn — bigger bets, bigger stakes.</div>
+        <div>Revenue target = Total Capital Raised (${(fm.totalCapitalRaised||fm.foundersCapital).toLocaleString()}) × 2% × industry ceiling × demand × headcount capacity</div>
+        <div>Revenue is {Math.round((fm.revenueRampProgress||0)*100)}% of the way to its target ceiling.</div>
+        <div>Expenses = fixed operating cost (scales with capital raised + {fm.employees||20} employees × $2,000) + cost of goods (scales with revenue)</div>
+        <div>
+          {fm.profitMargin == null
+            ? <span style={{ color: '#FBBF24' }}>Ramping up — too early in revenue growth for a meaningful margin %</span>
+            : <>Profit margin: <strong style={{ color: fm.profitMargin >= 0 ? '#86EFAC' : '#FCA5A5' }}>{(fm.profitMargin * 100).toFixed(0)}%</strong></>
+          } · Expenses: ${fm.expenses.toLocaleString()}
+        </div>
+        <div style={{ opacity: 0.7 }}>Revenue moves gradually toward its target each turn. Raising a funding round or hiring increases both your ceiling AND your burn — bigger bets, bigger stakes.</div>
+      </div>
+
+      {/* Team & Marketing */}
+      <div style={{ padding: '10px', background: 'rgba(56,189,248,0.08)', borderRadius: '4px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>👥 Team &amp; Marketing</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px', marginBottom: '8px' }}>
+          <div>Employees: <strong>{(fm.employees||20).toLocaleString()}</strong></div>
+          <div>Salary cost: <strong>${((fm.employees||20)*2000).toLocaleString()}/turn</strong></div>
+          <div>Dividend Yield: <strong>{(fm.dividendYield||0).toFixed(1)}%</strong></div>
+          <div>Demand Trend: <strong style={{ color: fm.demandTrend > 0 ? '#4CAF50' : '#FF6B6B' }}>{(fm.demandTrend*100).toFixed(0)}%</strong></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <button onClick={() => { setShowHireModal(true); setTradeLock(true); }} style={{ padding: '10px', background: 'rgba(56,189,248,0.2)', border: '1px solid rgba(56,189,248,0.4)', color: '#7DD3FC', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+            👥 Hire Employees
+          </button>
+          <button onClick={() => { setShowMarketingModal(true); setTradeLock(true); }} style={{ padding: '10px', background: 'rgba(236,72,153,0.2)', border: '1px solid rgba(236,72,153,0.4)', color: '#F9A8D4', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+            📣 Marketing Campaign
+          </button>
+        </div>
       </div>
 
       {/* Funding Rounds */}
@@ -501,6 +543,62 @@ export function FounderTab({ lang }) {
           </div>
         );
       })()}
+
+      {/* Hire Employees Modal */}
+      {showHireModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>👥 Hire Employees</div>
+            <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
+              More headcount raises your revenue ceiling (more capacity to serve demand) but adds an ongoing $2,000/turn salary per hire.
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>Hire: {hireCount.toLocaleString()} employees</label>
+              <input type="range" min="1" max="500" value={hireCount} onChange={(e) => setHireCount(+e.target.value)} style={{ width: '100%' }} />
+            </div>
+            <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(56,189,248,0.15)', borderRadius: '4px', marginBottom: '12px' }}>
+              One-time onboarding cost: ${(hireCount*80000).toLocaleString()} · New salary cost: +${(hireCount*2000).toLocaleString()}/turn
+            </div>
+            {hireErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{hireErr}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button onClick={() => { setShowHireModal(false); setTradeLock(false); setHireErr(''); }} style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => {
+                const err = hireEmployees(hireCount);
+                if (err) { setHireErr(err); return; }
+                setShowHireModal(false); setTradeLock(false); setHireErr('');
+              }} style={{ padding: '8px', background: '#0284C7', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Hire</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Marketing Campaign Modal */}
+      {showMarketingModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: D.darkMode ? '#1a1a2e' : '#fff', padding: '20px', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>📣 Marketing Campaign</div>
+            <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '12px' }}>
+              A one-time spend that immediately boosts demand trend. The effect persists but drifts over time like any campaign — it's not permanent.
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>Budget: ${marketingBudget.toLocaleString()}</label>
+              <input type="range" min="10000" max={Math.max(10000, Math.floor(fm.currentCapital*0.3))} step="10000" value={marketingBudget} onChange={(e) => setMarketingBudget(+e.target.value)} style={{ width: '100%' }} />
+            </div>
+            <div style={{ fontSize: '11px', padding: '8px', background: 'rgba(236,72,153,0.15)', borderRadius: '4px', marginBottom: '12px' }}>
+              Estimated demand boost: +{Math.round(Math.min(0.35, marketingBudget / (fm.totalCapitalRaised||fm.foundersCapital) * 1.5) * 100)}pp
+            </div>
+            {marketingErr && <div style={{ fontSize: '11px', color: '#FF6B6B', marginBottom: '10px' }}>{marketingErr}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button onClick={() => { setShowMarketingModal(false); setTradeLock(false); setMarketingErr(''); }} style={{ padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => {
+                const err = runMarketingCampaign(marketingBudget);
+                if (err) { setMarketingErr(err); return; }
+                setShowMarketingModal(false); setTradeLock(false); setMarketingErr('');
+              }} style={{ padding: '8px', background: '#DB2777', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Launch Campaign</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IPO Modal */}
       {showIPOModal && (
