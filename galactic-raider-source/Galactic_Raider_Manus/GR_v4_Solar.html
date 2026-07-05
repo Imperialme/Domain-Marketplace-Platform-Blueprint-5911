@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Raider — Solar System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500;600&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050818;--card:#0D1428;--card2:#111B35;--bd:#1E2D5A;
+  --p:#7C3AED;--p2:#9333EA;--pl:rgba(124,58,237,.2);
+  --b:#1D4ED8;--b2:#3B82F6;
+  --c:#06B6D4;--g:#10B981;
+  --gold:#F59E0B;--red:#EF4444;
+  --t1:#E2E8F0;--t2:#94A3B8;--t3:#475569;
+  --r:16px;--rs:10px;--rx:6px;
+  --glow:0 0 20px rgba(124,58,237,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:#0a0f1e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+.title{color:white;font-size:18px;font-weight:800;margin-bottom:3px;text-align:center;font-family:'Orbitron',sans-serif}
+.subtitle{color:#475569;font-size:11px;margin-bottom:12px;text-align:center}
+.nav-pills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:12px;max-width:420px}
+.np{padding:5px 11px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.np.on{background:#7C3AED;color:white;border-color:#7C3AED}
+.device{width:390px;background:var(--bg);border-radius:36px;overflow:hidden;position:relative;box-shadow:0 40px 100px rgba(0,0,0,.9),0 0 60px rgba(124,58,237,.15),inset 0 0 0 1.5px rgba(255,255,255,.05)}
+.scr{display:none;flex-direction:column;min-height:780px;background:var(--bg);padding-bottom:72px;position:relative}
+.scr.on{display:flex}
+.stars-bg{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;pointer-events:none;z-index:0}
+.star{position:absolute;background:white;border-radius:50%;animation:twinkle 3s infinite}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:.9}}
+.sbar{background:rgba(8,15,32,.95);backdrop-filter:blur(10px);padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--t2);border-bottom:1px solid var(--bd);flex-shrink:0;position:relative;z-index:10}
+.ticker-wrap{background:#0A0F23;padding:6px 0;overflow:hidden;flex-shrink:0;border-bottom:1px solid var(--bd);position:relative;z-index:10}
+.ticker-inner{display:flex;gap:28px;animation:tick 22s linear infinite;white-space:nowrap;width:max-content}
+@keyframes tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ti{font-family:'DM Mono',monospace;font-size:11px;color:rgba(147,197,253,.5);display:flex;align-items:center;gap:5px}
+.ti .u{color:#A78BFA}.ti .d{color:#F87171}
+.ph{background:rgba(8,15,32,.95);padding:14px 18px 12px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;gap:12px;position:relative;z-index:10}
+.back{width:32px;height:32px;background:rgba(124,58,237,.2);border:1.5px solid #4C1D95;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#A78BFA;flex-shrink:0}
+.pt{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--t1);letter-spacing:.5px}
+.ps{font-size:11px;color:var(--t3);margin-top:2px}
+.nav{position:absolute;bottom:0;left:0;right:0;background:rgba(8,15,32,.97);border-top:1px solid var(--bd);display:flex;padding:8px 0 18px;z-index:50;box-shadow:0 -4px 20px rgba(109,40,217,.2)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.ni .ico{font-size:20px;transition:transform .2s}
+.ni .lbl{font-size:10px;font-weight:600;color:var(--t3)}
+.ni.on .lbl{color:#A78BFA}
+.ni.on .ico{transform:scale(1.15)}
+.sb{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:5}
+.sb::-webkit-scrollbar{display:none}
+.card{background:var(--card);border-radius:var(--r);padding:16px;border:1px solid var(--bd)}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.st{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--t1);letter-spacing:.5px}
+.sa{font-size:12px;font-weight:600;color:#A78BFA;cursor:pointer}
+.badge{display:inline-flex;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Mono',monospace}
+.badge.up{background:rgba(167,139,250,.2);color:#A78BFA}
+.badge.dn{background:rgba(248,113,113,.15);color:#F87171}
+.badge.warn{background:rgba(245,158,11,.15);color:#FCD34D}
+.badge.safe{background:rgba(16,185,129,.15);color:#6EE7B7}
+.hi{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd);cursor:pointer;gap:11px}
+.hi:last-child{border-bottom:none}
+.htk{width:42px;height:42px;background:rgba(124,58,237,.15);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#A78BFA;letter-spacing:.3px;flex-shrink:0;border:1px solid #4C1D95;font-family:'Orbitron',sans-serif}
+.hinfo{flex:1}
+.hn{font-size:14px;font-weight:700;color:var(--t1)}
+.hsb{font-size:11px;color:var(--t3);margin-top:1px}
+.hr{text-align:right}
+.hval{font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--t1)}
+.hpnl{font-size:12px;font-weight:600;margin-top:2px;font-family:'DM Mono',monospace}
+.hpnl.up{color:#A78BFA}.hpnl.dn{color:#F87171}
+/* HERO */
+.sp-hero{background:linear-gradient(135deg,#1E1B4B,#312E81,#4C1D95);border-radius:var(--r);padding:20px;color:white;position:relative;overflow:hidden;border:1px solid #4338CA;box-shadow:var(--glow)}
+.sp-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,rgba(139,92,246,.3),transparent);border-radius:50%}
+.sp-hero::after{content:'';position:absolute;bottom:-40px;left:-20px;width:140px;height:140px;background:radial-gradient(circle,rgba(59,130,246,.2),transparent);border-radius:50%}
+.hero-lbl{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:600;opacity:.6;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.hero-amt{font-family:'Orbitron',sans-serif;font-size:32px;font-weight:800;line-height:1;position:relative;z-index:1;color:#E9D5FF}
+.hero-chg{font-size:12px;font-weight:600;opacity:.8;margin-top:5px;display:flex;align-items:center;gap:5px;position:relative;z-index:1}
+.hero-row{display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);position:relative;z-index:1}
+.hri .hl{font-size:9px;opacity:.5;text-transform:uppercase;letter-spacing:.5px;font-family:'Orbitron',sans-serif}
+.hri .hv{font-size:12px;font-weight:700;margin-top:2px;font-family:'DM Mono',monospace;color:#A78BFA}
+/* ECO */
+.eco{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.eg{background:var(--card);border-radius:var(--rs);padding:10px 8px;text-align:center;border:1px solid var(--bd)}
+.el{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;font-family:'Orbitron',sans-serif}
+.ev{font-size:13px;font-weight:700;margin-top:3px;font-family:'DM Mono',monospace}
+.ev.up{color:#A78BFA}.ev.warn{color:#FCD34D}.ev.nt{color:var(--t1)}.ev.dn{color:#F87171}
+/* PLANET TABS */
+.planet-tabs{display:flex;gap:8px;margin-bottom:4px}
+.pt-btn{flex:1;border:1.5px solid var(--bd);border-radius:var(--rs);padding:12px 8px;text-align:center;cursor:pointer;background:var(--card);transition:all .15s}
+.pt-btn.active{border-color:#7C3AED;background:rgba(124,58,237,.15)}
+.pt-btn .pe{font-size:22px}
+.pt-btn .pn{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;margin-top:4px;color:var(--t3)}
+.pt-btn.active .pn{color:#A78BFA}
+/* COMMODITY */
+.sc-item{background:var(--card);border-radius:var(--rs);padding:14px;border:1px solid var(--bd);cursor:pointer;transition:all .15s}
+.sc-item:active{border-color:#7C3AED}
+.sc-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.sc-name{font-size:14px;font-weight:700;color:var(--t1)}
+.sc-sym{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:#A78BFA;background:rgba(124,58,237,.2);padding:2px 7px;border-radius:10px;border:1px solid #4C1D95}
+.sc-price{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--t1)}
+.sc-chg{font-size:12px;font-weight:600;font-family:'DM Mono',monospace}
+.sc-chg.up{color:#A78BFA}.sc-chg.dn{color:#F87171}
+.sc-meta{font-size:11px;color:var(--t3);margin-top:2px}
+.sc-curr{display:inline-flex;align-items:center;gap:4px;background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;color:#67E8F9;font-family:'DM Mono',monospace;margin-top:4px}
+.sc-acts{display:flex;gap:6px;margin-top:10px}
+.sc-btn{flex:1;border:none;border-radius:var(--rx);padding:9px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer}
+.sc-btn.buy{background:rgba(167,139,250,.2);color:#A78BFA;border:1px solid #4C1D95}
+.sc-btn.sell{background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3)}
+.sc-btn.max{background:#7C3AED;color:white}
+/* INFRA */
+.infra{background:var(--card);border-radius:var(--r);overflow:hidden;border:1px solid var(--bd);margin-bottom:10px}
+.infra-hdr{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.infra-ico{width:44px;height:44px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.infra-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 14px}
+.is{text-align:center;background:#111B35;border-radius:var(--rs);padding:8px}
+.isv{font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:#A78BFA}
+.isl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-family:'Orbitron',sans-serif}
+.infra-acts{display:flex;gap:8px;padding:0 16px 14px}
+.ia{flex:1;border:none;border-radius:var(--rs);padding:9px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer}
+.ia.up{background:#7C3AED;color:white}
+.ia.sell{background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3)}
+.build-opt{background:var(--card);border-radius:var(--rs);padding:14px;border:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s}
+.build-opt:active{border-color:#7C3AED}
+/* CURRENCY CARD */
+.curr-card{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(109,40,217,.15));border:1px solid rgba(6,182,212,.3);border-radius:var(--r);padding:14px}
+.curr-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd)}
+.curr-row:last-child{border-bottom:none}
+/* NEWS */
+.cosmic{border-radius:var(--rs);padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+.cosmic.pos{background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3)}
+.cosmic.neg{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)}
+.cosmic.nt{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2)}
+.ce-ico{font-size:18px;flex-shrink:0;margin-top:2px}
+.ce-title{font-size:13px;font-weight:700;color:var(--t1)}
+.ce-desc{font-size:11px;color:var(--t3);margin-top:3px;line-height:1.5}
+.ce-impact{font-size:11px;font-weight:700;margin-top:4px}
+.ce-impact.pos{color:#A78BFA}.ce-impact.neg{color:#F87171}.ce-impact.nt{color:#FCD34D}
+.yni{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid var(--bd)}
+.yni:last-child{border-bottom:none}
+.yn-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(124,58,237,.2)}
+.ynt{font-size:13px;font-weight:600;color:var(--t1)}
+.ynd{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.5}
+.yna{font-size:13px;font-weight:700;color:#A78BFA;font-family:'DM Mono',monospace;margin-top:3px}
+.yna.red{color:#F87171}
+/* BOND */
+.bond-item{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd);gap:11px}
+.bond-item:last-child{border-bottom:none}
+.bond-tag{width:42px;height:42px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;letter-spacing:.3px;flex-shrink:0;font-family:'Orbitron',sans-serif}
+/* PORTFOLIO */
+.port-hero{background:linear-gradient(135deg,#1E1B4B,#312E81,#1E3A5F);padding:20px 18px;color:white;flex-shrink:0;position:relative;z-index:10}
+.pval{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:800;color:#E9D5FF}
+.pstats{display:flex;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.psi{flex:1;text-align:center}
+.psi .sv{font-size:15px;font-weight:700;color:#A78BFA;font-family:'DM Mono',monospace}
+.psi .sl{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-family:'Orbitron',sans-serif}
+.fs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.fs::-webkit-scrollbar{display:none}
+.fc{padding:7px 14px;border-radius:20px;font-size:11px;font-weight:700;background:var(--card);color:var(--t3);cursor:pointer;white-space:nowrap;border:1.5px solid var(--bd);font-family:'Orbitron',sans-serif;letter-spacing:.3px}
+.fc.on{background:#4C1D95;color:#E9D5FF;border-color:#7C3AED}
+.sim-row{display:flex;gap:8px;margin-top:10px}
+.btn-play{flex:1.2;background:#7C3AED;color:white;border:none;border-radius:var(--rs);padding:11px;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-mo{flex:1;background:rgba(124,58,237,.15);color:#A78BFA;border:1.5px solid #4C1D95;border-radius:var(--rs);padding:11px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="title">☀️ SOLAR SYSTEM</div>
+<p class="subtitle">Mars · Venus · Jupiter · Space currencies · Bonds · Commodities</p>
+<div class="nav-pills">
+  <button class="np on" onclick="go('dashboard')">🚀 Dashboard</button>
+  <button class="np" onclick="go('market')">🪐 Market</button>
+  <button class="np" onclick="go('commodities')">⚗️ Commodities</button>
+  <button class="np" onclick="go('bonds')">📋 Space Bonds</button>
+  <button class="np" onclick="go('infrastructure')">🏗️ Infrastructure</button>
+  <button class="np" onclick="go('portfolio')">🛸 Portfolio</button>
+  <button class="np" onclick="go('currencies')">💱 Currencies</button>
+  <button class="np" onclick="go('news')">🌠 News</button>
+</div>
+<div class="device">
+
+<!-- DASHBOARD -->
+<div class="scr on" id="s-dashboard">
+  <div class="stars-bg" id="stars1"></div>
+  <div class="sbar"><button onclick="alert('Switching to Earth...')" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#6EE7B7;cursor:pointer">🌍 Earth</button><span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#A78BFA">☀️ SOLAR SYSTEM</span><span style="color:var(--t3);font-size:11px">T-847</span></div>
+  <div class="ticker-wrap"><div class="ticker-inner" id="sp-ticker"></div></div>
+  <!-- Earth notification -->
+  <div style="padding:8px 14px 0;position:relative;z-index:10">
+    <div style="background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(27,94,32,.3));border:1px solid rgba(16,185,129,.3);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">
+      <span style="font-size:16px">🌍</span>
+      <div style="flex:1"><div style="font-size:11px;font-weight:700;color:#6EE7B7">Earth Alert: High Tax Era in 23 turns</div><div style="font-size:10px;color:rgba(110,231,183,.6);margin-top:1px">Consider philanthropy now to reduce liability — tap to view</div></div>
+      <span style="color:rgba(110,231,183,.4);font-size:14px">›</span>
+    </div>
+  </div>
+  <div class="sb">
+    <div class="sp-hero">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+        <div><div class="hero-lbl">Net Worth — Solar System</div><div class="hero-amt">$842.3M</div><div class="hero-chg"><span style="color:#A78BFA">▲</span> +$24.5M (+3.0%) this turn</div></div>
+        <div style="text-align:right;position:relative;z-index:1"><div style="font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(167,139,250,.5);text-transform:uppercase;letter-spacing:.5px">Planet</div><div style="font-size:14px;font-weight:700;color:#A78BFA;margin-top:2px">MARS ♂</div><div style="font-size:10px;color:var(--t3);margin-top:5px">Turn 847</div></div>
+      </div>
+      <div class="hero-row">
+        <div class="hri"><div class="hl">Cash (MCR)</div><div class="hv">₥42M</div></div>
+        <div class="hri"><div class="hl">Stocks</div><div class="hv">$680M</div></div>
+        <div class="hri"><div class="hl">Commodities</div><div class="hv">$94M</div></div>
+        <div class="hri"><div class="hl">Infra</div><div class="hv">$26M</div></div>
+      </div>
+    </div>
+    <!-- Planet selector -->
+    <div class="planet-tabs">
+      <div class="pt-btn active" onclick="selPlanet(this)"><div class="pe">🔴</div><div class="pn">MARS</div></div>
+      <div class="pt-btn" onclick="selPlanet(this)"><div class="pe">🟡</div><div class="pn">VENUS</div></div>
+      <div class="pt-btn" onclick="selPlanet(this)"><div class="pe">🟠</div><div class="pn">JUPITER</div></div>
+    </div>
+    <div class="eco">
+      <div class="eg"><div class="el">Growth</div><div class="ev up">+4.2%</div></div>
+      <div class="eg"><div class="el">Volatility</div><div class="ev warn">1.2x</div></div>
+      <div class="eg"><div class="el">MCR/USD</div><div class="ev dn">0.82↓</div></div>
+      <div class="eg"><div class="el">Events</div><div class="ev warn">3</div></div>
+    </div>
+    <div class="card">
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Simulation</div>
+      <div class="sim-row"><button class="btn-play">▶ ADVANCE</button><button class="btn-mo">+1 Turn</button><button class="btn-mo" style="flex:.7">+5</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="go('commodities')"><div style="font-size:22px">⚗️</div><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t2);font-weight:700;text-align:center">COMMODITIES</div><div style="font-size:10px;color:#A78BFA;font-family:'DM Mono',monospace">LTH +18% ▲</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="go('infrastructure')"><div style="font-size:22px">🏗️</div><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t2);font-weight:700;text-align:center">INFRASTRUCTURE</div><div style="font-size:10px;color:#6EE7B7;font-family:'DM Mono',monospace">+$162M/yr</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="go('bonds')"><div style="font-size:22px">📋</div><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t2);font-weight:700;text-align:center">SPACE BONDS</div><div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">3 bonds held</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" onclick="go('currencies')"><div style="font-size:22px">💱</div><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t2);font-weight:700;text-align:center">CURRENCIES</div><div style="font-size:10px;color:#F87171;font-family:'DM Mono',monospace">MCR -2.4% ▼</div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Top Holdings</div><div class="sa" onclick="go('portfolio')">All →</div></div>
+      <div class="hi"><div class="htk">NXMN</div><div class="hinfo"><div class="hn">Nexus Minerals Corp</div><div class="hsb">Asteroid Mining · Mars</div></div><div class="hr"><div class="hval">$248M</div><div class="hpnl up">+65%</div></div></div>
+      <div class="hi"><div class="htk">HE3C</div><div class="hinfo"><div class="hn">Helium-3 Energy Corp</div><div class="hsb">Energy · Jupiter</div></div><div class="hr"><div class="hval">$42M</div><div class="hpnl up">+110%</div></div></div>
+      <div class="hi" style="border-bottom:none"><div class="htk" style="font-size:8px;letter-spacing:0">MARS5Y</div><div class="hinfo"><div class="hn">Mars Colonial Auth. 5Y</div><div class="hsb">Bond · 12.8% yield · MCR</div></div><div class="hr"><div class="hval">$30M</div><div class="hpnl up">+12.8%/yr</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni on" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- MARKET -->
+<div class="scr" id="s-market">
+  <div class="stars-bg" id="stars2"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">MARS MARKET</div><div class="ps">18 companies · Mining · Energy · Research</div></div></div>
+  <div class="sb">
+    <div class="fs"><div class="fc on" onclick="chip(this)">ALL</div><div class="fc" onclick="chip(this)">MINING</div><div class="fc" onclick="chip(this)">ENERGY</div><div class="fc" onclick="chip(this)">RESEARCH</div><div class="fc" onclick="chip(this)">REFINING</div></div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk">NXMN</div><div class="hinfo"><div class="hn">Nexus Minerals Corp</div><div class="hsb">Asteroid Mining · Mars · P/E 22 · AA bonds</div></div><div class="hr"><div class="hval">₥210.50</div><div class="badge up">+8.2%</div></div></div>
+      <div class="hi"><div class="htk">RARE</div><div class="hinfo"><div class="hn">Rare Earth Global</div><div class="hsb">REE Extraction · Mars · P/E 35 · BBB</div></div><div class="hr"><div class="hval">₥154.82</div><div class="badge dn">-3.1%</div></div></div>
+      <div class="hi"><div class="htk">HE3C</div><div class="hinfo"><div class="hn">Helium-3 Energy Corp</div><div class="hsb">Energy · Jupiter · P/E 45 · A bonds</div></div><div class="hr"><div class="hval">♃350.40</div><div class="badge up">+15.1%</div></div></div>
+      <div class="hi"><div class="htk">QNTM</div><div class="hinfo"><div class="hn">Quantum Materials Corp</div><div class="hsb">Research · Jupiter · P/E 29 · A bonds</div></div><div class="hr"><div class="hval">♃740.21</div><div class="badge up">+4.7%</div></div></div>
+      <div class="hi"><div class="htk">VMFG</div><div class="hinfo"><div class="hn">Venus Manufacturing Ltd</div><div class="hsb">Refining · Venus · P/E 18 · BBB</div></div><div class="hr"><div class="hval">♀104.00</div><div class="badge dn">-1.2%</div></div></div>
+      <div class="hi" style="border-bottom:none"><div class="htk">PTMN</div><div class="hinfo"><div class="hn">Platinum Extraction Inc</div><div class="hsb">Asteroid Mining · Mars · P/E 12 · BB</div></div><div class="hr"><div class="hval">₥85.40</div><div class="badge dn">-5.8%</div></div></div>
+    </div>
+    <div style="background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:var(--rs);padding:12px"><div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#67E8F9;margin-bottom:6px">CURRENCY NOTE</div><div style="font-size:11px;color:var(--t2)">₥ = Martian Credits (MCR) · ♀ = Venusian Units (VNU) · ♃ = Jovian Tokens (JVT) · All values also shown in USD equivalent in portfolio</div></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni on" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- COMMODITIES -->
+<div class="scr" id="s-commodities">
+  <div class="stars-bg" id="stars3"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">SPACE EXCHANGE</div><div class="ps">Phase 1 Basic Minerals · Cash: ₥42M</div></div></div>
+  <div class="sb">
+    <div style="background:rgba(124,58,237,.15);border:1px solid #4C1D95;border-radius:var(--rs);padding:12px 14px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(167,139,250,.6);text-transform:uppercase;letter-spacing:2px">Available Funds</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:24px;font-weight:700;color:#E9D5FF;margin-top:2px">₥42,000,000</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px;display:flex;align-items:center;gap:6px">Martian Credits <span style="background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.3);border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;color:#67E8F9;font-family:'DM Mono',monospace">1 MCR = $0.82 USD ▼</span></div>
+    </div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Phase 1 — Basic Space Minerals (Unlocked at $500M)</div>
+    <div class="sc-item">
+      <div class="sc-hdr"><div><div class="sc-name">Lithium</div><div class="sc-meta">Asteroid Mining · Batteries & EVs</div><div class="sc-curr">MCR</div></div><div><div class="sc-sym">LTH</div><div class="sc-chg up" style="margin-top:4px;text-align:right">+18.0% ▲</div></div></div>
+      <div class="sc-price">₥550.00 <span style="font-size:12px;color:var(--t3)">/ unit · $451 USD</span></div>
+      <div class="sc-acts"><button class="sc-btn buy">Buy ₥1K</button><button class="sc-btn buy">Buy ₥10K</button><button class="sc-btn max">Buy Max</button><button class="sc-btn sell">Sell</button></div>
+    </div>
+    <div class="sc-item">
+      <div class="sc-hdr"><div><div class="sc-name">Cobalt</div><div class="sc-meta">Moon Mining · Electronics</div><div class="sc-curr">MCR</div></div><div><div class="sc-sym">CBT</div><div class="sc-chg dn" style="margin-top:4px;text-align:right">-2.1% ▼</div></div></div>
+      <div class="sc-price">₥390.00 <span style="font-size:12px;color:var(--t3)">/ unit · $320 USD</span></div>
+      <div class="sc-acts"><button class="sc-btn buy">Buy ₥1K</button><button class="sc-btn buy">Buy ₥10K</button><button class="sc-btn max">Buy Max</button><button class="sc-btn sell">Sell</button></div>
+    </div>
+    <div class="sc-item">
+      <div class="sc-hdr"><div><div class="sc-name">Platinum</div><div class="sc-meta">Asteroid Mining · Catalysts</div><div class="sc-curr">MCR</div></div><div><div class="sc-sym">PLT</div><div class="sc-chg dn" style="margin-top:4px;text-align:right">-15.2% ▼</div></div></div>
+      <div class="sc-price">₥1,512.00 <span style="font-size:12px;color:var(--t3)">/ unit · $1,240 USD</span></div>
+      <div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);border-radius:var(--rx);padding:6px 10px;margin-top:8px;font-size:11px;color:#F87171">☄️ Platinum asteroid discovered — supply surge incoming. Prices falling.</div>
+      <div class="sc-acts"><button class="sc-btn buy">Buy ₥1K</button><button class="sc-btn buy">Buy ₥10K</button><button class="sc-btn max">Buy Max</button><button class="sc-btn sell">Sell</button></div>
+    </div>
+    <div class="sc-item" style="border:1.5px solid rgba(245,158,11,.3);background:rgba(245,158,11,.05)">
+      <div class="sc-hdr"><div><div class="sc-name">Helium-3</div><div class="sc-meta">Moon Mining · Nuclear Fusion · Extreme</div><div class="sc-curr" style="color:#FCD34D;border-color:rgba(245,158,11,.4)">JVT</div></div><div><div class="sc-sym" style="color:#FCD34D;background:rgba(245,158,11,.2);border-color:rgba(245,158,11,.4)">HE3</div><div class="sc-chg up" style="color:#FCD34D;margin-top:4px;text-align:right">+12.3% ▲</div></div></div>
+      <div class="sc-price" style="color:#FCD34D">♃1,042.00 <span style="font-size:12px;color:var(--t3)">/ unit · $2,500 USD</span></div>
+      <div class="sc-acts"><button class="sc-btn buy">Buy ♃1K</button><button class="sc-btn buy">Buy ♃10K</button><button class="sc-btn max" style="background:#D97706">Buy Max</button><button class="sc-btn sell">Sell</button></div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni on" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- SPACE BONDS -->
+<div class="scr" id="s-bonds">
+  <div class="stars-bg" id="stars4"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">SPACE BONDS</div><div class="ps">Government · Corporate · Infrastructure</div></div></div>
+  <div class="sb">
+    <div class="fs"><div class="fc on" onclick="chip(this)">ALL</div><div class="fc" onclick="chip(this)">GOV BONDS</div><div class="fc" onclick="chip(this)">CORPORATE</div><div class="fc" onclick="chip(this)">INFRA</div></div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Space Government Bonds</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(194,65,12,.15);border:1px solid rgba(194,65,12,.3);color:#FCA07A">MARS</div><div class="hinfo"><div class="hn">Mars Colonial Authority 5Y</div><div class="hsb">MCR · BBB · 12.8% yield · Backed by mining revenues</div></div><div class="hr"><div class="hval">12.8%</div><div class="badge up">Space</div></div></div>
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:#FCD34D">VEN</div><div class="hinfo"><div class="hn">Venus Industrial Bonds 2Y</div><div class="hsb">VNU · BB · 18.4% yield · Very high volatility</div></div><div class="hr"><div class="hval">18.4%</div><div class="badge warn">High Risk</div></div></div>
+      <div class="bond-item" style="border-bottom:none"><div class="bond-tag" style="background:rgba(109,40,217,.15);border:1px solid #4C1D95;color:#A78BFA">JUP</div><div class="hinfo"><div class="hn">Jupiter Research Consortium 10Y</div><div class="hsb">JVT · A · 8.4% yield · Breakthrough bonus</div></div><div class="hr"><div class="hval">8.4%</div><div class="badge safe">Stable</div></div></div>
+    </div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Infrastructure Project Bonds</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#6EE7B7">PWR</div><div class="hinfo"><div class="hn">Mars Power Plant Bond</div><div class="hsb">MCR · Fund new plant · 8–12% yield · Low risk</div></div><div class="hr"><div class="hval">10.2%</div><div class="badge safe">Infra</div></div></div>
+      <div class="bond-item" style="border-bottom:none"><div class="bond-tag" style="background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:#67E8F9">LAB</div><div class="hinfo"><div class="hn">Jupiter Research Lab Bond</div><div class="hsb">JVT · Fund new lab · 0–40% variable · High risk</div></div><div class="hr"><div class="hval">0–40%</div><div class="badge warn">Variable</div></div></div>
+    </div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Your Space Bond Holdings</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(194,65,12,.15);border:1px solid rgba(194,65,12,.3);color:#FCA07A">MARS</div><div class="hinfo"><div class="hn">Mars Colonial Authority 5Y</div><div class="hsb">$30M invested · Matures T-1007 · 12.8%</div></div><div class="hr"><div class="hval">$30M</div><div class="hpnl up">+$3.84M/yr</div></div></div>
+      <div class="bond-item" style="border-bottom:none"><div class="bond-tag" style="background:rgba(109,40,217,.15);border:1px solid #4C1D95;color:#A78BFA">JUP</div><div class="hinfo"><div class="hn">Jupiter Research 10Y</div><div class="hsb">$20M invested · Matures T-1967 · 8.4%</div></div><div class="hr"><div class="hval">$20M</div><div class="hpnl up">+$1.68M/yr</div></div></div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni on" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- INFRASTRUCTURE -->
+<div class="scr" id="s-infrastructure">
+  <div class="stars-bg" id="stars5"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">INFRASTRUCTURE</div><div class="ps">2 facilities · $162M/yr net income</div></div></div>
+  <div class="sb">
+    <div class="infra">
+      <div class="infra-hdr"><div class="infra-ico" style="background:rgba(194,65,12,.2);border:1px solid rgba(194,65,12,.4)">⛏️</div><div><div style="font-size:14px;font-weight:700;color:var(--t1)">Lithium Mining Facility</div><div style="font-size:11px;color:var(--t3);margin-top:2px">🔴 Mars Sector 4 · Active · 200 tons/yr</div></div></div>
+      <div class="infra-stats">
+        <div class="is"><div class="isv">$120M</div><div class="isl">Revenue</div></div>
+        <div class="is"><div class="isv">$80M</div><div class="isl">Maintenance</div></div>
+        <div class="is"><div class="isv" style="color:#6EE7B7">$40M</div><div class="isl">Net/yr</div></div>
+      </div>
+      <div class="infra-acts"><button class="ia up">⬆️ Upgrade $500M</button><button class="ia sell">💰 Sell</button></div>
+    </div>
+    <div class="infra">
+      <div class="infra-hdr"><div class="infra-ico" style="background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.3)">🏭</div><div><div style="font-size:14px;font-weight:700;color:var(--t1)">Lithium Refinery</div><div style="font-size:11px;color:var(--t3);margin-top:2px">🔴 Mars Sector 4 · Active · 180 tons/yr refined</div></div></div>
+      <div class="infra-stats">
+        <div class="is"><div class="isv">$172M</div><div class="isl">Revenue</div></div>
+        <div class="is"><div class="isv">$50M</div><div class="isl">Maintenance</div></div>
+        <div class="is"><div class="isv" style="color:#6EE7B7">$122M</div><div class="isl">Net/yr</div></div>
+      </div>
+      <div style="padding:0 16px 10px;font-size:11px;color:var(--t2)">Supply chain active → Mining feeds Refinery → 40% value markup on output</div>
+      <div class="infra-acts"><button class="ia up">⬆️ Upgrade $300M</button><button class="ia sell">💰 Sell</button></div>
+    </div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Build New Facility</div>
+    <div class="build-opt"><div style="font-size:24px">⛏️</div><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Mining Facility</div><div style="font-size:11px;color:#A78BFA;font-family:'DM Mono',monospace">₥1B–₥5B</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Raw material extraction · $50M–$300M net/yr</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="build-opt"><div style="font-size:24px">🔬</div><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Research Lab</div><div style="font-size:11px;color:#A78BFA;font-family:'DM Mono',monospace">♃2B–♃5B</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Breakthroughs · 20–50% chance of windfall</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="build-opt"><div style="font-size:24px">⚡</div><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Power Plant</div><div style="font-size:11px;color:#A78BFA;font-family:'DM Mono',monospace">♃5B–♃10B</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Energy generation · $300M–$1.5B net/yr</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni on" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- PORTFOLIO -->
+<div class="scr" id="s-portfolio">
+  <div class="stars-bg" id="stars6"></div>
+  <div class="port-hero">
+    <div style="font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(167,139,250,.5);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Solar System Portfolio · USD Equivalent</div>
+    <div class="pval">$842.3M</div>
+    <div style="font-size:13px;margin-top:5px;color:rgba(167,139,250,.8)">P&L: <span style="color:#A78BFA">+$342.3M (+68.4%)</span></div>
+    <div class="pstats">
+      <div class="psi"><div class="sv">5</div><div class="sl">Stocks</div></div>
+      <div class="psi"><div class="sv">3</div><div class="sl">Commodities</div></div>
+      <div class="psi"><div class="sv">2</div><div class="sl">Bonds</div></div>
+      <div class="psi"><div class="sv">2</div><div class="sl">Facilities</div></div>
+    </div>
+  </div>
+  <div class="sb">
+    <div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:var(--rs);padding:10px 12px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#F87171;margin-bottom:4px">⚠️ CURRENCY RISK ALERT</div>
+      <div style="font-size:11px;color:var(--t2)">MCR fell 2.4% vs USD this turn. Your Mars holdings lost $8.2M in USD value despite stock prices rising in MCR terms. Consider hedging via Forex screen.</div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Space Stocks (5)</div></div>
+      <div class="hi"><div class="htk">NXMN</div><div class="hinfo"><div class="hn">Nexus Minerals Corp</div><div class="hsb">500K shares · Mars · in MCR</div></div><div class="hr"><div class="hval">$248M</div><div class="hpnl up">+$98M (+65%)</div></div></div>
+      <div class="hi"><div class="htk">HE3C</div><div class="hinfo"><div class="hn">Helium-3 Energy Corp</div><div class="hsb">100K shares · Jupiter · in JVT</div></div><div class="hr"><div class="hval">$42M</div><div class="hpnl up">+$22M (+110%)</div></div></div>
+      <div class="hi" style="border-bottom:none"><div class="htk">RARE</div><div class="hinfo"><div class="hn">Rare Earth Global</div><div class="hsb">200K shares · Mars · in MCR</div></div><div class="hr"><div class="hval">$36.5M</div><div class="hpnl dn">-$4M (-10%)</div></div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Space Bonds (2)</div></div>
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(194,65,12,.15);border:1px solid rgba(194,65,12,.3);color:#FCA07A;font-size:8px">MARS5Y</div><div class="hinfo"><div class="hn">Mars Colonial Auth 5Y</div><div class="hsb">$30M · 12.8% · MCR coupon</div></div><div class="hr"><div class="hval">$30M</div><div class="hpnl up">+$3.84M/yr</div></div></div>
+      <div class="bond-item" style="border-bottom:none"><div class="bond-tag" style="background:rgba(109,40,217,.15);border:1px solid #4C1D95;color:#A78BFA;font-size:8px">JUP10Y</div><div class="hinfo"><div class="hn">Jupiter Research 10Y</div><div class="hsb">$20M · 8.4% · JVT coupon</div></div><div class="hr"><div class="hval">$20M</div><div class="hpnl up">+$1.68M/yr</div></div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Infrastructure (2)</div></div>
+      <div class="bond-item"><div class="bond-tag" style="background:rgba(194,65,12,.15);border:1px solid rgba(194,65,12,.3);color:#FCA07A;font-size:16px">⛏️</div><div class="hinfo"><div class="hn">Lithium Mining Facility</div><div class="hsb">Mars · $40M net/yr</div></div><div class="hr"><div class="hval">$2.0B</div><div class="hpnl up">+$40M/yr</div></div></div>
+      <div class="bond-item" style="border-bottom:none"><div class="bond-tag" style="background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:#67E8F9;font-size:16px">🏭</div><div class="hinfo"><div class="hn">Lithium Refinery</div><div class="hsb">Mars · $122M net/yr</div></div><div class="hr"><div class="hval">$1.0B</div><div class="hpnl up">+$122M/yr</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni on" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- CURRENCIES -->
+<div class="scr" id="s-currencies">
+  <div class="stars-bg" id="stars7"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">SPACE CURRENCIES</div><div class="ps">Exchange rates vs USD · Live</div></div></div>
+  <div class="sb">
+    <div class="curr-card">
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#67E8F9;margin-bottom:10px">PLANETARY EXCHANGE RATES</div>
+      <div class="curr-row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🔴</span><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Martian Credit (MCR)</div><div style="font-size:11px;color:var(--t3)">Mars · Mining-backed</div></div></div><div style="text-align:right"><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:#F87171">0.820 USD ▼</div><div style="font-size:11px;color:#F87171">-2.4% this turn</div></div></div>
+      <div class="curr-row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🟡</span><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Venusian Unit (VNU)</div><div style="font-size:11px;color:var(--t3)">Venus · Manufacturing-backed</div></div></div><div style="text-align:right"><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:#A78BFA">1.185 USD ▲</div><div style="font-size:11px;color:#A78BFA">+1.2% this turn</div></div></div>
+      <div class="curr-row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">🟠</span><div><div style="font-size:13px;font-weight:700;color:var(--t1)">Jovian Token (JVT)</div><div style="font-size:11px;color:var(--t3)">Jupiter · Research-backed</div></div></div><div style="text-align:right"><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:#A78BFA">2.460 USD ▲</div><div style="font-size:11px;color:#A78BFA">+3.8% this turn</div></div></div>
+    </div>
+    <div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:var(--rs);padding:12px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:#F87171;margin-bottom:6px">⚠️ MCR WEAKENING — CURRENCY RISK</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:8px">Martian Credit has fallen 2.4% vs USD. Your Mars holdings ($680M) have lost $16.3M in USD value this turn even if MCR-denominated prices held steady.</div>
+      <button style="background:rgba(248,113,113,.2);color:#F87171;border:1px solid rgba(248,113,113,.3);border-radius:var(--rx);padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Hedge MCR Exposure via Forex →</button>
+    </div>
+    <div class="card">
+      <div class="st" style="margin-bottom:10px">Governor Bounds</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.8">
+        MCR: Floor $0.30 · Ceiling $2.00 · Current $0.82<br>
+        VNU: Floor $0.50 · Ceiling $3.00 · Current $1.19<br>
+        JVT: Floor $1.00 · Ceiling $8.00 · Current $2.46<br>
+        <span style="color:var(--t3);font-size:10px">If any currency breaches bounds, a crisis event fires and rate resets toward equilibrium over 10 turns.</span>
+      </div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni on" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- NEWS + YOUR NEWS -->
+<div class="scr" id="s-news">
+  <div class="stars-bg" id="stars8"></div>
+  <div class="ph"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">SPACE NEWS</div><div class="ps">Solar System · Turn 847</div></div></div>
+  <div class="sb">
+    <div style="display:flex;gap:6px;margin-bottom:4px">
+      <button id="ntb-g" onclick="ntab('global')" style="padding:7px 16px;border-radius:20px;font-size:11px;font-weight:700;background:#4C1D95;color:#E9D5FF;border:none;cursor:pointer;font-family:'Orbitron',sans-serif;letter-spacing:.5px">🌌 COSMIC NEWS</button>
+      <button id="ntb-y" onclick="ntab('your')" style="padding:7px 16px;border-radius:20px;font-size:11px;font-weight:700;background:var(--card);color:var(--t3);border:1.5px solid var(--bd);cursor:pointer;font-family:'Orbitron',sans-serif;letter-spacing:.5px">👤 YOUR NEWS</button>
+    </div>
+    <div id="news-g">
+      <div class="eco" style="margin-bottom:4px">
+        <div class="eg"><div class="el">Growth</div><div class="ev up">+4.2%</div></div>
+        <div class="eg"><div class="el">Volatility</div><div class="ev warn">1.2x</div></div>
+        <div class="eg"><div class="el">MCR</div><div class="ev dn">0.82▼</div></div>
+        <div class="eg"><div class="el">Events</div><div class="ev warn">3</div></div>
+      </div>
+      <div class="cosmic pos"><div class="ce-ico">☄️</div><div><div class="ce-title">Platinum asteroid discovered near Mars orbit</div><div class="ce-desc">Survey confirms 50,000-ton platinum deposit. Mining operations possible within 20 turns.</div><div class="ce-impact neg">PLT: -15% expected · Mining Corps: +8%</div></div></div>
+      <div class="cosmic" style="margin-top:10px"><div class="ce-ico" style="margin-top:2px"></div></div>
+      <div class="cosmic neg" style="margin-top:10px"><div class="ce-ico">💥</div><div><div class="ce-title">Solar flare disrupts Venus manufacturing</div><div class="ce-desc">Category X solar flare caused failures across 3 Venus facilities. Repairs $2B total.</div><div class="ce-impact neg">VMFG: -12% · Venus Index: -8% · VNU/USD: -5% expected</div></div></div>
+      <div class="cosmic nt" style="margin-top:10px"><div class="ce-ico">🔬</div><div><div class="ce-title">Jupiter fusion breakthrough announced</div><div class="ce-desc">Quantum Materials reports 40% efficiency improvement in Helium-3 reactors.</div><div class="ce-impact pos">HE3C: +15% · HE3 demand surge · JVT/USD: +3.8%</div></div></div>
+      <div class="cosmic pos" style="margin-top:10px"><div class="ce-ico">🌍</div><div><div class="ce-title">Earth tech boom driving REE demand spike</div><div class="ce-desc">Earth semiconductor sector growing 18% this year — rare earth demand surging from Earth companies.</div><div class="ce-impact pos">REE: +22% expected · RARE stock: +15%</div></div></div>
+    </div>
+    <div id="news-y" style="display:none">
+      <div class="card">
+        <div class="yni"><div class="yn-ico">💰</div><div><div class="ynt">Dividend — Nexus Minerals Corp</div><div class="ynd">NXMN paid ₥0.42/share · 500K shares in MCR</div><div class="yna">+$172,200 USD equivalent</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 847 · After 15% dividend tax · MCR/USD: 0.82</div></div></div>
+        <div class="yni"><div class="yn-ico">📋</div><div><div class="ynt">Bond Coupon — Mars Colonial Auth 5Y</div><div class="ynd">$30M at 12.8% annual · Monthly payment in MCR</div><div class="yna">+$256,000 USD equivalent</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 847 · After 10% bond tax</div></div></div>
+        <div class="yni"><div class="yn-ico" style="background:rgba(16,185,129,.2)">⛏️</div><div><div class="ynt">Infrastructure Income — Mining Facility</div><div class="ynd">Lithium Mining Facility net income this turn</div><div class="yna">+$3,333,333 USD</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 847 · After 18% infrastructure tax</div></div></div>
+        <div class="yni"><div class="yn-ico" style="background:rgba(248,113,113,.15)">💱</div><div><div class="ynt">Currency Loss — MCR Weakening</div><div class="ynd">MCR fell 2.4% vs USD · Mars holdings devalued</div><div class="yna red">-$16,300,000 USD (paper loss)</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 847 · Consider hedging — see Currencies screen</div></div></div>
+        <div class="yni" style="border-bottom:none"><div class="yn-ico" style="background:rgba(245,158,11,.15)">⚠️</div><div><div class="ynt">Tax Warning — Infrastructure Tax Due</div><div class="ynd">$40M facility income × 18% infrastructure tax</div><div class="yna red">-$7,200,000 this turn</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 847 · Reducible via Space Research donation</div></div></div>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🚀</div><div class="lbl">Home</div></div><div class="ni" onclick="go('market')"><div class="ico">🪐</div><div class="lbl">Market</div></div><div class="ni" onclick="go('commodities')"><div class="ico">⚗️</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">🛸</div><div class="lbl">Portfolio</div></div><div class="ni on" onclick="go('news')"><div class="ico">🌠</div><div class="lbl">News</div></div></div>
+</div>
+
+</div>
+<script>
+const ALL=['dashboard','market','commodities','bonds','infrastructure','portfolio','currencies','news'];
+function go(n){ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display='none';e.classList.remove('on');}});const t=document.getElementById('s-'+n);if(t){t.style.display='flex';t.classList.add('on');const s=t.querySelector('.sb');if(s)s.scrollTop=0;}document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));const m=document.querySelector(`.np[onclick*="'${n}'"]`);if(m)m.classList.add('on');}
+function makeStars(id,n=60){const c=document.getElementById(id);if(!c)return;for(let i=0;i<n;i++){const s=document.createElement('div');const sz=Math.random()*2+.5;s.style.cssText=`position:absolute;width:${sz}px;height:${sz}px;background:white;border-radius:50%;top:${Math.random()*100}%;left:${Math.random()*100}%;animation:twinkle ${2+Math.random()*3}s infinite;animation-delay:${Math.random()*3}s;opacity:${.2+Math.random()*.8}`;c.appendChild(s);}}
+['stars1','stars2','stars3','stars4','stars5','stars6','stars7','stars8'].forEach(id=>makeStars(id,50));
+const T=[['LTH','₥550','u'],['CBT','₥390','d'],['PLT','₥1,512','d'],['HE3','♃1,042','u'],['NXMN','₥210','u'],['HE3C','♃350','u'],['QNTM','♃740','u'],['REE','₥816','d']];
+const te=document.getElementById('sp-ticker');
+if(te){const h=T.map(([n,p,d])=>`<span class="ti">${n} <span class="${d==='u'?'u':'d'}">${p}${d==='u'?' ▲':' ▼'}</span></span>`).join('');te.innerHTML=h+h;}
+function chip(el){el.closest('.fs').querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));el.classList.add('on');}
+function selPlanet(el){el.parentElement.querySelectorAll('.pt-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
+function ntab(t){const g=document.getElementById('news-g'),y=document.getElementById('news-y'),bg=document.getElementById('ntb-g'),by=document.getElementById('ntb-y');if(g)g.style.display=t==='global'?'flex':'none';if(g)g.style.flexDirection='column';if(g)g.style.gap='10px';if(y)y.style.display=t==='your'?'block':'none';if(bg){bg.style.background=t==='global'?'#4C1D95':'var(--card)';bg.style.color=t==='global'?'#E9D5FF':'var(--t3)';}if(by){by.style.background=t==='your'?'#4C1D95':'var(--card)';by.style.color=t==='your'?'#E9D5FF':'var(--t3)';}}
+ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display=id==='dashboard'?'flex':'none';if(id==='dashboard')e.classList.add('on');}});
+</script>
+</body>
+</html>

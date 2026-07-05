@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Raider — Economic Ecosystem</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F0F4F0;--card:#fff;--bd:#E0EBE2;--g800:#1B5E20;--g700:#2E7D32;--g600:#388E3C;--g500:#43A047;--g400:#66BB6A;--g100:#E8F5E9;--g50:#F1F8F2;--t1:#0D1B0F;--t2:#4A6550;--t3:#8FAD94;--red:#E53935;--redl:#FFEBEE;--gold:#F9A825;--goldl:#FFF8E1;--blue:#1565C0;--bluel:#E3F2FD;--purple:#7C3AED;--purplel:#EDE7F6;--r:16px;--rs:10px;--rx:6px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#0f172a;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+.title{color:white;font-size:17px;font-weight:800;margin-bottom:3px;text-align:center}
+.subtitle{color:#475569;font-size:11px;margin-bottom:12px;text-align:center}
+.np-row{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:12px;max-width:420px}
+.np{padding:5px 11px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer}
+.np.on{background:var(--blue);color:white;border-color:var(--blue)}
+.device{width:390px;background:var(--bg);border-radius:36px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7),inset 0 0 0 1.5px rgba(255,255,255,.07)}
+.scr{display:none;flex-direction:column;min-height:780px;background:var(--bg);padding-bottom:72px}
+.scr.on{display:flex}
+.ph{background:var(--card);padding:14px 18px 12px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;gap:12px}
+.back{width:32px;height:32px;background:var(--g50);border:1.5px solid var(--g100);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--g700)}
+.pt{font-size:22px;font-weight:800;color:var(--t1);letter-spacing:-.5px}
+.ps{font-size:12px;color:var(--t3);margin-top:2px}
+.sb{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.sb::-webkit-scrollbar{display:none}
+.nav{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;padding:8px 0 18px;z-index:50}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.ni .ico{font-size:20px}.ni .lbl{font-size:10px;font-weight:600;color:var(--t3)}
+.ni.on .lbl{color:var(--blue)}
+.card{background:var(--card);border-radius:var(--r);padding:16px;border:1px solid var(--bd)}
+.st{font-size:16px;font-weight:700;color:var(--t1)}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sa{font-size:12px;font-weight:600;color:var(--blue);cursor:pointer}
+.br{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)}
+.br:last-child{border-bottom:none}
+.bl{font-size:13px;color:var(--t2)}.bv{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--t1)}
+.tax-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd)}
+.tax-row:last-child{border-bottom:none}
+.tax-lbl{font-size:13px;color:var(--t2)}.tax-rate{font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--red)}
+.sbw{margin-bottom:10px}
+.sbh{display:flex;justify-content:space-between;margin-bottom:4px}
+.sbt{height:6px;background:var(--bd);border-radius:3px;overflow:hidden}
+.sbf{height:100%;border-radius:3px}
+.cycle-card{border-radius:var(--r);padding:16px;border:1px solid;overflow:hidden;position:relative}
+.cyc-bar{height:6px;background:rgba(255,255,255,.15);border-radius:3px;margin-top:10px}
+.cyc-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.5),rgba(255,255,255,.2))}
+.don-opt{background:var(--bg);border:1.5px solid var(--bd);border-radius:var(--rs);padding:13px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.don-opt:active{border-color:var(--g500);background:var(--g50)}
+.gsf-alloc{margin-bottom:10px}
+.gsf-alloc-hdr{display:flex;justify-content:space-between;margin-bottom:4px}
+.gsf-alloc-bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}
+.gsf-alloc-fill{height:100%;border-radius:4px}
+.rp-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.rp-item:last-child{border-bottom:none}
+.rp-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.rp-t{font-size:13px;font-weight:600;color:var(--t1)}
+.rp-d{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.5}
+.rp-a{font-size:13px;font-weight:700;font-family:'DM Mono',monospace;margin-top:3px}
+.up{color:var(--g600)}.dn{color:var(--red)}
+.tabs{display:flex;background:var(--bd);border-radius:var(--rs);padding:3px}
+.tab{flex:1;padding:9px 4px;text-align:center;font-size:12px;font-weight:700;border-radius:8px;cursor:pointer;border:none;background:transparent;color:var(--t3);font-family:'DM Sans',sans-serif}
+.tab.on{background:var(--blue);color:white}
+</style>
+</head>
+<body>
+<div class="title">💸 Economic Ecosystem</div>
+<p class="subtitle">Tax System · Philanthropy · Global Sovereign Fund</p>
+<div class="np-row">
+  <button class="np on" onclick="go('tax')">💸 Tax System</button>
+  <button class="np" onclick="go('charity')">❤️ Philanthropy</button>
+  <button class="np" onclick="go('gsf')">🏛️ Sovereign Fund</button>
+  <button class="np" onclick="go('yournews')">📬 Your News</button>
+</div>
+<div class="device">
+
+<!-- TAX SYSTEM -->
+<div class="scr on" id="s-tax">
+  <div class="ph"><button class="back" onclick="go('tax')">←</button><div><div class="pt">Tax System</div><div class="ps">Standard Era · Turn 37 of 60</div></div></div>
+  <div class="sb">
+    <!-- Cycle indicator -->
+    <div class="cycle-card" style="background:linear-gradient(135deg,#1B5E20,#2E7D32);border-color:var(--g400)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div style="font-size:14px;font-weight:800;color:white">📅 Standard Era</div><div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px">Base tax rates · 23 turns until High Tax Era</div></div>
+        <div style="background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;color:white">Turn 37/60</div>
+      </div>
+      <div class="cyc-bar"><div class="cyc-fill" style="width:62%"></div></div>
+    </div>
+    <!-- Cycle timeline -->
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none">
+      <div style="padding:6px 12px;background:var(--g50);border:1.5px solid var(--g400);border-radius:20px;font-size:11px;font-weight:700;color:var(--g700);white-space:nowrap">Standard ●</div>
+      <div style="padding:6px 12px;background:var(--redl);border:1.5px solid #EF9A9A;border-radius:20px;font-size:11px;font-weight:700;color:var(--red);white-space:nowrap">High Tax +30% →</div>
+      <div style="padding:6px 12px;background:var(--g50);border:1.5px solid var(--bd);border-radius:20px;font-size:11px;font-weight:600;color:var(--t3);white-space:nowrap">Tax Relief -40%</div>
+      <div style="padding:6px 12px;background:var(--goldl);border:1.5px solid #FFE082;border-radius:20px;font-size:11px;font-weight:600;color:#F57F17;white-space:nowrap">Austerity</div>
+      <div style="padding:6px 12px;background:var(--bluel);border:1.5px solid #BBDEFB;border-radius:20px;font-size:11px;font-weight:600;color:var(--blue);white-space:nowrap">Reform</div>
+    </div>
+    <div class="card">
+      <div class="sh"><div class="st">Current Tax Rates</div><div style="font-size:11px;color:var(--t3)">Turn 1425</div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Capital Gains Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Paid $84M this turn</div></div><div><div class="tax-rate">20%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Dividend Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Paid $18M this turn</div></div><div><div class="tax-rate">15%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Bond Coupon Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Paid $8M this turn</div></div><div><div class="tax-rate">10%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Space Repatriation Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">On Earth↔Space transfers</div></div><div><div class="tax-rate">2–5%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Infrastructure Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Space facilities net income</div></div><div><div class="tax-rate">18%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Corporate Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Companies you control</div></div><div><div class="tax-rate">25%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Wealth Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">On net worth above $10B</div></div><div><div class="tax-rate">0.1%/turn</div></div></div>
+      <div class="tax-row" style="border-bottom:none"><div><div class="tax-lbl">Currency Exchange Tax</div><div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">Planetary currency conversions</div></div><div><div class="tax-rate">1%</div></div></div>
+    </div>
+    <div style="background:var(--redl);border:1px solid #EF9A9A;border-radius:var(--rs);padding:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:4px">Total Tax This Turn: $142,000,000</div>
+      <div style="font-size:12px;color:#C62828;margin-bottom:10px">Donate to charity to reduce up to 30% · Establish Foundation to halve wealth tax permanently</div>
+      <button onclick="go('charity')" style="background:var(--red);color:white;border:none;border-radius:var(--rx);padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">❤️ Reduce Via Philanthropy →</button>
+    </div>
+    <div style="background:var(--goldl);border:1px solid #FFE082;border-radius:var(--rs);padding:14px">
+      <div style="font-size:13px;font-weight:700;color:#F57F17;margin-bottom:6px">⚠️ HIGH TAX ERA IN 23 TURNS</div>
+      <div style="font-size:12px;color:#E65100;line-height:1.6">All rates will increase 30%. Actions to take now:<br>✓ Lock in capital gains before rates rise<br>✓ Increase charitable donations<br>✓ Establish Charitable Foundation if possible<br>✓ Rotate toward infrastructure assets</div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni on" onclick="go('tax')"><div class="ico">💸</div><div class="lbl">Tax</div></div><div class="ni" onclick="go('charity')"><div class="ico">❤️</div><div class="lbl">Charity</div></div><div class="ni" onclick="go('gsf')"><div class="ico">🏛️</div><div class="lbl">GSF</div></div><div class="ni" onclick="go('yournews')"><div class="ico">📬</div><div class="lbl">Your News</div></div></div>
+</div>
+
+<!-- PHILANTHROPY -->
+<div class="scr" id="s-charity">
+  <div class="ph"><button class="back" onclick="go('tax')">←</button><div><div class="pt">Philanthropy</div><div class="ps">Reduce tax · Build the world · Earn returns</div></div></div>
+  <div class="sb">
+    <div style="background:linear-gradient(135deg,#880E4F,#AD1457);border-radius:var(--r);padding:18px;color:white">
+      <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Your Charitable Impact</div>
+      <div style="font-size:28px;font-weight:800;font-family:'Playfair Display',serif">$1.2B donated</div>
+      <div style="font-size:12px;opacity:.8;margin-top:4px">8 projects · 4 regions · Tax saved: $240M · Indirect returns: $180M</div>
+    </div>
+    <div style="background:var(--g50);border:1px solid var(--g100);border-radius:var(--rs);padding:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--g700);margin-bottom:4px">✅ Active: 20% tax reduction (1 turn remaining)</div>
+      <div style="font-size:12px;color:var(--t2)">Lagos Healthcare Fund · Expires Turn 1426 · Africa consumer spending +4%</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Donate Now — Choose a Cause</div>
+    <div class="don-opt"><div style="font-size:24px">🏥</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Healthcare</div><div style="font-size:11px;color:var(--t3)">20% tax reduction · 3 turns · GDP +0.2% · Consumer spending +3%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt"><div style="font-size:24px">📚</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Education</div><div style="font-size:11px;color:var(--t3)">15% tax reduction · 4 turns · Long-term GDP +0.3%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt"><div style="font-size:24px">🏗️</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Infrastructure</div><div style="font-size:11px;color:var(--t3)">18% tax reduction · 3 turns · Trade margins +5%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt"><div style="font-size:24px">🌾</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Agriculture</div><div style="font-size:11px;color:var(--t3)">15% tax reduction · 3 turns · CPI stabilised</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt"><div style="font-size:24px">🚀</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Space Research</div><div style="font-size:11px;color:var(--t3)">25% tax reduction · 2 turns · Space growth +8%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt"><div style="font-size:24px">🌿</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Environmental</div><div style="font-size:11px;color:var(--t3)">10% tax reduction · 5 turns · ESG premium +5%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="don-opt" style="background:#FFEBEE;border-color:#EF9A9A"><div style="font-size:24px">🆘</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Disaster Relief</div><div style="font-size:11px;color:var(--t3)">30% immediate · 1 turn · Stabilises affected region</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div style="background:linear-gradient(135deg,#4A148C,#6A1B9A);border-radius:var(--r);padding:16px;color:white">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">🏛️ Establish Charitable Foundation</div>
+      <div style="font-size:12px;opacity:.8;margin-bottom:10px">Permanently reduce Wealth Tax from 0.1% to 0.05%. Named in global news. One-time cost: $500M</div>
+      <button style="background:rgba(255,255,255,.2);color:white;border:1px solid rgba(255,255,255,.3);border-radius:var(--rs);padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Establish — $500M</button>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('tax')"><div class="ico">💸</div><div class="lbl">Tax</div></div><div class="ni on" onclick="go('charity')"><div class="ico">❤️</div><div class="lbl">Charity</div></div><div class="ni" onclick="go('gsf')"><div class="ico">🏛️</div><div class="lbl">GSF</div></div><div class="ni" onclick="go('yournews')"><div class="ico">📬</div><div class="lbl">Your News</div></div></div>
+</div>
+
+<!-- GLOBAL SOVEREIGN FUND -->
+<div class="scr" id="s-gsf">
+  <div class="ph"><button class="back" onclick="go('tax')">←</button><div><div class="pt">Sovereign Fund</div><div class="ps">Global community investment pool</div></div></div>
+  <div class="sb">
+    <div style="background:linear-gradient(135deg,var(--bluel),#E8EAF6);border:1.5px solid #BBDEFB;border-radius:var(--r);padding:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Global Sovereign Fund</div>
+      <div style="font-family:'Playfair Display',serif;font-size:32px;color:var(--blue);font-weight:700">$8.42B</div>
+      <div style="font-size:12px;color:var(--t2);margin-top:3px">Total fund · All players · Your share: 0.59% ($50M)</div>
+      <div style="display:flex;gap:14px;margin-top:14px;padding-top:14px;border-top:1px solid #BBDEFB">
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">This Turn</div><div style="font-size:15px;font-weight:700;color:var(--g600);font-family:'DM Mono',monospace;margin-top:2px">+$520K</div></div>
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Annual Rate</div><div style="font-size:15px;font-weight:700;color:var(--t1);font-family:'DM Mono',monospace;margin-top:2px">12.48%</div></div>
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Total Earned</div><div style="font-size:15px;font-weight:700;color:var(--g600);font-family:'DM Mono',monospace;margin-top:2px">+$8.4M</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sh"><div class="st">Fund Allocation</div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Earth Govt Bonds</span><span style="font-size:12px;color:var(--t3)">25%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:25%;background:linear-gradient(90deg,var(--blue),#42A5F5)"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Earth Blue-Chip Stocks</span><span style="font-size:12px;color:var(--t3)">20%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:20%;background:linear-gradient(90deg,var(--g600),var(--g400))"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Space Govt Bonds</span><span style="font-size:12px;color:var(--t3)">15%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:15%;background:linear-gradient(90deg,#7C3AED,#9333EA)"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Infrastructure Projects</span><span style="font-size:12px;color:var(--t3)">15%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:15%;background:linear-gradient(90deg,var(--gold),#FFD54F)"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Space Commodities</span><span style="font-size:12px;color:var(--t3)">10%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:10%;background:linear-gradient(90deg,#06B6D4,#67E8F9)"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Emerging Markets</span><span style="font-size:12px;color:var(--t3)">8%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:8%;background:linear-gradient(90deg,var(--red),#EF9A9A)"></div></div></div>
+      <div class="gsf-alloc"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Distressed Bonds</span><span style="font-size:12px;color:var(--t3)">4%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:4%;background:#B71C1C"></div></div></div>
+      <div class="gsf-alloc" style="margin-bottom:0"><div class="gsf-alloc-hdr"><span style="font-size:12px;font-weight:600;color:var(--t1)">Cash Reserve</span><span style="font-size:12px;color:var(--t3)">3%</span></div><div class="gsf-alloc-bar"><div class="gsf-alloc-fill" style="width:3%;background:var(--bd)"></div></div></div>
+    </div>
+    <div style="background:var(--goldl);border:1px solid #FFE082;border-radius:var(--rs);padding:12px">
+      <div style="font-size:13px;font-weight:700;color:#F57F17;margin-bottom:6px">🗳️ Active Governance Vote</div>
+      <div style="font-size:12px;color:#E65100;margin-bottom:8px">Proposal: Increase Space Commodities to 15%. Closes in 5 turns. Your voting power: 0.59% (deposit-weighted)</div>
+      <div style="display:flex;gap:8px"><button style="flex:1;background:#F9A825;color:white;border:none;border-radius:var(--rx);padding:9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Vote Yes</button><button style="flex:1;background:white;color:#F57F17;border:1.5px solid #FFE082;border-radius:var(--rx);padding:9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Vote No</button></div>
+    </div>
+    <div style="background:var(--redl);border:1px solid #EF9A9A;border-radius:var(--rs);padding:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:4px">⚠️ Systemic Risk Warning</div>
+      <div style="font-size:12px;color:#C62828">Player 'VortexCapital' holds 14.8% of GSF — approaching 15% concentration limit. If they default, all depositors could be affected.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button style="flex:1;background:var(--blue);color:white;border:none;border-radius:var(--rs);padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Deposit More</button>
+      <button style="flex:1;background:white;color:var(--blue);border:1.5px solid #BBDEFB;border-radius:var(--rs);padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Withdraw (3 turns)</button>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('tax')"><div class="ico">💸</div><div class="lbl">Tax</div></div><div class="ni" onclick="go('charity')"><div class="ico">❤️</div><div class="lbl">Charity</div></div><div class="ni on" onclick="go('gsf')"><div class="ico">🏛️</div><div class="lbl">GSF</div></div><div class="ni" onclick="go('yournews')"><div class="ico">📬</div><div class="lbl">Your News</div></div></div>
+</div>
+
+<!-- YOUR NEWS UNIFIED -->
+<div class="scr" id="s-yournews">
+  <div class="ph"><div><div class="pt">Your News</div><div class="ps">All dimensions · Personalised feed · Turn 1425</div></div></div>
+  <div class="sb">
+    <div class="card">
+      <div class="rp-item"><div class="rp-ico" style="background:var(--g100)">💰</div><div><div class="rp-t">🌍 Earth — SLKT Dividend</div><div class="rp-d">Silk Road Tech paid $0.85/share · 10.17M shares held · After 15% dividend tax</div><div class="rp-a up">+$7,347,825</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:#FFF3E0">⛏️</div><div><div class="rp-t">🔴 Mars — Mining Facility Income</div><div class="rp-d">Lithium Mining Facility net income · After 18% infrastructure tax</div><div class="rp-a up">+$3,333,333</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:var(--bluel)">🏛️</div><div><div class="rp-t">🌍 Earth — GSF Return</div><div class="rp-d">Global Sovereign Fund earned 1.04% · Your $50M deposit</div><div class="rp-a up">+$520,000</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:var(--bluel)">📋</div><div><div class="rp-t">🌍 Earth — Bond Coupon · US Treasury 10Y</div><div class="rp-d">$210M at 4.5% annual · Monthly coupon · After 10% bond tax</div><div class="rp-a up">+$708,750</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:rgba(124,58,237,.1)">📋</div><div><div class="rp-t">🔴 Mars — Bond Coupon · Mars Colonial 5Y</div><div class="rp-d">$30M at 12.8% annual · MCR coupon converted to USD · After tax</div><div class="rp-a up">+$256,000</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:var(--redl)">💸</div><div><div class="rp-t">🌍 Earth — Tax Summary</div><div class="rp-d">Capital gains $84M · Dividends $18M · Bond coupons $8M · Wealth tax $32M</div><div class="rp-a dn">-$142,000,000</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:var(--redl)">💱</div><div><div class="rp-t">🔴 Mars — MCR Currency Loss</div><div class="rp-d">MCR fell 2.4% vs USD · Mars holdings devalued · Paper loss</div><div class="rp-a dn">-$16,300,000 USD</div></div></div>
+      <div class="rp-item"><div class="rp-ico" style="background:var(--g100)">❤️</div><div><div class="rp-t">🌍 Earth — Philanthropy Impact</div><div class="rp-d">Lagos Healthcare (Turn 1420) — Africa consumer spending +4% · FRMN holding benefiting</div><div class="rp-a up">+$2,100,000 indirect</div></div></div>
+      <div class="rp-item" style="border-bottom:none"><div class="rp-ico" style="background:var(--goldl)">🏆</div><div><div class="rp-t">Achievement Unlocked</div><div class="rp-d">Philanthropist — donated over $1B to global causes across all regions</div><div class="rp-a up">+500 XP · Reputation ★★★★☆</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('tax')"><div class="ico">💸</div><div class="lbl">Tax</div></div><div class="ni" onclick="go('charity')"><div class="ico">❤️</div><div class="lbl">Charity</div></div><div class="ni" onclick="go('gsf')"><div class="ico">🏛️</div><div class="lbl">GSF</div></div><div class="ni on" onclick="go('yournews')"><div class="ico">📬</div><div class="lbl">Your News</div></div></div>
+</div>
+
+</div>
+<script>
+const ALL=['tax','charity','gsf','yournews'];
+function go(n){ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display='none';e.classList.remove('on');}});const t=document.getElementById('s-'+n);if(t){t.style.display='flex';t.classList.add('on');const s=t.querySelector('.sb');if(s)s.scrollTop=0;}document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));const m=document.querySelector(`.np[onclick*="'${n}'"]`);if(m)m.classList.add('on');}
+ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display=id==='tax'?'flex':'none';if(id==='tax')e.classList.add('on');}});
+</script>
+</body>
+</html>

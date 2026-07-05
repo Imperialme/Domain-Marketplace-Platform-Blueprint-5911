@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galactic Raider — Random Events System</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080C10;--surface:#0E1419;--surface2:#141C24;--surface3:#1A2530;
+  --green:#00E676;--green2:#00C853;--green3:#1B5E20;
+  --gold:#FFD54F;--gold2:#F9A825;--gold3:#FF6F00;
+  --red:#FF5252;--red2:#D50000;
+  --blue:#40C4FF;--blue2:#0091EA;
+  --purple:#CE93D8;--purple2:#7B1FA2;
+  --t1:#F0F4F8;--t2:#8FA8C0;--t3:#4A6070;
+  --bd:rgba(255,255,255,.06);
+  --r:16px;--rs:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  color:var(--t1);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* HERO */
+.hero{
+  position:relative;
+  padding:80px 32px 60px;
+  text-align:center;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,230,118,.08),transparent 70%),
+    radial-gradient(ellipse 60% 40% at 20% 80%,rgba(255,213,79,.04),transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 70%,rgba(64,196,255,.04),transparent 60%);
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);
+  border-radius:20px;padding:6px 16px;margin-bottom:24px;
+  font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--green);position:relative;z-index:1;
+}
+.hero h1{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(48px,8vw,80px);
+  letter-spacing:3px;
+  line-height:1;
+  position:relative;z-index:1;
+  background:linear-gradient(135deg,#fff 0%,var(--gold) 50%,var(--green) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:16px;
+}
+.hero-sub{
+  font-size:18px;color:var(--t2);max-width:600px;margin:0 auto 40px;
+  position:relative;z-index:1;line-height:1.6;
+}
+.hero-stats{
+  display:flex;justify-content:center;gap:32px;flex-wrap:wrap;
+  position:relative;z-index:1;
+}
+.hs{
+  text-align:center;
+}
+.hs-n{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold)}
+.hs-l{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+/* NAV TABS */
+.tabs{
+  display:flex;gap:4px;padding:16px 24px;
+  background:var(--surface);
+  border-bottom:1px solid var(--bd);
+  overflow-x:auto;
+  position:sticky;top:0;z-index:100;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:10px 20px;border-radius:8px;
+  font-size:13px;font-weight:700;
+  cursor:pointer;border:none;
+  background:transparent;color:var(--t3);
+  font-family:'DM Sans',sans-serif;
+  white-space:nowrap;transition:all .2s;
+  display:flex;align-items:center;gap:7px;
+}
+.tab:hover{color:var(--t1);background:var(--surface2)}
+.tab.on{background:var(--surface3);color:var(--t1)}
+.tab.t1.on{color:var(--blue)}
+.tab.t2.on{color:var(--green)}
+.tab.t3a.on{color:var(--gold)}
+.tab.t3b.on{color:var(--purple)}
+
+/* SECTIONS */
+.section{display:none;padding:32px 24px;max-width:900px;margin:0 auto}
+.section.on{display:block}
+
+.section-header{
+  margin-bottom:32px;
+  padding-bottom:24px;
+  border-bottom:1px solid var(--bd);
+}
+.section-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:20px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
+  margin-bottom:14px;
+}
+.t1 .section-tag{background:rgba(64,196,255,.1);color:var(--blue);border:1px solid rgba(64,196,255,.2)}
+.t2 .section-tag{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2)}
+.t3a .section-tag{background:rgba(255,213,79,.1);color:var(--gold);border:1px solid rgba(255,213,79,.2)}
+.t3b .section-tag{background:rgba(206,147,216,.1);color:var(--purple);border:1px solid rgba(206,147,216,.2)}
+.section-title{font-family:'Playfair Display',serif;font-size:32px;color:var(--t1);margin-bottom:8px}
+.section-desc{font-size:15px;color:var(--t2);line-height:1.7}
+
+/* EVENT CARDS */
+.events-grid{display:flex;flex-direction:column;gap:12px}
+.event-card{
+  background:var(--surface);
+  border:1px solid var(--bd);
+  border-radius:var(--r);
+  padding:18px 20px;
+  cursor:pointer;
+  transition:all .2s;
+  display:flex;align-items:center;gap:16px;
+}
+.event-card:hover{
+  background:var(--surface2);
+  transform:translateX(4px);
+  border-color:rgba(255,255,255,.12);
+}
+.event-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:28px;
+  min-width:36px;
+  text-align:center;
+  opacity:.3;
+}
+.event-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.event-main{flex:1}
+.event-name{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:3px}
+.event-brief{font-size:12px;color:var(--t3);line-height:1.5}
+.event-tags{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.etag{
+  padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:700;
+  font-family:'DM Mono',monospace;
+}
+.etag-prob{background:rgba(255,255,255,.06);color:var(--t2)}
+.etag-dur{background:rgba(64,196,255,.1);color:var(--blue)}
+.etag-perm{background:rgba(255,213,79,.1);color:var(--gold)}
+.etag-temp{background:rgba(255,82,82,.1);color:var(--red)}
+.etag-pos{background:rgba(0,230,118,.1);color:var(--green)}
+.etag-neg{background:rgba(255,82,82,.1);color:var(--red)}
+.etag-mix{background:rgba(206,147,216,.1);color:var(--purple)}
+.event-arrow{font-size:18px;color:var(--t3);flex-shrink:0}
+
+/* POPUP OVERLAY */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.85);
+  z-index:500;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:16px;
+  backdrop-filter:blur(8px);
+}
+.overlay.on{display:flex}
+
+/* EVENT POPUP */
+.popup{
+  background:var(--surface);
+  border-radius:20px;
+  max-width:560px;width:100%;
+  max-height:90vh;
+  overflow-y:auto;
+  position:relative;
+  border:1px solid rgba(255,255,255,.1);
+  animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  scrollbar-width:none;
+}
+.popup::-webkit-scrollbar{display:none}
+@keyframes popIn{
+  from{transform:scale(.85) translateY(20px);opacity:0}
+  to{transform:scale(1) translateY(0);opacity:1}
+}
+.popup-header{
+  padding:28px 28px 0;
+  position:relative;
+}
+.popup-close{
+  position:absolute;top:20px;right:20px;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,.08);border:none;
+  color:var(--t2);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.popup-close:hover{background:rgba(255,255,255,.15);color:var(--t1)}
+.popup-icon{
+  width:64px;height:64px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;margin-bottom:16px;
+}
+.popup-type{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:2px;color:var(--t3);margin-bottom:6px;
+}
+.popup-name{
+  font-family:'Playfair Display',serif;
+  font-size:26px;color:var(--t1);
+  margin-bottom:8px;line-height:1.2;
+}
+.popup-tagline{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:20px}
+
+.popup-body{padding:0 28px 28px}
+
+/* POPUP STATS ROW */
+.popup-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:10px;margin-bottom:20px;
+}
+.pstat{
+  background:var(--surface2);border-radius:var(--rs);
+  padding:12px;text-align:center;
+}
+.pstat-v{
+  font-family:'DM Mono',monospace;
+  font-size:15px;font-weight:700;color:var(--t1);
+  margin-bottom:2px;
+}
+.pstat-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+
+/* POPUP SECTIONS */
+.psect{margin-bottom:20px}
+.psect-title{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.5px;color:var(--t3);
+  margin-bottom:10px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--bd);
+}
+.psect-body{font-size:14px;color:var(--t2);line-height:1.7}
+
+/* IMPACT BARS */
+.impact-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:8px;
+}
+.impact-label{font-size:12px;color:var(--t2);min-width:140px}
+.impact-bar{flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden}
+.impact-fill{height:100%;border-radius:3px;transition:width .5s .1s}
+.fill-green{background:linear-gradient(90deg,var(--green3),var(--green))}
+.fill-red{background:linear-gradient(90deg,var(--red2),var(--red))}
+.fill-gold{background:linear-gradient(90deg,var(--gold3),var(--gold))}
+.fill-blue{background:linear-gradient(90deg,var(--blue2),var(--blue))}
+.impact-pct{font-family:'DM Mono',monospace;font-size:11px;min-width:36px;text-align:right}
+
+/* POPUP NOTIFICATION */
+.popup-notif{
+  background:var(--surface2);
+  border-radius:12px;
+  padding:14px 16px;
+  display:flex;align-items:flex-start;gap:12px;
+  margin-bottom:12px;
+  border-left:3px solid;
+}
+.pn-positive{border-color:var(--green)}
+.pn-negative{border-color:var(--red)}
+.pn-neutral{border-color:var(--blue)}
+.pn-gold{border-color:var(--gold)}
+.pn-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.pn-text{font-size:13px;color:var(--t2);line-height:1.5}
+.pn-text strong{color:var(--t1)}
+
+/* RECOVERY ARC */
+.arc{
+  display:flex;gap:4px;align-items:flex-end;
+  height:50px;margin-top:6px;
+}
+.arc-bar{
+  flex:1;border-radius:4px 4px 0 0;
+  min-height:6px;transition:height .4s;
+}
+
+/* CONTROLLING STAKE SECTION */
+.stake-tiers{display:flex;flex-direction:column;gap:8px}
+.stake-tier{
+  background:var(--surface2);
+  border-radius:var(--rs);
+  padding:13px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-left:3px solid;
+}
+.st1{border-color:var(--t3)}
+.st2{border-color:var(--gold)}
+.st3{border-color:var(--green)}
+.stake-pct{
+  font-family:'DM Mono',monospace;
+  font-size:14px;font-weight:700;
+  min-width:70px;
+}
+.stake-desc{font-size:13px;color:var(--t2);line-height:1.4}
+
+/* OVERVIEW TAB */
+.overview-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:32px}
+@media(max-width:500px){.overview-grid{grid-template-columns:1fr}}
+.ov-card{
+  background:var(--surface);border:1px solid var(--bd);
+  border-radius:var(--r);padding:20px;
+  cursor:pointer;transition:all .2s;
+}
+.ov-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.15)}
+.ov-icon{font-size:32px;margin-bottom:12px}
+.ov-title{font-size:16px;font-weight:800;margin-bottom:6px}
+.ov-count{
+  font-family:'Bebas Neue',sans-serif;font-size:28px;
+  margin-bottom:4px;
+}
+.ov-desc{font-size:12px;color:var(--t3);line-height:1.5}
+
+.chain-example{
+  background:var(--surface2);border-radius:var(--r);
+  padding:20px;border:1px solid var(--bd);
+  margin-top:8px;
+}
+.chain-step{
+  display:flex;align-items:flex-start;gap:12px;
+  margin-bottom:12px;
+}
+.chain-step:last-child{margin-bottom:0}
+.chain-dot{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;
+}
+.chain-arrow{
+  text-align:center;color:var(--t3);font-size:18px;
+  margin:4px 0 4px 14px;
+}
+.chain-text{font-size:13px;color:var(--t2);line-height:1.5}
+.chain-text strong{color:var(--t1)}
+.chain-badge{
+  display:inline-block;padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+/* ANIMATIONS */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.event-card{animation:fadeInUp .3s both}
+.event-card:nth-child(1){animation-delay:.03s}
+.event-card:nth-child(2){animation-delay:.06s}
+.event-card:nth-child(3){animation-delay:.09s}
+.event-card:nth-child(4){animation-delay:.12s}
+.event-card:nth-child(5){animation-delay:.15s}
+.event-card:nth-child(6){animation-delay:.18s}
+.event-card:nth-child(7){animation-delay:.21s}
+.event-card:nth-child(8){animation-delay:.24s}
+.event-card:nth-child(9){animation-delay:.27s}
+.event-card:nth-child(10){animation-delay:.30s}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">🎲 Design Document · Galactic Raider: Capital Exchange</div>
+  <h1>Random Events System</h1>
+  <p class="hero-sub">Three types of economic events that transform the game world — from market shocks to company crises to permanent new realities</p>
+  <div class="hero-stats">
+    <div class="hs"><div class="hs-n" style="color:var(--blue)">10</div><div class="hs-l">Market Events</div></div>
+    <div class="hs"><div class="hs-n" style="color:var(--green)">10</div><div class="hs-l">Company Events</div></div>
+    <div class="hs"><div class="hs-n" style="color:var(--gold)">10</div><div class="hs-l">Market Birth</div></div>
+    <div class="hs"><div class="hs-n" style="color:var(--purple)">10</div><div class="hs-l">Company Birth</div></div>
+    <div class="hs"><div class="hs-n" style="color:var(--t1)">40</div><div class="hs-l">Total Events</div></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab on" onclick="switchTab('overview')">🏠 Overview</button>
+  <button class="tab t1" onclick="switchTab('market')">🌊 Market Events</button>
+  <button class="tab t2" onclick="switchTab('company')">🏢 Company Events</button>
+  <button class="tab t3a" onclick="switchTab('birth-market')">⭐ Market Birth</button>
+  <button class="tab t3b" onclick="switchTab('birth-company')">🧬 Company Birth</button>
+  <button class="tab" onclick="switchTab('chains')">🔗 Event Chains</button>
+  <button class="tab" onclick="switchTab('governor')">⚖️ Governor Rules</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="section on" id="s-overview">
+  <div class="section-header">
+    <div class="section-title">Three-Type Event System</div>
+    <div class="section-desc">Random events fire throughout gameplay based on probability, economic conditions, and player portfolio state. They teach real investing lessons — the market is never fully predictable.</div>
+  </div>
+  <div class="overview-grid">
+    <div class="ov-card" onclick="switchTab('market')">
+      <div class="ov-icon">🌊</div>
+      <div class="ov-title" style="color:var(--blue)">Type 1 — Market Events</div>
+      <div class="ov-count" style="color:var(--blue)">10 Events</div>
+      <div class="ov-desc">Affect the entire economy. Hit all players simultaneously. No one controls them. Range from rate surprises to geopolitical crises to global recessions.</div>
+    </div>
+    <div class="ov-card" onclick="switchTab('company')">
+      <div class="ov-icon">🏢</div>
+      <div class="ov-title" style="color:var(--green)">Type 2 — Company Events</div>
+      <div class="ov-count" style="color:var(--green)">10 Events</div>
+      <div class="ov-desc">Affect specific companies you hold. Controlling stake gives you influence over outcomes. Ownership tier determines your level of control.</div>
+    </div>
+    <div class="ov-card" onclick="switchTab('birth-market')">
+      <div class="ov-icon">⭐</div>
+      <div class="ov-title" style="color:var(--gold)">Type 3A — Market Birth</div>
+      <div class="ov-count" style="color:var(--gold)">10 Events</div>
+      <div class="ov-desc">Create something entirely new in the economy. New regions, sectors, currencies, exchanges. Permanent additions to the game world. Early movers win.</div>
+    </div>
+    <div class="ov-card" onclick="switchTab('birth-company')">
+      <div class="ov-icon">🧬</div>
+      <div class="ov-title" style="color:var(--purple)">Type 3B — Company Birth</div>
+      <div class="ov-count" style="color:var(--purple)">10 Events</div>
+      <div class="ov-desc">Create new entities from existing companies. Spinoffs, IPOs, mergers, joint ventures. Players holding parent companies benefit from births.</div>
+    </div>
+  </div>
+
+  <!-- Controlling Stake -->
+  <div style="margin-bottom:32px">
+    <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px">⚡ Controlling Stake — Company Event Influence</div>
+    <div class="stake-tiers">
+      <div class="stake-tier st1">
+        <div class="stake-pct" style="color:var(--t3)">1–4.9%</div>
+        <div class="stake-desc"><strong style="color:var(--t1)">Minority Holder</strong> — Informed after event fires. Events happen to you. No influence over outcome.</div>
+      </div>
+      <div class="stake-tier st2">
+        <div class="stake-pct" style="color:var(--gold)">5–24.9%</div>
+        <div class="stake-desc"><strong style="color:var(--t1)">Significant Holder</strong> — Advance notice 2–3 turns before event becomes public. You can position before other players react.</div>
+      </div>
+      <div class="stake-tier st3">
+        <div class="stake-pct" style="color:var(--green)">25%+</div>
+        <div class="stake-desc"><strong style="color:var(--t1)">Controlling Stake</strong> — Presented with a choice. Your decision determines the outcome. Three strategic options with different risk/reward profiles.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Economic Governor note -->
+  <div style="background:rgba(255,213,79,.05);border:1px solid rgba(255,213,79,.15);border-radius:var(--r);padding:18px">
+    <div style="font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⚖️ Governor Constraint — Non-Negotiable</div>
+    <div style="font-size:14px;color:var(--t2);line-height:1.6">All events operate within Economic Governor bounds. No event can push a stock below P/E 5x or above P/E 50x. No event can make net income exceed revenue. No event can make T-Bills negative. Events create volatility within the guardrails — never outside them.</div>
+  </div>
+</div>
+
+<!-- MARKET EVENTS -->
+<div class="section t1" id="s-market">
+  <div class="section-header">
+    <div class="section-tag">Type 1</div>
+    <div class="section-title">Market Events</div>
+    <div class="section-desc">Economy-wide shocks that hit all players simultaneously. These teach macroeconomic investing lessons — how global forces move entire sectors.</div>
+  </div>
+  <div class="events-grid" id="grid-market"></div>
+</div>
+
+<!-- COMPANY EVENTS -->
+<div class="section t2" id="s-company">
+  <div class="section-header">
+    <div class="section-tag">Type 2</div>
+    <div class="section-title">Company Events</div>
+    <div class="section-desc">Specific company shocks. Controlling stake gives you advance notice or direct influence. The larger your ownership, the more control you have over outcomes.</div>
+  </div>
+  <div class="events-grid" id="grid-company"></div>
+</div>
+
+<!-- MARKET BIRTH -->
+<div class="section t3a" id="s-birth-market">
+  <div class="section-header">
+    <div class="section-tag">Type 3A</div>
+    <div class="section-title">Market Birth Events</div>
+    <div class="section-desc">Permanent additions to the game world. New regions, sectors, currencies, and exchanges appear. These grow the total investable universe — and early movers capture the best prices.</div>
+  </div>
+  <div class="events-grid" id="grid-birth-market"></div>
+</div>
+
+<!-- COMPANY BIRTH -->
+<div class="section t3b" id="s-birth-company">
+  <div class="section-header">
+    <div class="section-tag">Type 3B</div>
+    <div class="section-title">Company Birth Events</div>
+    <div class="section-desc">New entities emerge from existing companies. Spinoffs, IPOs, mergers, joint ventures. Holding parent companies gives you first access to what they create.</div>
+  </div>
+  <div class="events-grid" id="grid-birth-company"></div>
+</div>
+
+<!-- EVENT CHAINS -->
+<div class="section" id="s-chains">
+  <div class="section-header">
+    <div class="section-title">Event Chain Examples</div>
+    <div class="section-desc">Events cascade into each other naturally — just like real markets. One event creates conditions that trigger the next. Players learn to anticipate chains and position ahead of them.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <!-- Chain 1 -->
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--blue);margin-bottom:12px;display:flex;align-items:center;gap:8px"><span>⛓️</span> Chain 1 — The Space Commodity Cascade</div>
+      <div class="chain-example">
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(64,196,255,.15);color:var(--blue)">1</div>
+          <div class="chain-text"><strong>Market Event fires</strong> — Space Mining Breakthrough on Jupiter <span class="chain-badge" style="background:rgba(64,196,255,.1);color:var(--blue)">Market Event</span><br>Rare earth prices on Earth crash 30% due to flood of space supply</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(0,230,118,.15);color:var(--green)">2</div>
+          <div class="chain-text"><strong>Company Event fires</strong> on Frontier Mining (FRMN) — Natural Disaster at Facility <span class="chain-badge" style="background:rgba(0,230,118,.1);color:var(--green)">Company Event</span><br>Mine destroyed. Production halts 15 turns. Player with 25%+ stake chooses: Rebuild vs Insurance Claim</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(255,213,79,.15);color:var(--gold)">3</div>
+          <div class="chain-text"><strong>Market Birth fires</strong> — New Commodity Discovered <span class="chain-badge" style="background:rgba(255,213,79,.1);color:var(--gold)">Birth Event</span><br>Jupiter mining reveals a new element not found on Earth. Appears as tradeable commodity. Early buyers lock in sub-$10 entry price before markets realise its applications</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(206,147,216,.15);color:var(--purple)">4</div>
+          <div class="chain-text"><strong>Company Birth fires</strong> — New Sector Emerges from parent company <span class="chain-badge" style="background:rgba(206,147,216,.1);color:var(--purple)">Birth Event</span><br>A new Exotic Materials sector spins out of Jupiter research. 3 companies list. Players holding Jupiter research stocks receive founding shares</div>
+        </div>
+      </div>
+    </div>
+    <!-- Chain 2 -->
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:8px"><span>⛓️</span> Chain 2 — The Latin America Infrastructure Story</div>
+      <div class="chain-example">
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(255,82,82,.15);color:var(--red)">1</div>
+          <div class="chain-text"><strong>Market Event fires</strong> — Climate Disaster hits LatAm <span class="chain-badge" style="background:rgba(64,196,255,.1);color:var(--blue)">Market Event</span><br>Extreme drought. AGRO revenue down 20% for 15 turns. Agriculture sector hit across region</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(0,230,118,.15);color:var(--green)">2</div>
+          <div class="chain-text"><strong>Company Event fires</strong> on AGRO — Government Contract Won <span class="chain-badge" style="background:rgba(0,230,118,.1);color:var(--green)">Company Event</span><br>Government awards AGRO a drought relief supply contract. Revenue recovery begins 10 turns early. Player with 25%+ stake chose to accept government terms</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(255,213,79,.15);color:var(--gold)">3</div>
+          <div class="chain-text"><strong>Market Birth fires</strong> — Infrastructure Project Completed <span class="chain-badge" style="background:rgba(255,213,79,.1);color:var(--gold)">Birth Event</span><br>Drought forces investment in water infrastructure. New pipeline connects LatAm to EM water sources. Trade between regions permanently improves. Both regions' stocks rise 8%</div>
+        </div>
+      </div>
+    </div>
+    <!-- Chain 3 -->
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px"><span>⛓️</span> Chain 3 — The Tech Regulatory Storm</div>
+      <div class="chain-example">
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(64,196,255,.15);color:var(--blue)">1</div>
+          <div class="chain-text"><strong>Market Event fires</strong> — Tech Regulation Wave <span class="chain-badge" style="background:rgba(64,196,255,.1);color:var(--blue)">Market Event</span><br>Global governments announce sweeping AI regulations. Tech sector drops 12% across all regions. SLKT falls from $348 to $306</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(0,230,118,.15);color:var(--green)">2</div>
+          <div class="chain-text"><strong>Company Event fires</strong> on SLKT — Patent Approved <span class="chain-badge" style="background:rgba(0,230,118,.1);color:var(--green)">Company Event</span><br>SLKT's compliance-ready AI patent approved. First company certified under new rules. Stock surges 28% back above pre-regulation level while competitors remain suppressed</div>
+        </div>
+        <div class="chain-arrow">↓</div>
+        <div class="chain-step">
+          <div class="chain-dot" style="background:rgba(206,147,216,.15);color:var(--purple)">3</div>
+          <div class="chain-text"><strong>Company Birth fires</strong> — New Subsidiary Listed <span class="chain-badge" style="background:rgba(206,147,216,.1);color:var(--purple)">Birth Event</span><br>SLKT spins out its compliance division as a separate listed entity — SLKT-COMP. Becomes the go-to compliance service for all tech companies needing certification. Immediate demand</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GOVERNOR RULES -->
+<div class="section" id="s-governor">
+  <div class="section-header">
+    <div class="section-title">Governor Constraints on Events</div>
+    <div class="section-desc">The Economic Governor runs first every turn — before any event resolves. Events create volatility within the Governor's guardrails, never outside them.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);padding:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">P/E Bounds — 5x to 50x</div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:10px">A positive event cannot push a stock above 50x P/E. A negative event cannot push a stock below 5x P/E. If an event would breach these bounds, the Governor clamps the price before it resolves.</div>
+      <div style="background:var(--surface2);border-radius:var(--rs);padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--green)">
+        // Event attempts +40% price surge on stock at P/E 38<br>
+        // New price would imply P/E 53.2 → Governor clamps to P/E 50<br>
+        // Actual surge limited to +31.6% to maintain Governor ceiling
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);padding:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Net Income Rule — Cannot Exceed Revenue</div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:10px">A positive event that boosts company revenue cannot accidentally inflate net income above revenue. The Governor enforces Math.min(netIncome, revenue) after every event resolution.</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);padding:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">T-Bills Floor — Hard Zero</div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.6">A negative event that drains company cash cannot push T-Bills below zero. The floor is absolute. Events that create cash shortfalls instead push companies into credit line territory.</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);padding:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Research Exemption — Jupiter, Neptune, Uranus</div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.6">Research companies on these three planets may have negative net income (up to -50% of revenue). Events can push them further negative within this limit but not beyond. All other Governor rules still apply.</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--bd);border-radius:var(--r);padding:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Daily Price Change Limit — ±8% Per Turn</div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:10px">No single event can move a stock more than ±8% in one turn. A large event (e.g. fraud investigation) that would cause -40% resolves over multiple turns — typically 5–15 turns — each within the ±8% daily limit.</div>
+      <div style="background:var(--surface2);border-radius:var(--rs);padding:12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--gold)">
+        // Fraud event: total impact -35% over 8 turns<br>
+        // Turn 1: -8% (Governor limit) → Turn 2: -8% → Turn 3: -7%<br>
+        // Turns 4–8: gradual decline → Total: -35% over event duration
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP -->
+<div class="overlay" id="overlay" onclick="closePopup(event)">
+  <div class="popup" id="popup">
+    <div class="popup-header">
+      <button class="popup-close" onclick="closePopupBtn()">×</button>
+      <div class="popup-icon" id="pop-icon-wrap"><span id="pop-icon"></span></div>
+      <div class="popup-type" id="pop-type"></div>
+      <div class="popup-name" id="pop-name"></div>
+      <div class="popup-tagline" id="pop-tagline"></div>
+    </div>
+    <div class="popup-body">
+      <div class="popup-stats" id="pop-stats"></div>
+      <div id="pop-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── EVENT DATA ──────────────────────────────────────────────────────────────
+
+const MARKET_EVENTS = [
+  {
+    icon:'🏦',iconBg:'rgba(64,196,255,.15)',
+    name:'Central Bank Rate Surprise',
+    brief:'Unexpected rate cut or hike reshapes fixed income and growth stocks',
+    prob:'8% per turn',dur:'10 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'The market never fully prices in surprise. Bonds invert. Growth stocks reprice overnight.',
+    trigger:'GDP growth deviates significantly from 2% target or inflation moves outside 1.5–4% band',
+    magnitude:'Rate cut: Bonds +12–18%, Growth stocks +8–15%, Value stocks flat. Rate hike: Bonds -10–15%, Growth stocks -12–18%, Banking +5%',
+    recovery:'Reverts to pre-event trajectory after 10 turns as market re-prices to new rate environment',
+    notification:{type:'neutral',icon:'📢',text:'<strong>Central Bank Surprise Announcement</strong><br>Emergency rate decision just released. Markets are repricing across all asset classes.'},
+    impacts:[
+      {label:'Bond prices',pct:75,dir:'pos'},
+      {label:'Growth stocks',pct:60,dir:'pos'},
+      {label:'Banking sector',pct:40,dir:'neg'},
+      {label:'Value stocks',pct:10,dir:'neg'},
+    ],
+    arc:[20,22,25,28,30,28,25,22,20,18,16,15],arcColor:'var(--blue)'
+  },
+  {
+    icon:'💣',iconBg:'rgba(255,82,82,.15)',
+    name:'Geopolitical Crisis',
+    brief:'Conflict erupts in one region — stocks fall, safe havens surge, recovery takes 20–40 turns',
+    prob:'4% per turn',dur:'20–40 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'Capital flees to safety. The affected region loses a generation of investment confidence.',
+    trigger:'Random region selection weighted by current geopolitical tension score. Probability doubles during high-inflation periods.',
+    magnitude:'Affected region stocks: -15 to -25%. Bonds (AAA): +8–12%. Gold: +15–20%. Other regions: -3 to -5% contagion effect.',
+    recovery:'Ceasefire or peace deal triggers recovery. Full recovery to 80–90% of pre-crisis level over 20 turns after resolution.',
+    notification:{type:'negative',icon:'🚨',text:'<strong>Geopolitical Crisis Erupting</strong><br>Breaking: Armed conflict reported in [Region]. Markets already reacting. Capital flowing to safe havens.'},
+    impacts:[
+      {label:'Affected region stocks',pct:85,dir:'neg'},
+      {label:'AAA Government bonds',pct:70,dir:'pos'},
+      {label:'Gold commodity',pct:80,dir:'pos'},
+      {label:'Other regions',pct:25,dir:'neg'},
+    ],
+    arc:[40,35,30,25,22,20,18,16,15,14,14,15,17,20,22,24,26,28,30,32],arcColor:'var(--red)'
+  },
+  {
+    icon:'⛽',iconBg:'rgba(255,165,0,.15)',
+    name:'Commodity Price Shock',
+    brief:'Oil, lithium, or wheat spikes or crashes suddenly — ripples through every linked sector',
+    prob:'10% per turn',dur:'15 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'When a single commodity moves 30%, every company that touches it moves with it.',
+    trigger:'Supply disruption (mine closure, weather, conflict) or demand surge (new technology adoption, population shift).',
+    magnitude:'Commodity: ±25–40%. Companies in supply chain: ±8–15% correlated. Companies using commodity as input: inverse ±5–12%.',
+    recovery:'Supply/demand rebalances over 15 turns. Commodity returns to ±10% of pre-shock level.',
+    notification:{type:'neutral',icon:'⚡',text:'<strong>Commodity Shock Alert</strong><br>Unexpected supply disruption causing extreme price movement. Check your commodity exposure now.'},
+    impacts:[
+      {label:'Affected commodity',pct:90,dir:'pos'},
+      {label:'Supply chain stocks',pct:65,dir:'pos'},
+      {label:'Input cost stocks',pct:55,dir:'neg'},
+      {label:'Unrelated sectors',pct:5,dir:'neg'},
+    ],
+    arc:[15,22,30,35,38,36,32,28,24,20,18,16,15,15,15],arcColor:'var(--gold)'
+  },
+  {
+    icon:'🦠',iconBg:'rgba(206,147,216,.15)',
+    name:'Pandemic Scare',
+    brief:'Healthcare surges 20–30% while tourism, retail, and manufacturing collapse',
+    prob:'3% per turn',dur:'25 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'The great rotator. Whoever owned healthcare before the news became wealthy. Everyone else scrambled.',
+    trigger:'Random health event. Probability increases if global temperature variance is high in simulation.',
+    magnitude:'Healthcare: +20–30%. Pharma: +25–35%. Tourism/Retail/Aviation: -20–35%. Manufacturing: -10–20%.',
+    recovery:'Vaccine or treatment announcement fires a counter-event. Reversal takes 15 turns. Some permanent behavioral changes remain.',
+    notification:{type:'negative',icon:'⚠️',text:'<strong>Health Emergency Declared</strong><br>Authorities reporting rapid spread of novel illness. Travel restrictions possible. Healthcare stocks moving.'},
+    impacts:[
+      {label:'Healthcare / Pharma',pct:85,dir:'pos'},
+      {label:'Tourism / Retail',pct:90,dir:'neg'},
+      {label:'Manufacturing',pct:55,dir:'neg'},
+      {label:'Online / Tech',pct:40,dir:'pos'},
+    ],
+    arc:[35,28,22,18,15,14,13,12,12,12,13,14,16,18,20,22,24,26,28,30,32,34,35,36,35],arcColor:'var(--purple)'
+  },
+  {
+    icon:'📜',iconBg:'rgba(255,213,79,.15)',
+    name:'Tech Regulation Wave',
+    brief:'Sweeping government tech rules drop the sector 10–15% across all regions simultaneously',
+    prob:'5% per turn when tech >30% of market cap',dur:'20 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'Regulators move slowly — until they move all at once.',
+    trigger:'Tech sector becomes disproportionate share of total market. Probability scales with tech concentration.',
+    magnitude:'Tech sector: -10 to -15% all regions simultaneously. Compliance costs reduce margins 2–4% for 20 turns. Non-tech sectors: flat to slightly positive as capital rotates.',
+    recovery:'Compliance frameworks established, investors regain confidence. Recovery to 90% of pre-regulation level over 15 turns after event ends.',
+    notification:{type:'negative',icon:'⚖️',text:'<strong>Global Tech Regulation Announced</strong><br>Coordinated regulatory action across 5 major economies. Tech sector faces significant compliance requirements.'},
+    impacts:[
+      {label:'Tech sector',pct:75,dir:'neg'},
+      {label:'Compliance firms',pct:60,dir:'pos'},
+      {label:'Banking / Finance',pct:15,dir:'pos'},
+      {label:'Consumer goods',pct:10,dir:'pos'},
+    ],
+    arc:[40,35,30,26,24,22,21,20,20,20,21,22,24,26,28,30,32,34,36,38],arcColor:'var(--gold)'
+  },
+  {
+    icon:'🌪️',iconBg:'rgba(100,181,246,.15)',
+    name:'Climate Disaster',
+    brief:'Extreme weather hits a region — agriculture disrupted, insurance hit, rebuilding creates opportunities',
+    prob:'6% per turn',dur:'30 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'Destruction and reconstruction. The capital rotates from losers to builders.',
+    trigger:'Climate severity score exceeds threshold. Probability increases each turn it has not fired (recency bias correction).',
+    magnitude:'Agriculture (affected region): -20 to -30%. Insurance stocks: -15%. Construction/Infrastructure: +25–35%. Global food prices: +10–15%.',
+    recovery:'Rebuild phase creates 25–35% gain for construction companies over 20 turns. Agriculture recovers after 30 turns.',
+    notification:{type:'negative',icon:'🌊',text:'<strong>Climate Emergency Declared</strong><br>Catastrophic weather event striking [Region]. Agriculture and infrastructure severely impacted.'},
+    impacts:[
+      {label:'Regional agriculture',pct:80,dir:'neg'},
+      {label:'Insurance stocks',pct:60,dir:'neg'},
+      {label:'Construction sector',pct:85,dir:'pos'},
+      {label:'Food commodity prices',pct:55,dir:'pos'},
+    ],
+    arc:[25,20,18,16,15,14,14,14,15,16,18,20,22,24,26,28,30,32,34,35,36,36,35,34,33,32,31,30,30,30],arcColor:'var(--blue)'
+  },
+  {
+    icon:'🛸',iconBg:'rgba(0,230,118,.15)',
+    name:'Space Mining Breakthrough',
+    brief:'Solar System discovery floods Earth commodity markets — mining stocks crater, space stocks surge',
+    prob:'5% per turn after Solar unlock',dur:'20 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'When Mars starts shipping lithium, Earth miners get a lesson in competition.',
+    trigger:'Player has unlocked Solar System. Probability scales with volume of space mining activity.',
+    magnitude:'Earth rare earth commodities: -25 to -35%. Earth mining stocks: -15 to -25%. Space mining stocks: +30 to +50%. EV manufacturers: -5% (cheaper inputs long-term positive).',
+    recovery:'Earth miners adapt and diversify. Recovery begins after 20 turns as supply/demand finds new equilibrium.',
+    notification:{type:'neutral',icon:'🚀',text:'<strong>Solar System Mining Breakthrough</strong><br>Record extraction on Mars/Jupiter flooding Earth commodity markets. Space economy reshaping Earth supply chains.'},
+    impacts:[
+      {label:'Earth mining stocks',pct:75,dir:'neg'},
+      {label:'Rare earth commodities',pct:85,dir:'neg'},
+      {label:'Space mining stocks',pct:90,dir:'pos'},
+      {label:'EV / Tech manufacturers',pct:30,dir:'pos'},
+    ],
+    arc:[40,35,30,26,23,21,20,20,20,21,22,23,24,25,26,27,28,29,30,30],arcColor:'var(--green)'
+  },
+  {
+    icon:'🛡️',iconBg:'rgba(255,82,82,.15)',
+    name:'Trade War',
+    brief:'Two regions impose tariffs — cross-regional companies suffer, domestic-only companies gain',
+    prob:'4% per turn',dur:'40 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'Winners and losers are determined by who you sell to, not how well you run your business.',
+    trigger:'GDP divergence between two major regions exceeds threshold. Political tension score high.',
+    magnitude:'Cross-regional companies: -15 to -20%. Domestic-focused companies: +8–15%. Commodities: +10% (supply chain reshuffling).',
+    recovery:'Trade deal negotiation begins after 30 turns. Resolution restores cross-border companies over 15 turns.',
+    notification:{type:'negative',icon:'🚨',text:'<strong>Trade War Escalation</strong><br>[Region A] and [Region B] announce retaliatory tariffs. Supply chains disrupting. Review cross-border exposure.'},
+    impacts:[
+      {label:'Cross-regional stocks',pct:70,dir:'neg'},
+      {label:'Domestic-only stocks',pct:60,dir:'pos'},
+      {label:'Commodities',pct:45,dir:'pos'},
+      {label:'Consumer prices',pct:35,dir:'neg'},
+    ],
+    arc:[35,30,26,24,22,21,20,20,20,20,20,20,20,20,20,20,20,20,20,21,22,23,24,26,28,30,32,34,35,35,34,33,32,31,30,30,30,30,30,30],arcColor:'var(--red)'
+  },
+  {
+    icon:'💸',iconBg:'rgba(255,165,0,.15)',
+    name:'Currency Crisis',
+    brief:"One region's currency collapses — forex volatility spikes, companies with exposure suffer",
+    prob:'5% per turn when region debt-to-GDP > 80%',dur:'30 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'Currency risk is invisible until the day it becomes everything.',
+    trigger:'Regional debt-to-GDP exceeds threshold or foreign reserve level falls critically low.',
+    magnitude:'Affected currency: -20 to -40% vs USD. Companies with revenue in that currency: -10 to -20%. Exporters to that region: -8 to -15%.',
+    recovery:'IMF intervention or domestic reform stabilises currency. Partial recovery to 70–80% of pre-crisis value over 30 turns.',
+    notification:{type:'negative',icon:'📉',text:'<strong>Currency Crisis Alert</strong><br>[Currency] in freefall. Central bank emergency measures failing. Companies with exposure facing immediate losses.'},
+    impacts:[
+      {label:'Affected currency',pct:85,dir:'neg'},
+      {label:'Exporters to region',pct:55,dir:'neg'},
+      {label:'USD-denominated assets',pct:40,dir:'pos'},
+      {label:'Local population',pct:90,dir:'neg'},
+    ],
+    arc:[40,35,30,26,23,21,20,20,20,21,22,23,24,25,26,27,28,28,28,29,29,30,30,30,30,30,30,30,30,30],arcColor:'var(--gold)'
+  },
+  {
+    icon:'📉',iconBg:'rgba(255,82,82,.15)',
+    name:'Global Recession Signal',
+    brief:'GDP contracts across multiple regions — all stocks fall 10–20%, bonds rally, recovery takes 50 turns',
+    prob:'2% per turn when multiple negative signals align',dur:'50 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'The tide goes out and you discover who was swimming without a life jacket.',
+    trigger:'GDP growth negative for 2+ consecutive turns AND unemployment rising AND consumer confidence below 85.',
+    magnitude:'All stocks: -10 to -20% across all regions. AAA Bonds: +15–20%. Cash is king. Recession-resistant sectors (healthcare, utilities): -5% only.',
+    recovery:'Stimulus packages and low rates eventually spark recovery. Takes 40–50 turns for full market recovery. Some companies fail permanently.',
+    notification:{type:'negative',icon:'⚠️',text:'<strong>Recession Warning</strong><br>Leading indicators confirm contraction across major economies. Defensive positioning recommended.'},
+    impacts:[
+      {label:'All equities',pct:80,dir:'neg'},
+      {label:'Government bonds (AAA)',pct:70,dir:'pos'},
+      {label:'Healthcare / Utilities',pct:25,dir:'neg'},
+      {label:'Cyclical sectors',pct:95,dir:'neg'},
+    ],
+    arc:[40,35,30,26,22,19,17,16,15,14,14,14,14,15,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,30,31,31,32,32,33,33,34,34,35,35,35,36,36,37,37,38,39,39,40],arcColor:'var(--red)'
+  }
+];
+
+const COMPANY_EVENTS = [
+  {
+    icon:'💼',iconBg:'rgba(255,82,82,.15)',
+    name:'CEO Scandal',
+    brief:'Executive misconduct revealed — stock drops 25% instantly, stays low 10–15 turns',
+    prob:'3% per turn per company',dur:'15 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'One person can destroy years of institutional trust in a single news cycle.',
+    trigger:'Random selection weighted by company age. Older, larger companies slightly more at risk.',
+    magnitude:'Stock: -25% instant. Stays -20 to -25% for 10–15 turns. New CEO announcement triggers partial +8–12% recovery.',
+    recovery:'New CEO hired turns 5–8. Market re-rates. Full recovery to 80% of pre-scandal level over 20 turns.',
+    stakeTiers:{
+      minor:'Informed after news breaks. No advance warning.',
+      significant:'Insider reporting brings rumour 2–3 turns early. Can reduce position before announcement.',
+      controlling:'Presented choice: A) Manage internally (slower, cheaper, 40% success rate) B) Public firing (fast, expensive, stock impact -15% not -25%) C) Independent investigation (slow, transparent, best long-term)'
+    },
+    notification:{type:'negative',icon:'🚨',text:'<strong>Executive Misconduct Reported</strong><br>Breaking: CEO of [Company] faces serious allegations. Institutional investors already selling. Board meeting called.'},
+    impacts:[
+      {label:'Stock price',pct:85,dir:'neg'},
+      {label:'Bond rating',pct:30,dir:'neg'},
+      {label:'Employee morale',pct:60,dir:'neg'},
+      {label:'Competitor stocks',pct:15,dir:'pos'},
+    ],
+    arc:[40,32,28,25,24,23,23,23,24,25,27,29,31,33,35,37,38,39,40,40],arcColor:'var(--red)'
+  },
+  {
+    icon:'⚡',iconBg:'rgba(255,213,79,.15)',
+    name:'Patent Approved',
+    brief:'Key patent granted — stock surges 30–40%, competitors face licensing costs',
+    prob:'5% per turn for R&D-heavy companies',dur:'5 turns surge + permanent',type:'Permanent benefit',sentiment:'Positive',
+    tagline:'The day the lawyers called was the best day in company history.',
+    trigger:'Company has high R&D spend (>8% of revenue) and has been in R&D phase for 10+ turns.',
+    magnitude:'Stock: +30 to +40% over 5 turns. P/E re-rates upward permanently. Competitors face 2–5% margin pressure from licensing fees.',
+    recovery:'No recovery needed — this is a positive event. Patent provides competitive advantage for 30–50 turns before competitors develop alternatives.',
+    stakeTiers:{
+      minor:'Informed when patent approved publicly.',
+      significant:'Patent filing visible in company documents 3 turns before approval. Can build position early.',
+      controlling:'Can choose to license aggressively (maximum revenue) or defensively (block competitors). Decision affects competitive landscape for 30 turns.'
+    },
+    notification:{type:'positive',icon:'✅',text:'<strong>Patent Approved</strong><br>[Company] receives critical patent approval. Exclusive rights secured. Competitor licensing negotiations beginning.'},
+    impacts:[
+      {label:'Company stock',pct:85,dir:'pos'},
+      {label:'Competitor margins',pct:45,dir:'neg'},
+      {label:'Bond rating',pct:20,dir:'pos'},
+      {label:'Sector P/E average',pct:15,dir:'pos'},
+    ],
+    arc:[15,20,28,35,40,42,41,40,40,40,40,40,40,40,40,40,40,40,40,40],arcColor:'var(--green)'
+  },
+  {
+    icon:'💰',iconBg:'rgba(0,230,118,.15)',
+    name:'Earnings Shock',
+    brief:'Results massively beat or miss — stock moves ±20% in a single turn',
+    prob:'15% per turn at earnings season (every 10 turns)',dur:'10 turns',type:'Temporary',sentiment:'Mixed',
+    tagline:'Every quarter is a verdict. The market prices in expectations. Surprises are all that matter.',
+    trigger:'Fires every 10 turns per company (earnings cycle). Beat probability based on economic conditions.',
+    magnitude:'Beat: +15 to +25% in one turn. Miss: -15 to -22% in one turn. Reverts toward fundamental value over 10 turns.',
+    recovery:'Surprise fades as analysts revise models. Price returns to fundamental value (Governor-determined) over 10 turns.',
+    stakeTiers:{
+      minor:'Results public simultaneously with all players.',
+      significant:'Management communication visible 2 turns before public release. Can read the signals.',
+      controlling:'Can choose to guide expectations before earnings: set low bar (easier beat) or confidence signal (market prices in optimism before results).'
+    },
+    notification:{type:'positive',icon:'📊',text:'<strong>Earnings Surprise</strong><br>[Company] reports results significantly above/below consensus. Markets reacting immediately.'},
+    impacts:[
+      {label:'Company stock (beat)',pct:70,dir:'pos'},
+      {label:'Company stock (miss)',pct:70,dir:'neg'},
+      {label:'Sector peers',pct:20,dir:'mix'},
+      {label:'Analyst ratings',pct:40,dir:'mix'},
+    ],
+    arc:[15,22,28,30,28,25,22,20,18,16,15,15],arcColor:'var(--green)'
+  },
+  {
+    icon:'✊',iconBg:'rgba(255,165,0,.15)',
+    name:'Labour Strike',
+    brief:'Workers walk out — production halts, revenue drops 20% per turn for 8–15 turns',
+    prob:'4% per turn for manufacturing/mining companies',dur:'8–15 turns',type:'Temporary',sentiment:'Negative',
+    tagline:"Management and labour find out who needs the other more. Usually the answer is both.",
+    trigger:'Company profit margin exceeds 40% AND employee satisfaction score low (tracked internally).',
+    magnitude:'Production: -80 to -100% during strike. Revenue: -20% per turn. Settlement costs: 3–8% permanent wage increase.',
+    recovery:'Settlement reached. Production resumes. Permanent 3–8% cost increase reduces margins long-term but stabilises.',
+    stakeTiers:{
+      minor:'Strike announced publicly. Immediate impact.',
+      significant:'Labour unrest visible in company reports 3 turns before strike begins.',
+      controlling:'Can choose: A) Settle immediately (costly but short impact) B) Hold firm (saves money but longer strike) C) Offer profit sharing (permanent cost but transforms labour relations)'
+    },
+    notification:{type:'negative',icon:'✊',text:'<strong>Strike Action Begins</strong><br>Workers at [Company] begin industrial action. Production halted. No timeline for resolution.'},
+    impacts:[
+      {label:'Company revenue',pct:75,dir:'neg'},
+      {label:'Production output',pct:90,dir:'neg'},
+      {label:'Competitor stocks',pct:30,dir:'pos'},
+      {label:'Long-term wages',pct:40,dir:'neg'},
+    ],
+    arc:[40,35,30,26,23,21,20,21,23,26,30,33,36,38,40,40],arcColor:'var(--gold)'
+  },
+  {
+    icon:'🔍',iconBg:'rgba(255,82,82,.15)',
+    name:'Fraud Investigation',
+    brief:'Regulator investigates accounting — stock halted 3 turns, reopens 35–50% lower',
+    prob:'2% per turn',dur:'20 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'When the auditors start asking questions, the smart money already left.',
+    trigger:'Random. Probability doubles for companies with inconsistent margin patterns.',
+    magnitude:'Stock halted 3 turns. Reopens -35 to -50%. If cleared: +20% recovery. If convicted: company delisted permanently.',
+    recovery:'Cleared outcome: 60% probability. Partial recovery to 70% of pre-investigation level. Convicted: company delists. Player loses entire stake.',
+    stakeTiers:{
+      minor:'Investigation announced publicly.',
+      significant:'Unusual regulatory communication visible 2 turns before public announcement.',
+      controlling:'Can choose: A) Full cooperation (faster resolution, likely cleared) B) Legal challenge (longer but possible full exoneration) C) Settlement (definitive cost, no dragged out uncertainty)'
+    },
+    notification:{type:'negative',icon:'🔍',text:'<strong>Regulatory Investigation Launched</strong><br>Authorities confirm investigation into [Company] accounting practices. Trading halted pending review.'},
+    impacts:[
+      {label:'Company stock',pct:95,dir:'neg'},
+      {label:'Bond rating',pct:70,dir:'neg'},
+      {label:'Management team',pct:80,dir:'neg'},
+      {label:'Sector confidence',pct:25,dir:'neg'},
+    ],
+    arc:[40,35,30,0,0,0,22,20,19,18,18,18,19,20,22,24,26,28,29,30],arcColor:'var(--red)'
+  },
+  {
+    icon:'🏛️',iconBg:'rgba(0,230,118,.15)',
+    name:'Government Contract Won',
+    brief:'Major long-term deal awarded — revenue visible for 30–50 turns, P/E re-rates',
+    prob:'6% per turn for eligible companies',dur:'30–50 turns',type:'Long-duration positive',sentiment:'Positive',
+    tagline:"A government contract is not just revenue. It's certainty. The market pays a premium for certainty.",
+    trigger:'Company has government-adjacent sector (infrastructure, defence, healthcare, energy). Eligible per region rules.',
+    magnitude:'Revenue: +20 to +35% for contract duration. P/E re-rates +3 to +6x. Bond rating may improve one notch.',
+    recovery:'No recovery needed — positive event. Revenue streams visible until contract expires. Renewal possible.',
+    stakeTiers:{
+      minor:'Contract announcement public.',
+      significant:'Procurement documents show [Company] shortlisted 3 turns before announcement.',
+      controlling:'Can influence contract terms: A) Maximum value (higher revenue but higher delivery risk) B) Long duration (30 vs 50 turns) C) Multiple smaller contracts (diversified, lower headline number)'
+    },
+    notification:{type:'positive',icon:'🏛️',text:'<strong>Government Contract Awarded</strong><br>[Company] wins major [sector] contract. Revenue secured for [X] turns. Analysts upgrading.'},
+    impacts:[
+      {label:'Company revenue',pct:80,dir:'pos'},
+      {label:'Company stock P/E',pct:65,dir:'pos'},
+      {label:'Bond rating',pct:35,dir:'pos'},
+      {label:'Competitor bids',pct:50,dir:'neg'},
+    ],
+    arc:[15,20,28,35,38,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,38,35,30],arcColor:'var(--green)'
+  },
+  {
+    icon:'⚠️',iconBg:'rgba(255,165,0,.15)',
+    name:'Product Recall',
+    brief:'Defective product pulled — one-time cost spike, revenue drops 15% for 10 turns',
+    prob:'4% per turn for consumer-facing companies',dur:'10 turns + 5 turns brand recovery',type:'Temporary',sentiment:'Negative',
+    tagline:'The recall itself is painful. The reputational damage is the real cost.',
+    trigger:'Consumer-facing company (retail, healthcare, consumer goods). Probability scales with production volume.',
+    magnitude:'Recall cost: 2–5% of annual revenue one-time. Revenue: -15% for 10 turns. Brand damage: -5% revenue for additional 5 turns.',
+    recovery:'Brand rehabilitation begins turn 10. Full recovery to 95% of pre-recall level by turn 20.',
+    stakeTiers:{
+      minor:'Recall announced publicly.',
+      significant:'Quality control reports show anomaly 2 turns before public recall required.',
+      controlling:'Choose: A) Voluntary proactive recall (cheaper, brand positive, faster recovery) B) Wait for regulator (standard process) C) Dispute findings (costly legal fight, 40% chance of avoiding recall)'
+    },
+    notification:{type:'negative',icon:'⚠️',text:'<strong>Product Recall Issued</strong><br>[Company] recalls [product line] due to safety concerns. Regulatory action confirmed.'},
+    impacts:[
+      {label:'Company revenue',pct:60,dir:'neg'},
+      {label:'Brand reputation',pct:45,dir:'neg'},
+      {label:'Legal / recall costs',pct:70,dir:'neg'},
+      {label:'Competitor sales',pct:35,dir:'pos'},
+    ],
+    arc:[40,35,30,26,23,21,20,21,23,26,29,32,34,36,38,40,40],arcColor:'var(--gold)'
+  },
+  {
+    icon:'💔',iconBg:'rgba(255,82,82,.15)',
+    name:'Hostile Takeover Attempt',
+    brief:'Rival bids for your company — target surges 30%, acquirer drops 8%',
+    prob:'2% per turn for undervalued companies',dur:'15 turns',type:'Temporary/Permanent',sentiment:'Mixed',
+    tagline:'Your company becomes the most interesting stock in the market the day someone else wants it.',
+    trigger:'Company trading below book value AND acquirer has large cash reserves. Player holding controlling stake gets the decision.',
+    magnitude:'Target stock: +25 to +40% on announcement. Acquirer stock: -5 to -10%. If accepted: permanent merger. If rejected: both return to near pre-bid levels.',
+    recovery:'Accepted bids lead to merger (Company Birth event). Rejected bids see 80% stock value retained after 5 turns.',
+    stakeTiers:{
+      minor:'Bid announced publicly. You can sell into the premium.',
+      significant:'Rumours circulate 2–3 turns before formal bid. Position accordingly.',
+      controlling:'You control the outcome: A) Accept bid (lock in premium for all shareholders) B) Seek white knight (better bidder) C) Poison pill defense (block takeover, maintain independence)'
+    },
+    notification:{type:'neutral',icon:'🎯',text:'<strong>Takeover Bid Announced</strong><br>[Acquirer] makes unsolicited offer for [Company] at [X]% premium. Board reviewing.'},
+    impacts:[
+      {label:'Target stock',pct:85,dir:'pos'},
+      {label:'Acquirer stock',pct:40,dir:'neg'},
+      {label:'Sector M&A activity',pct:30,dir:'pos'},
+      {label:'Peer company valuations',pct:20,dir:'pos'},
+    ],
+    arc:[15,28,38,40,38,35,32,30,28,27,26,26,26,26,26],arcColor:'var(--blue)'
+  },
+  {
+    icon:'🏭',iconBg:'rgba(64,196,255,.15)',
+    name:'Natural Disaster at Facility',
+    brief:'Factory or mine destroyed — production halts 15 turns, insurance partially offsets',
+    prob:'3% per turn for industrial companies',dur:'30 turns total',type:'Temporary',sentiment:'Negative',
+    tagline:'Force majeure is not an excuse. The market still prices in your missing production.',
+    trigger:'Mining, manufacturing, energy companies. Probability scales with geographic concentration of operations.',
+    magnitude:'Production: -60 to -100% for 15 turns. Insurance pays 40–70% of replacement cost. Rebuild period: turns 16–30.',
+    recovery:'Rebuild complete by turn 30. New facility often more efficient. Long-term capacity unchanged.',
+    stakeTiers:{
+      minor:'Disaster announced publicly.',
+      significant:'Weather/geological data visible 3 turns in advance for some disaster types.',
+      controlling:'Choose response: A) Aggressive rebuild (faster, higher cost) B) Insurance-first (slower, lower cost) C) Relocate facility (longer, permanent improvement to operations)'
+    },
+    notification:{type:'negative',icon:'🏭',text:'<strong>Facility Incident</strong><br>Major incident at [Company] [facility type]. Production halted pending assessment. Insurance notified.'},
+    impacts:[
+      {label:'Production output',pct:85,dir:'neg'},
+      {label:'Company stock',pct:55,dir:'neg'},
+      {label:'Insurance recovery',pct:50,dir:'pos'},
+      {label:'Supply chain partners',pct:40,dir:'neg'},
+    ],
+    arc:[40,35,30,26,23,21,20,20,20,20,20,20,20,20,20,22,24,26,28,30,32,34,36,38,39,40,40,40,40,40],arcColor:'var(--blue)'
+  },
+  {
+    icon:'✂️',iconBg:'rgba(255,82,82,.15)',
+    name:'Dividend Cut',
+    brief:'Company slashes dividend — yield investors sell, stock drops 12% in one turn',
+    prob:'5% per turn when dividend payout ratio >50% and margins declining',dur:'20 turns',type:'Temporary',sentiment:'Negative',
+    tagline:'Income investors do not forgive easily. The dividend was the reason they were there.',
+    trigger:'Payout ratio exceeds 50% AND revenue declining AND cash reserves below 6 months of expenses.',
+    magnitude:'Stock: -10 to -15% in one turn as income investors exit. Takes 20 turns to rebuild investor confidence after stabilisation.',
+    recovery:'New income investors re-enter after 20 turns at lower yield/price point. Permanent new lower dividend level established.',
+    stakeTiers:{
+      minor:'Cut announced publicly with earnings.',
+      significant:'Cash flow trends visible in quarterly reports 2 turns before cut announced.',
+      controlling:'Choose: A) Maintain dividend (protect investor base, stress cash) B) Cut to sustainable level (pain now, stability later) C) Suspend dividend entirely (drastic but preserves all cash for turnaround)'
+    },
+    notification:{type:'negative',icon:'✂️',text:'<strong>Dividend Reduction Announced</strong><br>[Company] cuts quarterly dividend from $[X] to $[Y] per share. Board cites need to preserve capital.'},
+    impacts:[
+      {label:'Company stock',pct:65,dir:'neg'},
+      {label:'Income investor base',pct:80,dir:'neg'},
+      {label:'Cash preservation',pct:60,dir:'pos'},
+      {label:'Bond investor confidence',pct:25,dir:'neg'},
+    ],
+    arc:[40,35,32,30,29,28,27,27,27,27,28,29,30,31,32,33,34,35,36,37,38,40],arcColor:'var(--red)'
+  }
+];
+
+const BIRTH_MARKET = [
+  { icon:'🗺️',iconBg:'rgba(255,213,79,.15)',name:'New Region Unlocked',brief:'Previously closed market opens — 5 new companies become tradeable, early investors get founder pricing',prob:'3% per turn after turn 200',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'A door that was always closed just opened. The question is whether you walk through it first.',trigger:'Player reaches turn 200 AND has trading activity in 4+ existing regions.',magnitude:'5 new companies tradeable immediately at 15–20% below fair value for first 10 turns. New bond market opens. New commodity introduced.',recovery:'No recovery — this is permanent expansion of the game world. New region grows and matures over 50 turns.',notification:{type:'positive',icon:'🗺️',text:'<strong>New Market Opens</strong><br>Trade barriers removed. [Region] opens to international investors for the first time. 5 companies listing immediately.'},impacts:[{label:'New region stocks',pct:60,dir:'pos'},{label:'Adjacent region stocks',pct:20,dir:'pos'},{label:'Player opportunity',pct:95,dir:'pos'},{label:'Competition for assets',pct:40,dir:'neg'}],arc:[15,20,25,28,30,31,32,32,32,33,33,34,35,36,37,38,39,40,40,40],arcColor:'var(--gold)'},
+  { icon:'💎',iconBg:'rgba(64,196,255,.15)',name:'New Commodity Discovered',brief:'New raw material appears on commodity market — scarce and expensive, price drops as supply grows',prob:'5% per turn',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'The early buyers of lithium in 2010 do not need to tell you about it.',trigger:'Random. Probability increases during high mining activity periods.',magnitude:'New commodity starts at $500–2000/unit. Supply grows over 30 turns. Early buyers see 200–500% potential gains as industrial use cases develop.',recovery:'No recovery — permanent commodity addition. Price stabilises at mature level after 30 turns.',notification:{type:'positive',icon:'💎',text:'<strong>Resource Discovery</strong><br>New material with unique properties discovered. Industrial applications already emerging. Early demand forming.'},impacts:[{label:'New commodity price',pct:90,dir:'pos'},{label:'Mining sector',pct:50,dir:'pos'},{label:'Manufacturing inputs',pct:30,dir:'neg'},{label:'Related tech stocks',pct:40,dir:'pos'}],arc:[15,20,30,40,50,55,58,60,60,58,55,52,50,48,45,43,42,41,40,40],arcColor:'var(--blue)'},
+  { icon:'⚡',iconBg:'rgba(0,230,118,.15)',name:'New Sector Emerges',brief:'Breakthrough creates entirely new investable sector — 3 new companies list immediately',prob:'4% per turn when Jupiter or Neptune research progresses',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'New sectors are born not from planning but from breakthroughs nobody fully anticipated.',trigger:'Jupiter or Neptune research companies make breakthrough. Or player has completed Advanced Portfolio Theory Academy module.',magnitude:'3 new companies list simultaneously. High volatility in first 20 turns as market discovers fair value. Sector matures and P/E compresses over 50 turns.',recovery:'No recovery — permanent addition. Sector becomes established over 50 turns.',notification:{type:'positive',icon:'⚡',text:'<strong>New Sector Emerging</strong><br>Breakthrough technology creating entirely new industry. First companies listing. Analysts scrambling to build valuation models.'},impacts:[{label:'New sector stocks',pct:85,dir:'pos'},{label:'Adjacent sector stocks',pct:30,dir:'neg'},{label:'Research companies',pct:65,dir:'pos'},{label:'Traditional competitors',pct:45,dir:'neg'}],arc:[15,25,38,45,50,52,52,50,48,46,44,43,42,42,42,42,42,42,42,42],arcColor:'var(--green)'},
+  { icon:'📋',iconBg:'rgba(255,213,79,.15)',name:'New Government Bond Issued',brief:"New sovereign bond appears from a region that never had one — yield starts high, compresses as demand grows",prob:'4% per turn per eligible region',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'When a new country joins the bond market it signals maturity. Income investors take notice.',trigger:"Region has been active in equity markets for 50+ turns but has no bonds. Region's GDP growing consistently.",magnitude:'New bond issued at 12–18% yield (high risk premium). Yield compresses to 6–8% over 20 turns as demand and track record build.',recovery:'No recovery — permanent addition to bond market. Yield stabilises as credit rating is established.',notification:{type:'positive',icon:'📋',text:'<strong>Inaugural Bond Issue</strong><br>[Region] government issues first sovereign bond. High yield reflects frontier risk premium. Institutional interest forming.'},impacts:[{label:'New bond yield (initial)',pct:85,dir:'pos'},{label:'Yield over time',pct:60,dir:'neg'},{label:'Regional equity stocks',pct:20,dir:'pos'},{label:'Competing bond issues',pct:15,dir:'neg'}],arc:[85,80,72,65,58,52,48,44,41,38,36,34,32,30,29,28,27,26,26,26],arcColor:'var(--gold)'},
+  { icon:'🏛️',iconBg:'rgba(206,147,216,.15)',name:'New Exchange Opens',brief:'Stock exchange launches in underserved region — 3–5 companies list, extreme early volatility',prob:'3% per turn',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'New exchanges are chaotic at first. The patient investor waits for price discovery to settle.',trigger:'Region has strong economic growth (GDP +4%+) for 20 consecutive turns but limited capital market access.',magnitude:'3–5 companies list simultaneously. Price discovery creates ±25% daily swings for first 15 turns. Volatility compresses as institutional investors arrive.',recovery:'No recovery — permanent expansion. Exchange matures over 50 turns as regulatory framework and analyst coverage develops.',notification:{type:'neutral',icon:'🏛️',text:'<strong>New Exchange Launch</strong><br>[Exchange Name] opens for trading. 4 inaugural listings. High volatility expected as price discovery begins.'},impacts:[{label:'New exchange stocks',pct:70,dir:'pos'},{label:'Early volatility',pct:95,dir:'mix'},{label:'Regional economy',pct:40,dir:'pos'},{label:'Existing exchanges',pct:10,dir:'neg'}],arc:[20,35,45,42,38,35,33,31,30,29,29,29,30,30,30,31,31,32,32,33],arcColor:'var(--purple)'},
+  { icon:'🤝',iconBg:'rgba(0,230,118,.15)',name:'New Trade Agreement',brief:'Two regions sign deal — cross-regional companies get 15% revenue boost for 20 turns, permanent volume increase',prob:'5% per turn',dur:'20 turns + permanent trade improvement',type:'Semi-permanent',sentiment:'Positive',tagline:'Trade deals are slow to negotiate and fast to benefit from. Be in the right stocks before the signing.',trigger:'Two regions with high bilateral trade volume. Probability increases when both regions have growing GDP.',magnitude:'Cross-regional companies (operating in both): +15% revenue for 20 turns. Permanent 8% improvement in bilateral trade volume after deal period.',recovery:'No recovery needed — positive event. Trade flows normalise at higher permanent level after 20 turns.',notification:{type:'positive',icon:'🤝',text:'<strong>Trade Agreement Signed</strong><br>[Region A] and [Region B] sign landmark trade deal. Tariffs eliminated. Companies with bilateral exposure benefiting immediately.'},impacts:[{label:'Cross-regional stocks',pct:80,dir:'pos'},{label:'Domestic-only stocks',pct:25,dir:'neg'},{label:'Trade volume',pct:70,dir:'pos'},{label:'Consumer prices',pct:30,dir:'pos'}],arc:[15,20,25,28,30,31,32,32,32,32,32,32,32,32,32,32,32,32,32,33,35,36,37,38,40],arcColor:'var(--green)'},
+  { icon:'💱',iconBg:'rgba(64,196,255,.15)',name:'New Space Currency Launched',brief:'A planet reaches economic maturity and launches own currency — new forex pairs and arbitrage opens',prob:'5% per turn after relevant planet has 20+ companies active',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'When a planet gets its own currency, the interplanetary financial system just got more complex — and more interesting.',trigger:'Planet has 20+ active companies, significant trade volume with Earth, and player has unlocked that planet.',magnitude:'New forex pair appears (e.g. USD/MCR). Arbitrage opportunity: ±15% mispricing for 10 turns. Stabilises to fair value after market develops.',recovery:'No recovery — permanent forex pair. Exchange rate establishes fair value through market forces over 20 turns.',notification:{type:'positive',icon:'💱',text:'<strong>New Currency Launches</strong><br>[Planet] Credit officially tradeable as independent currency. First forex pair goes live. Arbitrage opportunities forming.'},impacts:[{label:'New currency pair',pct:70,dir:'pos'},{label:'Arbitrage opportunity',pct:90,dir:'pos'},{label:'Cross-planet trade',pct:50,dir:'pos'},{label:'Exchange rate stability',pct:40,dir:'neg'}],arc:[15,30,45,55,60,58,55,50,47,44,42,40,40,40,40,40,40,40,40,40],arcColor:'var(--blue)'},
+  { icon:'🔬',iconBg:'rgba(255,213,79,.15)',name:'New Technology Standard',brief:'Industry-wide standard adopted — compliant companies gain 8% margin advantage, resisters lose market share',prob:'4% per turn',dur:'25 turns',type:'Semi-permanent',sentiment:'Mixed',tagline:'Standards sound boring until you realise they determine who dominates the next decade.',trigger:'One company achieves >30% market share in a sector. Probability of standard formation increases.',magnitude:'Early adopters: +8% margin advantage for 25 turns. Non-adopters: -5% market share per turn for 15 turns. After 25 turns, all companies compliant.',recovery:'After 25 turns, all players compliant. Permanent new baseline established. Early adopters retain first-mover brand advantage.',notification:{type:'neutral',icon:'🔬',text:'<strong>Industry Standard Emerging</strong><br>Leading companies backing new [sector] protocol. Non-participants face growing market disadvantage.'},impacts:[{label:'Early adopter margins',pct:65,dir:'pos'},{label:'Late adopter market share',pct:55,dir:'neg'},{label:'Standard-setting company',pct:80,dir:'pos'},{label:'Consumer choice',pct:20,dir:'pos'}],arc:[15,20,25,28,30,31,32,32,32,31,30,29,28,27,27,27,27,28,29,30,31,32,33,35,36,38,40],arcColor:'var(--gold)'},
+  { icon:'🏗️',iconBg:'rgba(64,196,255,.15)',name:'Infrastructure Project',brief:'Major project connects two regions — construction surges during build, trade permanently improves after completion',prob:'5% per turn',dur:'30 turns build + permanent benefit',type:'Semi-permanent',sentiment:'Positive',tagline:'Infrastructure is the only investment that improves every other investment.',trigger:'Two regions with high trade potential but geographic/logistical barriers. Probability increases with player philanthropy activity.',magnitude:'Construction phase (turns 1–30): Construction stocks +25 to +35%. Completion: bilateral trade +15% permanently. Both region stocks +8% over 15 turns.',recovery:'No recovery — permanent infrastructure asset. Trade benefits are permanent. Construction companies cycle back to normal margins.',notification:{type:'positive',icon:'🏗️',text:'<strong>Infrastructure Project Announced</strong><br>Major [type] project connecting [Region A] and [Region B] commences. Multi-year construction beginning.'},impacts:[{label:'Construction sector',pct:85,dir:'pos'},{label:'Long-term trade volume',pct:70,dir:'pos'},{label:'Adjacent real estate',pct:40,dir:'pos'},{label:'Disruption during build',pct:30,dir:'neg'}],arc:[15,20,25,28,30,31,32,32,32,32,32,32,32,32,32,32,32,32,32,33,35,36,37,38,40,40,40,40,40,40],arcColor:'var(--blue)'},
+  { icon:'📊',iconBg:'rgba(0,230,118,.15)',name:'Regulatory Reform',brief:'Region simplifies tax/trading rules — capital inflows begin, that region rises 8% over 15 turns',prob:'4% per turn',dur:'15 turns inflow + permanent',type:'Semi-permanent',sentiment:'Positive',tagline:'Regulatory simplification sounds like accounting. The market treats it like an invitation.',trigger:'Region has high foreign investment barriers (tracked internally) AND player has reached Turn 300.',magnitude:'Regional stocks: +8% over 15 turns as capital inflows begin. New companies may list in reformed environment. Permanent improvement to regional investment attractiveness.',recovery:'No recovery — permanent improvement. Capital base in that region permanently higher after reform period.',notification:{type:'positive',icon:'📊',text:'<strong>Regulatory Reform Announced</strong><br>[Region] announces sweeping simplification of investment rules. Foreign capital inflows beginning.'},impacts:[{label:'Regional stocks',pct:65,dir:'pos'},{label:'Foreign investment',pct:75,dir:'pos'},{label:'Competing regions',pct:20,dir:'neg'},{label:'New company listings',pct:50,dir:'pos'}],arc:[15,18,21,24,26,28,29,30,30,30,31,31,32,32,33,34,35,36,37,38,39,40,40,40,40],arcColor:'var(--green)'}
+];
+
+const BIRTH_COMPANY = [
+  { icon:'✂️',iconBg:'rgba(206,147,216,.15)',name:'Spinoff',brief:'Company separates a division — players holding parent automatically receive spinoff shares',prob:'4% per turn for diversified companies',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'Two focused companies are worth more than one unfocused conglomerate. The market rewards clarity.',trigger:'Company has 3+ distinct business divisions AND operates in 2+ sectors.',magnitude:'Parent: -5 to -8% (loses division). Spinoff: lists at 15–25% below standalone fair value initially. Both appreciate over 20 turns as market discovers individual value.',recovery:'No recovery — permanent expansion. Two stocks where there was one. Combined value typically exceeds pre-spinoff parent over 30 turns.',notification:{type:'positive',icon:'✂️',text:'<strong>Spinoff Announced</strong><br>[Company] separating [Division] into independent listed entity. Shareholders receive [ratio] spinoff shares per share held.'},impacts:[{label:'Parent company focus',pct:50,dir:'pos'},{label:'Spinoff initial price',pct:40,dir:'neg'},{label:'Combined long-term value',pct:70,dir:'pos'},{label:'Market understanding',pct:60,dir:'pos'}],arc:[35,30,28,27,28,30,32,34,36,38,39,40,40,40,40,40,40,40,40,40],arcColor:'var(--purple)'},
+  { icon:'🚀',iconBg:'rgba(0,230,118,.15)',name:'IPO of Backed Startup',brief:'Startup player seeded goes public — seed stake converts to public shares, can be 10x or total flop',prob:'Per startup: fires when maturity reached (20–40 turns)',dur:'Permanent',type:'Permanent',sentiment:'Mixed',tagline:'IPO day is when the venture capital story meets the public market reality.',trigger:'Player has seed investment in startup AND startup has survived maturity turns AND market conditions are positive.',magnitude:'Strong market: IPO at 5–10x seed valuation. Weak market: IPO below seed valuation. Player stake converts to tradeable public shares.',recovery:'No recovery — permanent public company. Post-IPO performance follows normal market dynamics.',notification:{type:'positive',icon:'🚀',text:'<strong>IPO Launch</strong><br>[Startup] going public at [price] per share. Your seed stake of $[X] converts to [N] public shares valued at $[Y].'},impacts:[{label:'IPO price vs seed',pct:70,dir:'pos'},{label:'Sector peers',pct:20,dir:'neg'},{label:'VC fund stocks',pct:30,dir:'pos'},{label:'Lock-up period',pct:40,dir:'neg'}],arc:[15,25,38,45,50,52,52,50,48,46,44,43,42,42,42,42,42,42,42,42],arcColor:'var(--green)'},
+  { icon:'🤝',iconBg:'rgba(64,196,255,.15)',name:'Merger Completed',brief:'Two companies combine into one new entity — shares convert at agreed ratio, one ticker disappears',prob:'3% per turn for companies in same sector',dur:'Permanent',type:'Permanent',sentiment:'Mixed',tagline:'Mergers create one thing and destroy another. The question is whether you like the ratio.',trigger:'Two companies in same sector, one underperforming. Acquirer has excess cash (>20% of market cap).',magnitude:'Target: +25 to +40% on announcement. Acquirer: -5 to -10%. Combined entity trades 20 turns after merger close. Integration costs spike margins -5% for 15 turns.',recovery:'No recovery — permanent. Integration complete by turn 15. Combined entity typically stronger than either standalone.',notification:{type:'neutral',icon:'🤝',text:'<strong>Merger Completed</strong><br>[Company A] and [Company B] complete merger. New entity [Name] begins trading. Conversion ratio: [X] old shares = [Y] new shares.'},impacts:[{label:'Target premium',pct:85,dir:'pos'},{label:'Acquirer stock',pct:40,dir:'neg'},{label:'Integration costs',pct:50,dir:'neg'},{label:'Combined market position',pct:65,dir:'pos'}],arc:[30,38,40,38,35,32,30,28,27,27,27,28,29,30,32,34,36,38,39,40],arcColor:'var(--blue)'},
+  { icon:'🏭',iconBg:'rgba(255,213,79,.15)',name:'Joint Venture Listed',brief:"Two companies' JV becomes independently tradeable — parent holders get priority access",prob:'4% per turn when two complementary companies hold 50%+ combined sector',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'When two strong companies combine their strengths in a single focused entity, something interesting is created.',trigger:'Two companies in complementary sectors have been operating in the same market for 20+ turns.',magnitude:'JV lists at fair value after 10 turns of operation. Parent holders get 20% priority allocation at listing price.',recovery:'No recovery — permanent new entity. JV grows independently. Both parents benefit from upstream relationships.',notification:{type:'positive',icon:'🏭',text:'<strong>Joint Venture Listing</strong><br>[Company A]/[Company B] joint venture [JV Name] listing on exchange. Parent shareholders receive priority allocation.'},impacts:[{label:'JV initial value',pct:60,dir:'pos'},{label:'Parent companies',pct:35,dir:'pos'},{label:'Sector competition',pct:40,dir:'neg'},{label:'Combined capability',pct:70,dir:'pos'}],arc:[15,18,22,26,28,30,30,30,30,31,31,32,32,33,34,35,36,37,38,40],arcColor:'var(--gold)'},
+  { icon:'📝',iconBg:'rgba(0,230,118,.15)',name:'Bond Debut',brief:'Company issues bonds for the first time — yield starts high, compresses as demand builds',prob:'6% per turn for profitable companies without existing bonds',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:"A company that can borrow has options. A company that cannot, doesn't.",trigger:'Company profitable for 10+ turns AND no existing bond issuance AND meets minimum size threshold.',magnitude:'Bond issued at market yield +2 to +4% (new issuer premium). Yield compresses 1.5–2% over 10 turns as track record builds.',recovery:'No recovery — permanent addition. Debt capacity improves company financial flexibility permanently.',notification:{type:'positive',icon:'📝',text:'<strong>Inaugural Bond Issue</strong><br>[Company] enters debt markets for first time. $[X]M at [Y]% coupon. New issuer premium expected to compress quickly.'},impacts:[{label:'Company financial flexibility',pct:65,dir:'pos'},{label:'Initial yield',pct:75,dir:'neg'},{label:'Long-term yield',pct:40,dir:'neg'},{label:'Equity valuation',pct:20,dir:'pos'}],arc:[75,70,65,60,56,52,48,45,42,40,38,37,36,36,36,36,36,36,36,36],arcColor:'var(--green)'},
+  { icon:'🔍',iconBg:'rgba(206,147,216,.15)',name:'New Subsidiary Listed',brief:'Company lists a subsidiary separately — targeted sector exposure now available for investors',prob:'4% per turn for large conglomerate companies',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'Some investors want the whole company. Some investors want just the best part of it. Now they have a choice.',trigger:'Large company (market cap >$20B) with identifiable high-growth division representing 20–40% of total value.',magnitude:'Subsidiary lists at slight premium to implied standalone value. Parent retains controlling stake. Both trade independently.',recovery:'No recovery — permanent two-security structure. Subsidiary may eventually become independent if parent reduces stake.',notification:{type:'positive',icon:'🔍',text:'<strong>Subsidiary Listing</strong><br>[Company] subsidiary [Sub Name] lists independently. Targeted [sector] exposure now available.'},impacts:[{label:'Subsidiary initial value',pct:55,dir:'pos'},{label:'Parent company value',pct:25,dir:'pos'},{label:'Investor choice',pct:80,dir:'pos'},{label:'Management complexity',pct:20,dir:'neg'}],arc:[15,20,24,26,28,29,30,30,30,30,30,30,31,31,32,32,33,34,35,36],arcColor:'var(--purple)'},
+  { icon:'💡',iconBg:'rgba(0,230,118,.15)',name:'Breakthrough Product Launch',brief:"Company enters entirely new category — P/E re-rates upward, competitors' stocks dip 8–12%",prob:'6% per turn for high-R&D companies',dur:'Permanent uplift',type:'Permanent',sentiment:'Positive',tagline:'Category creation is the most valuable thing a company can do. Second place copies. First place defines.',trigger:'Company R&D spend >10% of revenue for 15+ turns. Breakthrough probability accumulates over time.',magnitude:'Company stock: +25 to +40% as P/E re-rates. Competitors in new category: -8 to -12%. Permanent new revenue stream.',recovery:'No recovery — permanent improvement. Company now competes in two categories. Complexity increases with scale.',notification:{type:'positive',icon:'💡',text:'<strong>Category-Defining Launch</strong><br>[Company] announces breakthrough [product]. First in new category. Analysts revising estimates significantly upward.'},impacts:[{label:'Company P/E re-rating',pct:80,dir:'pos'},{label:'Competitor stocks',pct:55,dir:'neg'},{label:'New sector demand',pct:60,dir:'pos'},{label:'R&D pipeline value',pct:45,dir:'pos'}],arc:[15,22,30,37,42,44,44,43,43,42,42,42,43,43,44,44,45,45,46,46],arcColor:'var(--green)'},
+  { icon:'🏰',iconBg:'rgba(64,196,255,.15)',name:'Acquisition Completed',brief:'Company acquires unlisted entity — revenue grows 10–20%, integration costs spike for 10 turns',prob:'5% per turn for cash-rich companies',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'Growth by acquisition is faster than organic growth — if you can make the cultures work.',trigger:'Company has cash >25% of market cap AND has been profitable for 20 consecutive turns.',magnitude:'Revenue: +10 to +20% permanent from acquisition. Integration costs: -5% margin for 10 turns. If integration fails: -8% margin permanent.',recovery:'No recovery — permanent new business. Integration success probability: 65%. Full benefit realised by turn 15.',notification:{type:'neutral',icon:'🏰',text:'<strong>Acquisition Announced</strong><br>[Company] acquires [Target] for $[X]. Adds [capability/market] immediately. Integration begins.'},impacts:[{label:'Revenue growth',pct:70,dir:'pos'},{label:'Integration costs',pct:55,dir:'neg'},{label:'Market position',pct:60,dir:'pos'},{label:'Culture integration risk',pct:40,dir:'neg'}],arc:[30,28,27,27,27,28,29,30,32,34,36,38,39,40,40,41,41,42,42,42],arcColor:'var(--blue)'},
+  { icon:'👑',iconBg:'rgba(255,213,79,.15)',name:'Founder Returns',brief:'Original founder returns as CEO — stock surges 20%, R&D increases, long-term growth trajectory improves',prob:'3% per turn when stock is 30%+ below all-time high',dur:'Permanent',type:'Permanent',sentiment:'Positive',tagline:'The founder who built it knows what went wrong. The market prices that knowledge immediately.',trigger:'Company is 30%+ below all-time high AND original founder is not currently CEO AND company is 10+ turns old.',magnitude:'Stock: +15 to +25% over 5 turns on announcement. R&D spend increases +3% of revenue. Long-term growth rate improves permanently.',recovery:'No recovery — permanent leadership change. Founder turnaround typically takes 20 turns to fully manifest in financials.',notification:{type:'positive',icon:'👑',text:'<strong>Founder Returns</strong><br>[Founder Name] returning as CEO of [Company]. Board announces immediately. Market responding enthusiastically.'},impacts:[{label:'Company stock',pct:75,dir:'pos'},{label:'Employee retention',pct:60,dir:'pos'},{label:'R&D investment',pct:70,dir:'pos'},{label:'Short-term margins',pct:30,dir:'neg'}],arc:[15,22,28,33,36,38,39,40,40,40,40,41,41,42,42,43,43,44,44,45],arcColor:'var(--gold)'},
+  { icon:'🏛️',iconBg:'rgba(255,82,82,.15)',name:'Government Nationalisation',brief:'Government acquires controlling stake — player stake diluted but guaranteed, lower risk/lower upside permanently',prob:'2% per turn for strategic-sector companies in economic crisis',dur:'Permanent',type:'Permanent',sentiment:'Mixed',tagline:'The government owns it now. Your money is safe but your upside is capped.',trigger:'Company in strategic sector (energy, infrastructure, banking) AND regional economic crisis active.',magnitude:'Government acquires 51%+ stake. Player stake diluted. Guaranteed minimum floor price. Growth capped. Dividend guaranteed at 3–4% regardless of performance.',recovery:'No recovery — permanent ownership change. Company operates with government backing permanently.',notification:{type:'neutral',icon:'🏛️',text:'<strong>Nationalisation Announced</strong><br>Government acquires controlling stake in [Company]. Existing shareholders guaranteed floor price. New management appointed.'},impacts:[{label:'Shareholder value floor',pct:70,dir:'pos'},{label:'Growth upside',pct:80,dir:'neg'},{label:'Default risk',pct:90,dir:'neg'},{label:'Strategic certainty',pct:60,dir:'pos'}],arc:[40,38,36,35,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34],arcColor:'var(--red)'}
+];
+
+// ── RENDER GRIDS ────────────────────────────────────────────────────────────
+
+function renderGrid(data, containerId, typeLabel, accentColor) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = data.map((e, i) => `
+    <div class="event-card" onclick="openPopup(${JSON.stringify(containerId)}, ${i})" style="border-left:3px solid ${accentColor}20">
+      <div class="event-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="event-icon" style="background:${e.iconBg}">${e.icon}</div>
+      <div class="event-main">
+        <div class="event-name">${e.name}</div>
+        <div class="event-brief">${e.brief}</div>
+        <div class="event-tags">
+          <span class="etag etag-prob">⏱ ${e.prob}</span>
+          <span class="etag etag-dur">${e.dur}</span>
+          <span class="etag ${e.type==='Permanent'?'etag-perm':e.type.includes('Semi')?'etag-gold':e.type.includes('Long')?'etag-pos':'etag-temp'}">${e.type}</span>
+          <span class="etag ${e.sentiment==='Positive'?'etag-pos':e.sentiment==='Negative'?'etag-neg':'etag-mix'}">${e.sentiment}</span>
+        </div>
+      </div>
+      <div class="event-arrow">›</div>
+    </div>
+  `).join('');
+}
+
+const DATASETS = {
+  'grid-market': {data: MARKET_EVENTS, color:'var(--blue)'},
+  'grid-company': {data: COMPANY_EVENTS, color:'var(--green)'},
+  'grid-birth-market': {data: BIRTH_MARKET, color:'var(--gold)'},
+  'grid-birth-company': {data: BIRTH_COMPANY, color:'var(--purple)'}
+};
+
+Object.entries(DATASETS).forEach(([id, cfg]) => renderGrid(cfg.data, id, '', cfg.color));
+
+// ── POPUP ────────────────────────────────────────────────────────────────────
+
+let curDataset = null;
+let curIdx = 0;
+
+function openPopup(gridId, idx) {
+  const ds = DATASETS[gridId];
+  curDataset = gridId;
+  curIdx = idx;
+  const e = ds.data[idx];
+  const color = ds.color;
+
+  // Header
+  document.getElementById('pop-icon-wrap').style.background = e.iconBg;
+  document.getElementById('pop-icon').textContent = e.icon;
+  document.getElementById('pop-type').textContent = 'Random Event · ' + (gridId.includes('market') && !gridId.includes('birth') ? 'Type 1 — Market' : gridId.includes('company') && !gridId.includes('birth') ? 'Type 2 — Company' : gridId.includes('birth-market') ? 'Type 3A — Market Birth' : 'Type 3B — Company Birth');
+  document.getElementById('pop-name').textContent = e.name;
+  document.getElementById('pop-tagline').textContent = e.tagline;
+
+  // Stats
+  document.getElementById('pop-stats').innerHTML = `
+    <div class="pstat"><div class="pstat-v" style="color:${color}">${e.prob}</div><div class="pstat-l">Probability</div></div>
+    <div class="pstat"><div class="pstat-v" style="color:${color}">${e.dur}</div><div class="pstat-l">Duration</div></div>
+    <div class="pstat"><div class="pstat-v" style="color:${e.sentiment==='Positive'?'var(--green)':e.sentiment==='Negative'?'var(--red)':'var(--gold)'}">${e.sentiment}</div><div class="pstat-l">Sentiment</div></div>
+  `;
+
+  // Content
+  let html = '';
+
+  // Notification
+  html += `<div class="popup-notif pn-${e.notification.type}">
+    <div class="pn-icon">${e.notification.icon}</div>
+    <div class="pn-text">${e.notification.text}</div>
+  </div>`;
+
+  // Trigger
+  html += `<div class="psect">
+    <div class="psect-title">🎯 Trigger Condition</div>
+    <div class="psect-body">${e.trigger}</div>
+  </div>`;
+
+  // Impact bars
+  if (e.impacts) {
+    html += `<div class="psect"><div class="psect-title">📊 Sector Impact</div>`;
+    e.impacts.forEach(imp => {
+      const fillClass = imp.dir==='pos'?'fill-green':imp.dir==='neg'?'fill-red':'fill-gold';
+      const pctLabel = (imp.dir==='pos'?'+':imp.dir==='neg'?'-':'±') + imp.pct + '%';
+      html += `<div class="impact-row">
+        <div class="impact-label">${imp.label}</div>
+        <div class="impact-bar"><div class="impact-fill ${fillClass}" style="width:${imp.pct}%"></div></div>
+        <div class="impact-pct" style="color:${imp.dir==='pos'?'var(--green)':imp.dir==='neg'?'var(--red)':'var(--gold)'}">${pctLabel}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Magnitude
+  html += `<div class="psect">
+    <div class="psect-title">⚡ Magnitude</div>
+    <div class="psect-body">${e.magnitude}</div>
+  </div>`;
+
+  // Recovery
+  html += `<div class="psect">
+    <div class="psect-title">🔄 Recovery Arc</div>
+    <div class="psect-body" style="margin-bottom:10px">${e.recovery}</div>
+    ${renderArc(e.arc, e.arcColor)}
+  </div>`;
+
+  // Controlling stake (company events only)
+  if (e.stakeTiers) {
+    html += `<div class="psect">
+      <div class="psect-title">⚡ Controlling Stake — Your Options</div>
+      <div class="stake-tiers">
+        <div class="stake-tier st1">
+          <div class="stake-pct" style="color:var(--t3)">1–4.9%</div>
+          <div class="stake-desc">${e.stakeTiers.minor}</div>
+        </div>
+        <div class="stake-tier st2">
+          <div class="stake-pct" style="color:var(--gold)">5–24.9%</div>
+          <div class="stake-desc">${e.stakeTiers.significant}</div>
+        </div>
+        <div class="stake-tier st3">
+          <div class="stake-pct" style="color:var(--green)">25%+</div>
+          <div class="stake-desc">${e.stakeTiers.controlling}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Governor note
+  html += `<div style="background:rgba(255,213,79,.05);border:1px solid rgba(255,213,79,.12);border-radius:var(--rs);padding:12px;margin-top:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">⚖️ Governor Constraint</div>
+    <div style="font-size:12px;color:var(--t3);line-height:1.5">This event operates within all Economic Governor bounds. P/E remains 5–50x. Net income cannot exceed revenue. T-Bills cannot go negative. Price changes capped at ±8% per turn.</div>
+  </div>`;
+
+  document.getElementById('pop-content').innerHTML = html;
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('popup').scrollTop = 0;
+}
+
+function renderArc(arc, color) {
+  if (!arc) return '';
+  const max = Math.max(...arc);
+  const bars = arc.map(v => {
+    const h = Math.max(4, Math.round((v / max) * 44));
+    const opacity = v === 0 ? 0.1 : 0.7 + (v/max)*0.3;
+    return `<div class="arc-bar" style="height:${h}px;background:${color};opacity:${opacity}"></div>`;
+  }).join('');
+  return `<div class="arc">${bars}</div><div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--t3)">Event start</span><span style="font-size:10px;color:var(--t3)">→ Recovery</span></div>`;
+}
+
+function closePopup(e) {
+  if (e.target === document.getElementById('overlay')) {
+    document.getElementById('overlay').classList.remove('on');
+  }
+}
+
+function closePopupBtn() {
+  document.getElementById('overlay').classList.remove('on');
+}
+
+// ── TABS ────────────────────────────────────────────────────────────────────
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('on'));
+  document.getElementById('s-'+id).classList.add('on');
+  // Find matching tab
+  const tabMap = {overview:0,market:1,company:2,'birth-market':3,'birth-company':4,chains:5,governor:6};
+  const tabs = document.querySelectorAll('.tab');
+  tabs[tabMap[id]]?.classList.add('on');
+}
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.getElementById('overlay').classList.remove('on');
+});
+</script>
+</body>
+</html>

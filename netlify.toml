@@ -1,0 +1,18 @@
+[build]
+  publish = "cosmos-deploy"
+  command = "npm run build && node build-standalone.mjs"
+
+[context.production]
+  publish = "cosmos-deploy"
+
+[context.development]
+  publish = "cosmos-deploy"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  publish = "cosmos-deploy"
+  command = "npm run build && node build-standalone.mjs"

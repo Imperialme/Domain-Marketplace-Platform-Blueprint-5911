@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Raider — Earth</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --g900:#0A2E14;--g800:#1B5E20;--g700:#2E7D32;--g600:#388E3C;--g500:#43A047;--g400:#66BB6A;--g100:#E8F5E9;--g50:#F1F8F2;
+  --red:#E53935;--redl:#FFEBEE;--gold:#F9A825;--goldl:#FFF8E1;--blue:#1565C0;--bluel:#E3F2FD;
+  --bg:#F0F4F0;--card:#fff;--t1:#0D1B0F;--t2:#4A6550;--t3:#8FAD94;--bd:#E0EBE2;
+  --r:16px;--rs:10px;--rx:6px;
+  --s1:0 1px 4px rgba(27,94,32,.07);--s2:0 4px 16px rgba(27,94,32,.11);--s3:0 8px 32px rgba(27,94,32,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:#0f172a;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+.title{color:white;font-size:18px;font-weight:800;margin-bottom:3px;text-align:center}
+.subtitle{color:#64748b;font-size:11px;margin-bottom:12px;text-align:center}
+.nav-pills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:12px;max-width:420px}
+.np{padding:5px 11px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.np.on{background:var(--g600);color:white;border-color:var(--g600)}
+.device{width:390px;background:var(--bg);border-radius:36px;overflow:hidden;position:relative;box-shadow:0 40px 100px rgba(0,0,0,.7),inset 0 0 0 1.5px rgba(255,255,255,.07)}
+.scr{display:none;flex-direction:column;min-height:780px;background:var(--bg);padding-bottom:72px}
+.scr.on{display:flex}
+.sbar{background:var(--card);padding:14px 20px 8px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--t1);flex-shrink:0}
+.ticker-wrap{background:var(--g900);padding:6px 0;overflow:hidden;flex-shrink:0}
+.ticker-inner{display:flex;gap:28px;animation:tick 22s linear infinite;white-space:nowrap;width:max-content}
+@keyframes tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ti{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:5px}
+.ti .u{color:#69F0AE}.ti .d{color:#FF5252}
+.ph{background:var(--card);padding:14px 18px 12px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.back{width:32px;height:32px;background:var(--g50);border:1.5px solid var(--g100);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--g700)}
+.pt{font-size:22px;font-weight:800;color:var(--t1);letter-spacing:-.5px}
+.ps{font-size:12px;color:var(--t3);margin-top:2px}
+.sb{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.sb::-webkit-scrollbar{display:none}
+.nav{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;padding:8px 0 18px;z-index:50}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.ni .ico{font-size:20px;transition:transform .2s}
+.ni .lbl{font-size:10px;font-weight:600;color:var(--t3)}
+.ni.on .lbl{color:var(--g600)}
+.ni.on .ico{transform:scale(1.15)}
+.card{background:var(--card);border-radius:var(--r);padding:16px;box-shadow:var(--s1);border:1px solid var(--bd)}
+.hero{background:linear-gradient(135deg,var(--g800),var(--g500));border-radius:var(--r);padding:20px;color:white;position:relative;overflow:hidden;box-shadow:var(--s3)}
+.hero::before{content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;background:rgba(255,255,255,.05);border-radius:50%}
+.hero-lbl{font-size:11px;font-weight:600;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.hero-amt{font-family:'Playfair Display',serif;font-size:40px;font-weight:800;line-height:1;position:relative;z-index:1}
+.hero-chg{font-size:13px;font-weight:600;opacity:.9;margin-top:5px;position:relative;z-index:1}
+.hero-row{display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15);position:relative;z-index:1}
+.hri .hl{font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px}
+.hri .hv{font-size:12px;font-weight:700;margin-top:2px;font-family:'DM Mono',monospace}
+.eco-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.eg{background:var(--card);border-radius:var(--rs);padding:10px 8px;text-align:center;border:1px solid var(--bd)}
+.eg .el{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.eg .ev{font-size:14px;font-weight:700;margin-top:3px;font-family:'DM Mono',monospace}
+.ev.up{color:var(--g600)}.ev.warn{color:var(--gold)}.ev.nt{color:var(--t1)}
+.sim{background:var(--card);border-radius:var(--r);padding:14px 16px;border:1px solid var(--bd)}
+.sim-row{display:flex;gap:8px}
+.btn-play{flex:1.2;background:var(--g600);color:white;border:none;border-radius:var(--rs);padding:11px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-mo{flex:1;background:var(--g50);color:var(--g700);border:1.5px solid var(--g400);border-radius:var(--rs);padding:11px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.pills{display:flex;gap:6px;margin-top:8px}
+.pill{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--bd);color:var(--t3);cursor:pointer}
+.pill.on{background:var(--g800);color:white;border-color:var(--g800)}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.st{font-size:16px;font-weight:700;color:var(--t1)}
+.sa{font-size:12px;font-weight:600;color:var(--g600);cursor:pointer}
+.hi{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd);cursor:pointer;gap:11px}
+.hi:last-child{border-bottom:none}
+.hi:active{background:var(--g50)}
+.htk{width:42px;height:42px;background:var(--g50);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--g700);letter-spacing:.5px;flex-shrink:0;border:1px solid var(--g100)}
+.hinfo{flex:1}.hn{font-size:13px;font-weight:600;color:var(--t1)}.hsb{font-size:11px;color:var(--t3);margin-top:1px}
+.hr{text-align:right}.hval{font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--t1)}
+.hpnl{font-size:12px;font-weight:600;margin-top:2px;font-family:'DM Mono',monospace}
+.hpnl.up{color:var(--g500)}.hpnl.dn{color:var(--red)}
+.badge{display:inline-flex;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Mono',monospace}
+.badge.up{background:var(--g100);color:var(--g700)}.badge.dn{background:var(--redl);color:var(--red)}
+.fs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.fs::-webkit-scrollbar{display:none}
+.fc{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--bd);color:var(--t2);cursor:pointer;white-space:nowrap;background:var(--card)}
+.fc.on{background:var(--g800);color:white;border-color:var(--g800)}
+.br{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd)}
+.br:last-child{border-bottom:none}
+.br .bl{font-size:13px;color:var(--t2)}.br .bv{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--t1)}
+.br.bt .bl{font-weight:700;color:var(--t1);font-size:14px}.br.bt .bv{color:var(--g600);font-size:15px}
+.tax-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd)}
+.tax-row:last-child{border-bottom:none}
+.tax-lbl{font-size:13px;color:var(--t2)}.tax-rate{font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:var(--red)}
+.tax-amt{font-size:12px;color:var(--t3);margin-top:2px;font-family:'DM Mono',monospace}
+.cycle-card{border-radius:var(--r);padding:16px;border:1px solid;position:relative;overflow:hidden}
+.cycle-active{background:var(--g50);border-color:var(--g200,#A5D6A7)}
+.cycle-bar{height:6px;background:var(--bd);border-radius:3px;margin-top:10px;overflow:hidden}
+.cycle-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--g600),var(--g400))}
+.nitem{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid var(--bd)}
+.nitem:last-child{border-bottom:none}
+.nacc{width:3px;border-radius:2px;flex-shrink:0;align-self:stretch}
+.nacc.up{background:var(--g400)}.nacc.dn{background:var(--red)}.nacc.nt{background:var(--gold)}.nacc.ps{background:#7986CB}
+.ncat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--t3)}
+.nhl{font-size:13px;font-weight:600;color:var(--t1);margin-top:3px;line-height:1.4}
+.ndesc{font-size:11px;color:var(--t3);margin-top:3px;line-height:1.5}
+.yni{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid var(--bd)}
+.yni:last-child{border-bottom:none}
+.ynicon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ynicon.div{background:var(--g100)}.ynicon.fx{background:#E8EAF6}.ynicon.ach{background:var(--goldl)}.ynicon.tax{background:var(--redl)}.ynicon.gsf{background:var(--bluel)}
+.ynt{font-size:13px;font-weight:600;color:var(--t1)}
+.ynd{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.5}
+.yna{font-size:13px;font-weight:700;color:var(--g600);font-family:'DM Mono',monospace;margin-top:3px}
+.yna.red{color:var(--red)}
+.bst{display:flex;background:var(--bd);border-radius:var(--rs);padding:3px}
+.bstb{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;border-radius:8px;cursor:pointer;border:none;background:transparent;color:var(--t3);font-family:'DM Sans',sans-serif}
+.bstb.abuy{background:var(--g600);color:white}
+.bstb.asel{background:var(--red);color:white}
+.funds-card{background:linear-gradient(135deg,#E8F5E9,#F1F8F2);border:1.5px solid var(--g100);border-radius:var(--rs);padding:14px 16px}
+.qt{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px}
+.qtb{padding:10px 4px;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;text-align:center;border:none}
+.qtb.qbuy{background:var(--g100);color:var(--g800)}
+.qtb.qball{background:var(--g600);color:white}
+.qtb.qsel{background:var(--redl);color:var(--red)}
+.qtb.qsall{background:var(--red);color:white}
+.pos-item{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd);gap:10px}
+.pos-item:last-child{border-bottom:none}
+.close-btn{background:var(--redl);color:var(--red);border:1px solid var(--red);border-radius:var(--rx);padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer}
+.donation-opt{background:var(--bg);border:1.5px solid var(--bd);border-radius:var(--rs);padding:13px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px}
+.donation-opt:active{border-color:var(--g500);background:var(--g50)}
+.gsf-card{background:linear-gradient(135deg,var(--bluel),#E8EAF6);border:1.5px solid #BBDEFB;border-radius:var(--r);padding:16px}
+.notification-banner{background:linear-gradient(135deg,var(--g800),var(--g700));border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--card);border-bottom:1px solid var(--bd);cursor:pointer}
+.set-row:first-of-type{border-radius:var(--rs) var(--rs) 0 0}
+.set-row:last-of-type{border-radius:0 0 var(--rs) var(--rs);border-bottom:none}
+.toggle{width:44px;height:24px;background:var(--g600);border-radius:12px;position:relative;cursor:pointer}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:3px;right:3px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.off{background:var(--bd)}.toggle.off::after{right:23px}
+.sbw{margin-bottom:10px}
+.sbh{display:flex;justify-content:space-between;margin-bottom:4px}
+.sbt{height:6px;background:var(--bd);border-radius:3px;overflow:hidden}
+.sbf{height:100%;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="title">🌍 Global Raider — Earth</div>
+<p class="subtitle">Complete Earth dimension · All systems · Green theme</p>
+<div class="nav-pills">
+  <button class="np on" onclick="go('dashboard')">🏠 Dashboard</button>
+  <button class="np" onclick="go('market')">📊 Market</button>
+  <button class="np" onclick="go('trade')">⇄ Trade</button>
+  <button class="np" onclick="go('portfolio')">💼 Portfolio</button>
+  <button class="np" onclick="go('news')">📰 News</button>
+  <button class="np" onclick="go('tax')">💸 Tax System</button>
+  <button class="np" onclick="go('charity')">❤️ Philanthropy</button>
+  <button class="np" onclick="go('gsf')">🏛️ Sovereign Fund</button>
+  <button class="np" onclick="go('bonds')">📋 Bonds</button>
+  <button class="np" onclick="go('settings')">⚙️ Settings</button>
+</div>
+<div class="device">
+
+<!-- DASHBOARD -->
+<div class="scr on" id="s-dashboard">
+  <div class="sbar"><span>9:41</span><span style="font-size:14px;font-weight:800">🌐 Global Raider</span><span style="display:flex;gap:8px"><span onclick="go('settings')" style="cursor:pointer">⚙️</span><span>5G</span></span></div>
+  <div class="ticker-wrap"><div class="ticker-inner" id="ticker-el"></div></div>
+  <!-- Cross-dimension notification banner -->
+  <div style="padding:10px 14px 0;background:var(--card)">
+    <div class="notification-banner" onclick="alert('Switching to Solar System...')">
+      <span style="font-size:18px">🔴</span>
+      <div style="flex:1"><div style="font-size:12px;font-weight:700;color:white">Mars Alert: LTH +18% this turn</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px">Your space holding +$2.4M — tap to view</div></div>
+      <span style="color:rgba(255,255,255,.6);font-size:14px">›</span>
+    </div>
+  </div>
+  <div class="sb">
+    <div class="hero">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+        <div><div class="hero-lbl">Total Net Worth</div><div class="hero-amt">$7.48B</div><div class="hero-chg">📈 +$84.7M (+1.1%) · Earth + Space</div></div>
+        <div style="text-align:right"><div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.5px">Earth Worth</div><div style="font-size:14px;font-weight:700;margin-top:2px;font-family:'DM Mono',monospace">$6.64B</div><div style="font-size:10px;opacity:.6;margin-top:2px">Space: $842M</div></div>
+      </div>
+      <div class="hero-row">
+        <div class="hri"><div class="hl">Cash</div><div class="hv">$94M</div></div>
+        <div class="hri"><div class="hl">Stocks</div><div class="hv">$6.55B</div></div>
+        <div class="hri"><div class="hl">Bonds</div><div class="hv">$210M</div></div>
+        <div class="hri"><div class="hl">GSF</div><div class="hv">$50M</div></div>
+      </div>
+    </div>
+    <!-- Tax cycle indicator -->
+    <div class="cycle-card cycle-active" style="border-color:var(--g400)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:11px;font-weight:700;color:var(--g700);text-transform:uppercase;letter-spacing:.5px">Tax Cycle: Standard Era</div><div style="font-size:12px;color:var(--t2);margin-top:3px">Base rates apply · 23 turns until High Tax Era</div></div>
+        <div onclick="go('tax')" style="font-size:12px;font-weight:600;color:var(--g600);cursor:pointer">Details →</div>
+      </div>
+      <div class="cycle-bar"><div class="cycle-fill" style="width:62%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px"><span>Turn 37 / 60</span><span style="color:var(--gold)">⚠️ High Tax in 23 turns</span></div>
+    </div>
+    <div class="eco-grid">
+      <div class="eg"><div class="el">GDP</div><div class="ev up">+2.5%</div></div>
+      <div class="eg"><div class="el">Rate</div><div class="ev nt">4.98%</div></div>
+      <div class="eg"><div class="el">Index</div><div class="ev nt">38,167</div></div>
+      <div class="eg"><div class="el">CPI</div><div class="ev warn">5.1%</div></div>
+    </div>
+    <div class="sim">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:13px;font-weight:600;color:var(--t2)">⏱ Auto-Simulation</span><span style="font-size:11px;color:var(--t3)">10s per turn</span></div>
+      <div class="sim-row"><button class="btn-play">▶ Play</button><button class="btn-mo">+1 Month</button><button class="btn-mo" style="flex:.7">+3 Mo</button></div>
+      <div class="pills"><div class="pill on" onclick="pill(this)">10s</div><div class="pill" onclick="pill(this)">20s</div><div class="pill" onclick="pill(this)">30s</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="go('charity')"><div style="font-size:20px">❤️</div><div style="font-size:12px;font-weight:600;color:var(--t2)">Philanthropy</div><div style="font-size:10px;color:var(--t3)">Tax: -20% available</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="go('gsf')"><div style="font-size:20px">🏛️</div><div style="font-size:12px;font-weight:600;color:var(--t2)">Sovereign Fund</div><div style="font-size:10px;color:var(--g600)">+1.04% this turn</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="go('bonds')"><div style="font-size:20px">📋</div><div style="font-size:12px;font-weight:600;color:var(--t2)">Bond Market</div><div style="font-size:10px;color:var(--t3)">6 regions available</div></div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="go('tax')"><div style="font-size:20px">💸</div><div style="font-size:12px;font-weight:600;color:var(--t2)">Tax Summary</div><div style="font-size:10px;color:var(--red)">$142M paid today</div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Top Holdings</div><div class="sa" onclick="go('portfolio')">See All →</div></div>
+      <div class="hi"><div class="htk">SLKT</div><div class="hinfo"><div class="hn">Silk Road Tech</div><div class="hsb">10.17M shares</div></div><div class="hr"><div class="hval">$3.55B</div><div class="hpnl up">+$2.19B (+161%)</div></div></div>
+      <div class="hi"><div class="htk" style="background:#FFF8E1;border-color:#FFE082;color:#F57F17">BTC</div><div class="hinfo"><div class="hn">Bitcoin</div><div class="hsb">8.6 BTC</div></div><div class="hr"><div class="hval">$2.14M</div><div class="hpnl dn">-$120K (-5.3%)</div></div></div>
+      <div class="hi"><div class="htk" style="background:var(--bluel);border-color:#BBDEFB;color:var(--blue);font-size:8px">US 10Y</div><div class="hinfo"><div class="hn">US Treasury 10Y Bond</div><div class="hsb">4.5% yield · Matures 2154</div></div><div class="hr"><div class="hval">$210M</div><div class="hpnl up">+4.5%/yr</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni on" onclick="go('dashboard')"><div class="ico">🏠</div><div class="lbl">Dashboard</div></div><div class="ni" onclick="go('market')"><div class="ico">📊</div><div class="lbl">Market</div></div><div class="ni" onclick="go('trade')"><div class="ico">⇄</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">💼</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">📰</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- MARKET -->
+<div class="scr" id="s-market">
+  <div class="ph"><div><div class="pt">Market</div><div class="ps">Earth · 6 regions · 30+ companies</div></div></div>
+  <div class="sb">
+    <div class="fs"><div class="fc on" onclick="chip(this)">All Regions</div><div class="fc" onclick="chip(this)">United States</div><div class="fc" onclick="chip(this)">Europe</div><div class="fc" onclick="chip(this)">Asia Pacific</div><div class="fc" onclick="chip(this)">Africa 🆕</div><div class="fc" onclick="chip(this)">Latin America 🆕</div><div class="fc" onclick="chip(this)">Emerging Markets</div></div>
+    <div class="fs"><div class="fc on" onclick="chip(this)">All Industries</div><div class="fc" onclick="chip(this)">Technology</div><div class="fc" onclick="chip(this)">Banking</div><div class="fc" onclick="chip(this)">Energy</div><div class="fc" onclick="chip(this)">Mining</div><div class="fc" onclick="chip(this)">Agriculture</div></div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk">SLKT</div><div class="hinfo"><div class="hn">Silk Road Tech</div><div class="hsb">Technology · Asia Pacific · P/E 18.4 · AA bonds</div></div><div class="hr"><div class="hval">$348.94</div><div class="badge up">+0.8%</div></div></div>
+      <div class="hi"><div class="htk">MRDB</div><div class="hinfo"><div class="hn">Meridian Bank</div><div class="hsb">Banking · United States · P/E 14.2 · A bonds</div></div><div class="hr"><div class="hval">$1,008.82</div><div class="badge dn">-1.8%</div></div></div>
+      <div class="hi"><div class="htk">FRMN</div><div class="hinfo"><div class="hn">Frontier Mining</div><div class="hsb">Mining · Africa 🆕 · P/E 8.5 · BBB bonds</div></div><div class="hr"><div class="hval">$15.80</div><div class="badge up">+1.0%</div></div></div>
+      <div class="hi"><div class="htk">TNPT</div><div class="hinfo"><div class="hn">Titan Petroleum</div><div class="hsb">Energy · Emerging Mkts · P/E 11.3 · BB bonds</div></div><div class="hr"><div class="hval">$351.54</div><div class="badge dn">-2.7%</div></div></div>
+      <div class="hi"><div class="htk">AGRO</div><div class="hinfo"><div class="hn">AgroLatin Corp</div><div class="hsb">Agriculture · Latin America 🆕 · P/E 12.0 · A bonds</div></div><div class="hr"><div class="hval">$42.18</div><div class="badge up">+2.1%</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🏠</div><div class="lbl">Dashboard</div></div><div class="ni on" onclick="go('market')"><div class="ico">📊</div><div class="lbl">Market</div></div><div class="ni" onclick="go('trade')"><div class="ico">⇄</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">💼</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">📰</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- TRADE -->
+<div class="scr" id="s-trade">
+  <div class="ph"><div class="pt">Trade</div></div>
+  <div style="display:flex;background:var(--card);border-bottom:2px solid var(--bd);flex-shrink:0">
+    <div style="flex:1;padding:12px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--g700);border-bottom:2px solid var(--g600);margin-bottom:-2px;cursor:pointer">Stocks</div>
+    <div style="flex:1;padding:12px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--t3);cursor:pointer" onclick="go('bonds')">Bonds</div>
+    <div style="flex:1;padding:12px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--t3);cursor:pointer">Commodities</div>
+    <div style="flex:1;padding:12px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--t3);cursor:pointer">Crypto</div>
+    <div style="flex:1;padding:12px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--t3);cursor:pointer">Forex</div>
+  </div>
+  <div class="sb">
+    <div class="funds-card"><div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Available Funds</div><div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--g800);font-weight:700;margin-top:2px">$94.16M</div><div style="font-size:11px;color:var(--t3);margin-top:3px;font-family:'DM Mono',monospace">Cash: $0 · T-Bills: $94.16M</div></div>
+    <div class="bst"><button class="bstb abuy" onclick="bst(this,'buy')">Buy</button><button class="bstb" onclick="bst(this,'sell')">Sell</button></div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Select a Company</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk">SLKT</div><div class="hinfo"><div class="hn">Silk Road Tech</div><div class="hsb">Technology · Asia Pacific</div></div><div class="hr"><div class="hval">$348.94</div><div class="hpnl up">+0.8%</div></div></div>
+      <div class="hi"><div class="htk">MRDB</div><div class="hinfo"><div class="hn">Meridian Bank</div><div class="hsb">Banking · United States</div></div><div class="hr"><div class="hval">$1,008.82</div><div class="hpnl dn">-1.8%</div></div></div>
+      <div class="hi"><div class="htk">FRMN</div><div class="hinfo"><div class="hn">Frontier Mining</div><div class="hsb">Mining · Africa</div></div><div class="hr"><div class="hval">$15.80</div><div class="hpnl up">+1.0%</div></div></div>
+      <div class="hi"><div class="htk">AGRO</div><div class="hinfo"><div class="hn">AgroLatin Corp</div><div class="hsb">Agriculture · Latin America</div></div><div class="hr"><div class="hval">$42.18</div><div class="hpnl up">+2.1%</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🏠</div><div class="lbl">Dashboard</div></div><div class="ni" onclick="go('market')"><div class="ico">📊</div><div class="lbl">Market</div></div><div class="ni on" onclick="go('trade')"><div class="ico">⇄</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">💼</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">📰</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- PORTFOLIO -->
+<div class="scr" id="s-portfolio">
+  <div style="background:linear-gradient(135deg,var(--g800),var(--g500));padding:20px 18px;color:white;flex-shrink:0">
+    <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Earth Portfolio</div>
+    <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:800">$6.64B</div>
+    <div style="font-size:13px;margin-top:5px;opacity:.85">P&L: <span style="color:#69F0AE">+$4.82B (+265%)</span></div>
+    <div style="display:flex;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)">
+      <div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:700">8</div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Stocks</div></div>
+      <div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:700">3</div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Bonds</div></div>
+      <div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:700">2</div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Forex</div></div>
+      <div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:700">$50M</div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">GSF</div></div>
+    </div>
+  </div>
+  <div class="sb">
+    <div class="card">
+      <div class="st" style="margin-bottom:14px">Sector Allocation</div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Technology</span><span style="font-size:12px;color:var(--t3)">68.2%</span></div><div class="sbt"><div class="sbf" style="width:68.2%;background:linear-gradient(90deg,var(--g600),var(--g400))"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Bonds (Fixed Income)</span><span style="font-size:12px;color:var(--t3)">15.8%</span></div><div class="sbt"><div class="sbf" style="width:15.8%;background:linear-gradient(90deg,var(--blue),#42A5F5)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Energy</span><span style="font-size:12px;color:var(--t3)">10.2%</span></div><div class="sbt"><div class="sbf" style="width:10.2%;background:linear-gradient(90deg,#F9A825,#FFD54F)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">GSF & Other</span><span style="font-size:12px;color:var(--t3)">5.8%</span></div><div class="sbt"><div class="sbf" style="width:5.8%;background:linear-gradient(90deg,#7B1FA2,#AB47BC)"></div></div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Stock Holdings (8)</div></div>
+      <div class="hi"><div class="htk">SLKT</div><div class="hinfo"><div class="hn">Silk Road Tech</div><div class="hsb">10.17M shares · 1.70%</div></div><div class="hr"><div class="hval">$3.55B</div><div class="hpnl up">+$2.19B</div></div></div>
+      <div class="hi"><div class="htk">TNPT</div><div class="hinfo"><div class="hn">Titan Petroleum</div><div class="hsb">4.8M shares</div></div><div class="hr"><div class="hval">$1.69B</div><div class="hpnl up">+$890M</div></div></div>
+      <div class="hi"><div class="htk">FRMN</div><div class="hinfo"><div class="hn">Frontier Mining</div><div class="hsb">3.15M shares · Africa</div></div><div class="hr"><div class="hval">$49.8M</div><div class="hpnl up">+$12.4M</div></div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Bond Holdings (3)</div><div class="sa" onclick="go('bonds')">Trade →</div></div>
+      <div class="hi"><div class="htk" style="background:var(--bluel);border-color:#BBDEFB;color:var(--blue);font-size:8px">US 10Y</div><div class="hinfo"><div class="hn">US Treasury 10Y</div><div class="hsb">4.5% yield · Matures 2154 · AAA</div></div><div class="hr"><div class="hval">$210M</div><div class="hpnl up">+$8.4M</div></div></div>
+      <div class="hi"><div class="htk" style="background:#E8F5E9;border-color:#A5D6A7;color:var(--g700);font-size:8px">AFR 5Y</div><div class="hinfo"><div class="hn">African Govt Bond 5Y</div><div class="hsb">14.2% yield · Matures 2149 · BB</div></div><div class="hr"><div class="hval">$50M</div><div class="hpnl up">+7.1M/yr</div></div></div>
+      <div class="hi"><div class="htk" style="background:#FFF3E0;border-color:#FFCC80;color:#E65100;font-size:8px">SLKT BB</div><div class="hinfo"><div class="hn">Silk Road Tech Corp Bond</div><div class="hsb">6.8% yield · Matures 2151 · AA</div></div><div class="hr"><div class="hval">$80M</div><div class="hpnl up">+$5.4M/yr</div></div></div>
+    </div>
+    <div class="card"><div class="sh"><div class="st">Forex Positions (2)</div></div>
+      <div class="pos-item"><div class="htk" style="font-size:8px">EUR/USD</div><div class="hinfo"><div class="hn">EUR/USD Long · 5 lots</div><div class="hsb">Entry: 1.0850 · Now: 1.0924</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="hpnl up">+$1,250</div><button class="close-btn" onclick="closePos(this,'EUR/USD')">Close</button></div></div>
+      <div class="pos-item" style="border-bottom:none"><div class="htk" style="font-size:8px">GBP/USD</div><div class="hinfo"><div class="hn">GBP/USD Short · 2 lots</div><div class="hsb">Entry: 1.2650 · Now: 1.2580</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="hpnl dn">-$320</div><button class="close-btn" onclick="closePos(this,'GBP/USD')">Close</button></div></div>
+    </div>
+    <div class="gsf-card"><div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:8px">🏛️ Global Sovereign Fund</div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;color:var(--t2)">Your deposit</span><span style="font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--blue)">$50M</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;color:var(--t2)">This turn return</span><span style="font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--g600)">+$520K (+1.04%)</span></div><div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:var(--t2)">Total fund size</span><span style="font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:var(--t1)">$8.42B</span></div><div style="display:flex;gap:8px;margin-top:12px"><button onclick="go('gsf')" style="flex:1;background:var(--blue);color:white;border:none;border-radius:var(--rs);padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Deposit More</button><button style="flex:1;background:white;color:var(--blue);border:1.5px solid #BBDEFB;border-radius:var(--rs);padding:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Withdraw</button></div></div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🏠</div><div class="lbl">Dashboard</div></div><div class="ni" onclick="go('market')"><div class="ico">📊</div><div class="lbl">Market</div></div><div class="ni" onclick="go('trade')"><div class="ico">⇄</div><div class="lbl">Trade</div></div><div class="ni on" onclick="go('portfolio')"><div class="ico">💼</div><div class="lbl">Portfolio</div></div><div class="ni" onclick="go('news')"><div class="ico">📰</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- NEWS -->
+<div class="scr" id="s-news">
+  <div class="ph"><div class="pt">News</div><div class="ps">Turn 1425 · Oct 2144</div></div>
+  <div class="sb">
+    <div style="background:linear-gradient(135deg,var(--g900),#1a3320);border-radius:var(--r);padding:16px;color:white">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.55;margin-bottom:10px;font-weight:700">Economic Indicators</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div><div style="font-size:9px;opacity:.55;text-transform:uppercase">GDP</div><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:#69F0AE">+2.5%</div></div>
+        <div><div style="font-size:9px;opacity:.55;text-transform:uppercase">Rate</div><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:white">4.98%</div></div>
+        <div><div style="font-size:9px;opacity:.55;text-transform:uppercase">CPI</div><div style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:#FFD54F">5.1%</div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:4px">
+      <button id="ntb-g" onclick="newsTab('global')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;background:var(--g800);color:white;border:none;cursor:pointer;font-family:'DM Sans',sans-serif">🌍 Global News</button>
+      <button id="ntb-y" onclick="newsTab('your')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;background:var(--card);color:var(--t3);border:1.5px solid var(--bd);cursor:pointer;font-family:'DM Sans',sans-serif">👤 Your News</button>
+    </div>
+    <div class="fs"><div class="fc on" onclick="chip(this)">All</div><div class="fc" onclick="chip(this)">Economy</div><div class="fc" onclick="chip(this)">Companies</div><div class="fc" onclick="chip(this)">Tax Policy</div><div class="fc" onclick="chip(this)">Space</div></div>
+    <div class="card" id="news-g">
+      <div class="nitem"><div class="nacc up"></div><div><div class="ncat">Economy · T-1425</div><div class="nhl">Central bank holds rates steady at 4.98%</div><div class="ndesc">One cut predicted Q1 2145 if CPI drops below 4%.</div></div></div>
+      <div class="nitem"><div class="nacc dn"></div><div><div class="ncat">Tax Policy · T-1420</div><div class="nhl">⚠️ High Tax Era begins in 23 turns — prepare now</div><div class="ndesc">All tax rates will increase 30%. Analysts recommend increasing charitable donations before the cycle change to reduce liability.</div></div></div>
+      <div class="nitem"><div class="nacc up"></div><div><div class="ncat">Space · T-1425</div><div class="nhl">Mars LTH commodity up 18% — Earth EV stocks rally</div><div class="ndesc">Lithium shortage on Mars driving prices. Earth EV manufacturers facing input cost pressure.</div></div></div>
+      <div class="nitem"><div class="nacc nt"></div><div><div class="ncat">GSF · T-1425</div><div class="nhl">Global Sovereign Fund delivers 1.04% return this turn</div><div class="ndesc">Fund total now $8.42B across all depositors. Space commodity allocation performing strongest.</div></div></div>
+    </div>
+    <div class="card" id="news-y" style="display:none">
+      <div class="yni"><div class="ynicon div">💰</div><div><div class="ynt">Dividend — SLKT</div><div class="ynd">Silk Road Tech paid $0.85/share · 10.17M shares held</div><div class="yna">+$8,644,500</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 1424 · After 15% dividend tax: +$7,347,825</div></div></div>
+      <div class="yni"><div class="ynicon gsf">🏛️</div><div><div class="ynt">GSF Return</div><div class="ynd">Global Sovereign Fund earned 1.04% this turn</div><div class="yna">+$520,000 on your $50M deposit</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 1425</div></div></div>
+      <div class="yni"><div class="ynicon div">📋</div><div><div class="ynt">Bond Coupon — US Treasury 10Y</div><div class="ynd">$210M at 4.5% annual · Monthly coupon received</div><div class="yna">+$787,500</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Turn 1425 · After 10% bond tax: +$708,750</div></div></div>
+      <div class="yni"><div class="ynicon tax">💸</div><div><div class="ynt">Tax Summary — Turn 1425</div><div class="ynd">Capital gains: $84M · Dividends: $18M · Bond coupons: $8M · Wealth tax: $32M</div><div class="yna red">-$142,000,000 total taxes</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Reduce via philanthropy · See Tax screen</div></div></div>
+      <div class="yni"><div class="ynicon ach">❤️</div><div><div class="ynt">Philanthropy Impact — Lagos Healthcare</div><div class="ynd">Hospital funded Turn 1420 — Lagos consumer spending +4%</div><div class="yna">Your FRMN Africa holding +$2.1M indirect benefit</div><div style="font-size:10px;color:var(--t3);margin-top:3px">Tax reduction active: -20% for 1 more turn</div></div></div>
+    </div>
+  </div>
+  <div class="nav"><div class="ni" onclick="go('dashboard')"><div class="ico">🏠</div><div class="lbl">Dashboard</div></div><div class="ni" onclick="go('market')"><div class="ico">📊</div><div class="lbl">Market</div></div><div class="ni" onclick="go('trade')"><div class="ico">⇄</div><div class="lbl">Trade</div></div><div class="ni" onclick="go('portfolio')"><div class="ico">💼</div><div class="lbl">Portfolio</div></div><div class="ni on" onclick="go('news')"><div class="ico">📰</div><div class="lbl">News</div></div></div>
+</div>
+
+<!-- TAX SYSTEM -->
+<div class="scr" id="s-tax">
+  <div class="ph"><div class="ph-left" style="display:flex;align-items:center;gap:10px"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">Tax System</div><div class="ps">Standard Era · Turn 37 of 60</div></div></div></div>
+  <div class="sb">
+    <div class="cycle-card cycle-active" style="border-color:var(--g400)">
+      <div style="font-size:14px;font-weight:800;color:var(--g700);margin-bottom:6px">📅 Current: Standard Era</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Base rates apply across all tax types. Next cycle: High Tax Era in 23 turns.</div>
+      <div class="cycle-bar"><div class="cycle-fill" style="width:62%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px"><span>62% complete</span><span style="color:var(--gold)">23 turns remaining</span></div>
+    </div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none">
+      <div style="padding:6px 12px;background:var(--g50);border:1.5px solid var(--g400);border-radius:20px;font-size:11px;font-weight:700;color:var(--g700);white-space:nowrap">Standard ●</div>
+      <div style="padding:6px 12px;background:var(--redl);border:1.5px solid #EF9A9A;border-radius:20px;font-size:11px;font-weight:700;color:var(--red);white-space:nowrap">High Tax →</div>
+      <div style="padding:6px 12px;background:var(--g50);border:1.5px solid var(--bd);border-radius:20px;font-size:11px;font-weight:600;color:var(--t3);white-space:nowrap">Tax Relief</div>
+      <div style="padding:6px 12px;background:var(--goldl);border:1.5px solid #FFE082;border-radius:20px;font-size:11px;font-weight:600;color:#F57F17;white-space:nowrap">Austerity</div>
+      <div style="padding:6px 12px;background:var(--bluel);border:1.5px solid #BBDEFB;border-radius:20px;font-size:11px;font-weight:600;color:var(--blue);white-space:nowrap">Reform</div>
+    </div>
+    <div class="card">
+      <div class="sh"><div class="st">Current Tax Rates</div><div style="font-size:11px;color:var(--t3)">Turn 1425</div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Capital Gains Tax</div><div class="tax-amt">Paid $84M this turn</div></div><div style="text-align:right"><div class="tax-rate">20%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Dividend Tax</div><div class="tax-amt">Paid $18M this turn</div></div><div style="text-align:right"><div class="tax-rate">15%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Bond Coupon Tax</div><div class="tax-amt">Paid $8M this turn</div></div><div style="text-align:right"><div class="tax-rate">10%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Infrastructure Tax</div><div class="tax-amt">Space: $4M this turn</div></div><div style="text-align:right"><div class="tax-rate">18%</div></div></div>
+      <div class="tax-row"><div><div class="tax-lbl">Wealth Tax</div><div class="tax-amt">On net worth above $10B</div></div><div style="text-align:right"><div class="tax-rate">0.1%/turn</div></div></div>
+      <div style="margin-top:12px;padding:12px;background:var(--redl);border-radius:var(--rs);border:1px solid #EF9A9A">
+        <div style="font-size:13px;font-weight:700;color:var(--red)">Total Tax This Turn: $142,000,000</div>
+        <div style="font-size:11px;color:var(--red);margin-top:4px">Reduce via philanthropy donations — up to 30% reduction available</div>
+      </div>
+    </div>
+    <div class="card" style="background:var(--goldl);border-color:#FFE082">
+      <div style="font-size:13px;font-weight:700;color:#F57F17;margin-bottom:8px">⚠️ High Tax Era Coming in 23 Turns</div>
+      <div style="font-size:12px;color:#E65100;margin-bottom:10px">All rates will increase 30%. Recommended actions before cycle changes:</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:12px;color:#E65100">✓ Increase charitable donations now to lock in tax reductions</div>
+        <div style="font-size:12px;color:#E65100">✓ Consider realising capital gains before higher rates apply</div>
+        <div style="font-size:12px;color:#E65100">✓ Rotate into infrastructure assets (qualify for reinvestment discount)</div>
+        <div style="font-size:12px;color:#E65100">✓ Establish Charitable Foundation if net worth > $1B</div>
+      </div>
+    </div>
+    <button onclick="go('charity')" style="width:100%;background:var(--g600);color:white;border:none;border-radius:var(--rs);padding:14px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer">❤️ Reduce Tax Via Philanthropy →</button>
+  </div>
+</div>
+
+<!-- PHILANTHROPY -->
+<div class="scr" id="s-charity">
+  <div class="ph"><div style="display:flex;align-items:center;gap:10px"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">Philanthropy</div><div class="ps">Reduce tax · Build the world · Earn returns</div></div></div></div>
+  <div class="sb">
+    <div style="background:linear-gradient(135deg,#880E4F,#AD1457);border-radius:var(--r);padding:16px;color:white">
+      <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Your Charitable Impact</div>
+      <div style="font-size:28px;font-weight:800;font-family:'Playfair Display',serif">$1.2B donated</div>
+      <div style="font-size:12px;opacity:.8;margin-top:4px">Across 8 projects · 4 regions · Turn 1 to now</div>
+      <div style="display:flex;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)">
+        <div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px">Tax Saved</div><div style="font-size:14px;font-weight:700;margin-top:2px">$240M</div></div>
+        <div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px">Indirect Returns</div><div style="font-size:14px;font-weight:700;margin-top:2px">$180M</div></div>
+        <div><div style="font-size:9px;opacity:.6;text-transform:uppercase;letter-spacing:.5px">Reputation</div><div style="font-size:14px;font-weight:700;margin-top:2px">★★★★☆</div></div>
+      </div>
+    </div>
+    <div style="background:var(--g50);border:1px solid var(--g100);border-radius:var(--rs);padding:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--g700);margin-bottom:4px">Active Tax Reduction</div>
+      <div style="font-size:12px;color:var(--t2)">Lagos Healthcare donation (Turn 1420) — 20% tax reduction active for 1 more turn</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Donate Now</div>
+    <div class="donation-opt"><div style="font-size:24px">🏥</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Healthcare</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Build hospital · 20% tax reduction · 3 turns · GDP +0.2%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="donation-opt"><div style="font-size:24px">📚</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Education</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Build school · 15% tax reduction · 4 turns · Long-term GDP boost</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="donation-opt"><div style="font-size:24px">🏗️</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Infrastructure</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Roads · ports · 18% tax reduction · 3 turns · Trade margins +5%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="donation-opt"><div style="font-size:24px">🌾</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Agriculture</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Food security · 15% tax reduction · CPI stabilised</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="donation-opt"><div style="font-size:24px">🚀</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Space Research</div><div style="font-size:11px;color:var(--t3);margin-top:2px">25% tax reduction · 2 turns · Space sector growth +8%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div class="donation-opt"><div style="font-size:24px">🌿</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--t1)">Environmental</div><div style="font-size:11px;color:var(--t3);margin-top:2px">10% tax reduction · 5 turns · ESG premium +5%</div></div><div style="font-size:16px;color:var(--t3)">›</div></div>
+    <div style="background:linear-gradient(135deg,#4A148C,#6A1B9A);border-radius:var(--r);padding:16px;color:white;cursor:pointer">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">🏛️ Establish Charitable Foundation</div>
+      <div style="font-size:12px;opacity:.8;margin-bottom:12px">Net worth > $1B — Reduce wealth tax from 0.1% to 0.05% permanently. Cost: $500M one-time.</div>
+      <button style="background:rgba(255,255,255,.2);color:white;border:1px solid rgba(255,255,255,.3);border-radius:var(--rs);padding:10px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Establish Foundation — $500M</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL SOVEREIGN FUND -->
+<div class="scr" id="s-gsf">
+  <div class="ph"><div style="display:flex;align-items:center;gap:10px"><button class="back" onclick="go('dashboard')">←</button><div><div class="pt">Sovereign Fund</div><div class="ps">Community investment pool</div></div></div></div>
+  <div class="sb">
+    <div class="gsf-card">
+      <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Global Sovereign Fund</div>
+      <div style="font-family:'Playfair Display',serif;font-size:32px;color:var(--blue);font-weight:700">$8.42B</div>
+      <div style="font-size:12px;color:var(--t2);margin-top:3px">Total fund across all players · Your share: 0.59%</div>
+      <div style="display:flex;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #BBDEFB">
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Your Deposit</div><div style="font-size:15px;font-weight:700;color:var(--blue);font-family:'DM Mono',monospace;margin-top:2px">$50M</div></div>
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">This Turn</div><div style="font-size:15px;font-weight:700;color:var(--g600);font-family:'DM Mono',monospace;margin-top:2px">+$520K</div></div>
+        <div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Annual Rate</div><div style="font-size:15px;font-weight:700;color:var(--t1);font-family:'DM Mono',monospace;margin-top:2px">12.48%</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="st" style="margin-bottom:12px">Fund Allocation</div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Earth Govt Bonds</span><span style="font-size:12px;color:var(--t3)">25%</span></div><div class="sbt"><div class="sbf" style="width:25%;background:linear-gradient(90deg,var(--blue),#42A5F5)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Earth Blue-Chip Stocks</span><span style="font-size:12px;color:var(--t3)">20%</span></div><div class="sbt"><div class="sbf" style="width:20%;background:linear-gradient(90deg,var(--g600),var(--g400))"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Space Govt Bonds</span><span style="font-size:12px;color:var(--t3)">15%</span></div><div class="sbt"><div class="sbf" style="width:15%;background:linear-gradient(90deg,#7C3AED,#9333EA)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Infrastructure</span><span style="font-size:12px;color:var(--t3)">15%</span></div><div class="sbt"><div class="sbf" style="width:15%;background:linear-gradient(90deg,#F9A825,#FFD54F)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Space Commodities</span><span style="font-size:12px;color:var(--t3)">10%</span></div><div class="sbt"><div class="sbf" style="width:10%;background:linear-gradient(90deg,#06B6D4,#67E8F9)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Emerging Markets</span><span style="font-size:12px;color:var(--t3)">8%</span></div><div class="sbt"><div class="sbf" style="width:8%;background:linear-gradient(90deg,#E53935,#EF9A9A)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Distressed Bonds</span><span style="font-size:12px;color:var(--t3)">4%</span></div><div class="sbt"><div class="sbf" style="width:4%;background:linear-gradient(90deg,#B71C1C,#E57373)"></div></div></div>
+      <div class="sbw"><div class="sbh"><span style="font-size:12px;font-weight:600;color:var(--t1)">Cash Reserve</span><span style="font-size:12px;color:var(--t3)">3%</span></div><div class="sbt"><div class="sbf" style="width:3%;background:var(--bd)"></div></div></div>
+    </div>
+    <div style="background:var(--goldl);border:1px solid #FFE082;border-radius:var(--rs);padding:12px"><div style="font-size:12px;font-weight:700;color:#F57F17;margin-bottom:4px">🗳️ Governance Vote Open</div><div style="font-size:12px;color:#E65100">Vote on increasing Space Commodities allocation to 15%. Closes in 5 turns. Your voting power: 0.59%</div><button style="margin-top:8px;background:#F9A825;color:white;border:none;border-radius:var(--rx);padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Cast Vote</button></div>
+    <div style="display:flex;gap:8px">
+      <button style="flex:1;background:var(--blue);color:white;border:none;border-radius:var(--rs);padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Deposit</button>
+      <button style="flex:1;background:white;color:var(--blue);border:1.5px solid #BBDEFB;border-radius:var(--rs);padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Withdraw (3 turns)</button>
+    </div>
+    <div style="background:var(--redl);border:1px solid #EF9A9A;border-radius:var(--rs);padding:12px"><div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:4px">⚠️ Systemic Risk Warning</div><div style="font-size:12px;color:#C62828">Player 'VortexCapital' controls 14.8% of GSF — approaching 15% concentration limit. Monitor for potential volatility.</div></div>
+  </div>
+</div>
+
+<!-- BONDS -->
+<div class="scr" id="s-bonds">
+  <div class="ph"><div style="display:flex;align-items:center;gap:10px"><button class="back" onclick="go('portfolio')">←</button><div><div class="pt">Bond Market</div><div class="ps">All regions · Earth + Space</div></div></div></div>
+  <div class="sb">
+    <div class="fs"><div class="fc on" onclick="chip(this)">All Bonds</div><div class="fc" onclick="chip(this)">Government</div><div class="fc" onclick="chip(this)">Corporate</div><div class="fc" onclick="chip(this)">Space</div><div class="fc" onclick="chip(this)">Distressed</div></div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Earth Government Bonds</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk" style="background:var(--bluel);border-color:#BBDEFB;color:var(--blue);font-size:8px">US</div><div class="hinfo"><div class="hn">US Treasury 10Y</div><div class="hsb">USD · AAA · Matures 2154</div></div><div class="hr"><div class="hval">4.5%</div><div class="badge up">Safe</div></div></div>
+      <div class="hi"><div class="htk" style="background:#E8EAF6;border-color:#C5CAE9;color:#3949AB;font-size:8px">EU</div><div class="hinfo"><div class="hn">European Sovereign 5Y</div><div class="hsb">EUR · AA · Matures 2149</div></div><div class="hr"><div class="hval">3.8%</div><div class="badge up">Safe</div></div></div>
+      <div class="hi"><div class="htk" style="background:#E8F5E9;border-color:#A5D6A7;color:var(--g700);font-size:8px">AFR</div><div class="hinfo"><div class="hn">African Govt Bond 5Y</div><div class="hsb">AFU · BB · Matures 2149</div></div><div class="hr"><div class="hval">14.2%</div><div class="badge dn">High Risk</div></div></div>
+      <div class="hi"><div class="htk" style="background:#FFF3E0;border-color:#FFCC80;color:#E65100;font-size:8px">LAT</div><div class="hinfo"><div class="hn">LatAm Sovereign 3Y</div><div class="hsb">LAP · B · Matures 2147</div></div><div class="hr"><div class="hval">18.5%</div><div class="badge dn">Very High</div></div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Space Government Bonds</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk" style="background:rgba(194,65,12,.1);border-color:rgba(194,65,12,.3);color:#C2410C;font-size:8px">MARS</div><div class="hinfo"><div class="hn">Mars Colonial Authority 5Y</div><div class="hsb">MCR · BBB · Matures 2149</div></div><div class="hr"><div class="hval">12.8%</div><div class="badge up">Space</div></div></div>
+      <div class="hi"><div class="htk" style="background:rgba(109,40,217,.1);border-color:rgba(109,40,217,.3);color:#6D28D9;font-size:8px">JUP</div><div class="hinfo"><div class="hn">Jupiter Research Consortium 10Y</div><div class="hsb">JVT · A · Matures 2154</div></div><div class="hr"><div class="hval">8.4%</div><div class="badge up">Space</div></div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Corporate Bonds</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="hi"><div class="htk" style="background:#FFF3E0;border-color:#FFCC80;color:#E65100;font-size:8px">SLKT</div><div class="hinfo"><div class="hn">Silk Road Tech Corp Bond</div><div class="hsb">USD · AA · Matures 2151 · 6.8%</div></div><div class="hr"><div class="hval">6.8%</div><div class="badge up">IG</div></div></div>
+      <div class="hi"><div class="htk" style="background:var(--redl);border-color:#EF9A9A;color:var(--red);font-size:8px">TNPT</div><div class="hinfo"><div class="hn">Titan Petroleum Distressed</div><div class="hsb">USD · CCC · Emergency · 24.5%</div></div><div class="hr"><div class="hval">24.5%</div><div class="badge dn">Distressed</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="scr" id="s-settings">
+  <div class="ph"><div style="display:flex;align-items:center;gap:10px"><button class="back" onclick="go('dashboard')">←</button><div class="pt">Settings</div></div></div>
+  <div class="sb">
+    <div style="background:linear-gradient(135deg,var(--g800),var(--g500));border-radius:var(--r);padding:20px;color:white;display:flex;align-items:center;gap:14px">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">🧑‍💼</div>
+      <div><div style="font-size:18px;font-weight:800">Muhammad</div><div style="background:rgba(249,168,37,.3);color:#FFD54F;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;display:inline-block;margin-top:4px">Legendary Mogul 👑</div><div style="font-size:12px;opacity:.7;margin-top:4px">Investor Since Jan 2026 · Turn 1425 · 12,500 XP</div></div>
+    </div>
+    <div><div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 2px">Game</div>
+      <div class="set-row"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🎯</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Difficulty</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--t3)">Hard Mode</span><span style="color:var(--t3)">›</span></div></div>
+      <div class="set-row"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">⚡</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Simulation Speed</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--t3)">10s per turn</span><span style="color:var(--t3)">›</span></div></div>
+      <div class="set-row"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">📅</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Time Step</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--t3)">Monthly</span><span style="color:var(--t3)">›</span></div></div>
+      <div class="set-row" style="border-radius:0 0 var(--rs) var(--rs);border-bottom:none"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🌐</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Language</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--t3)">English</span><span style="color:var(--t3)">›</span></div></div>
+    </div>
+    <div><div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 2px">Account</div>
+      <div class="set-row"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🏆</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Leaderboard Username</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--t3)">@muhammad_gr</span><span style="color:var(--t3)">›</span></div></div>
+      <div class="set-row" style="border-radius:0 0 var(--rs) var(--rs);border-bottom:none"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">💎</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Subscription</span></div><div style="background:var(--goldl);color:var(--gold);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">PRO ✓</div></div>
+    </div>
+    <div><div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 2px">Support</div>
+      <div class="set-row"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">💬</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Send Feedback</span></div><span style="color:var(--t3)">›</span></div>
+      <div class="set-row" style="border-radius:0 0 var(--rs) var(--rs);border-bottom:none"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">💾</span><span style="font-size:14px;font-weight:600;color:var(--t1)">Save Game</span></div><span style="color:var(--t3)">›</span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end device -->
+<script>
+const ALL=['dashboard','market','trade','portfolio','news','tax','charity','gsf','bonds','settings'];
+function go(n){ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display='none';e.classList.remove('on');}});const t=document.getElementById('s-'+n);if(t){t.style.display='flex';t.classList.add('on');const s=t.querySelector('.sb');if(s)s.scrollTop=0;}document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));const m=document.querySelector(`.np[onclick*="'${n}'"]`);if(m)m.classList.add('on');}
+const T=[['SLKT','$348.94','u'],['BTC','$248,500','u'],['MRDB','$1,008','d'],['ETH','$14,870','u'],['TNPT','$351.54','u'],['Gold','$1,892','d'],['EUR/USD','1.0924','u'],['AFR GOV','14.2%','u'],['SLKT BB','6.8%','u']];
+const te=document.getElementById('ticker-el');
+if(te){const h=T.map(([n,p,d])=>`<span class="ti">${n} <span class="${d==='u'?'u':'d'}">${p}${d==='u'?' ▲':' ▼'}</span></span>`).join('');te.innerHTML=h+h;}
+function pill(el){el.closest('.pills').querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+function chip(el){el.closest('.fs').querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));el.classList.add('on');}
+function bst(btn,side){btn.closest('.bst').querySelectorAll('.bstb').forEach(b=>b.classList.remove('abuy','asel'));btn.classList.add(side==='buy'?'abuy':'asel');}
+function closePos(btn,pair){if(confirm('Close '+pair+' position?')){btn.closest('.pos-item').style.display='none';alert('✅ '+pair+' closed. Proceeds credited to cash.');}}
+function newsTab(t){document.getElementById('news-g').style.display=t==='global'?'block':'none';document.getElementById('news-y').style.display=t==='your'?'block':'none';document.getElementById('ntb-g').style.background=t==='global'?'var(--g800)':'var(--card)';document.getElementById('ntb-g').style.color=t==='global'?'white':'var(--t3)';document.getElementById('ntb-y').style.background=t==='your'?'var(--g800)':'var(--card)';document.getElementById('ntb-y').style.color=t==='your'?'white':'var(--t3)';}
+ALL.forEach(id=>{const e=document.getElementById('s-'+id);if(e){e.style.display=id==='dashboard'?'flex':'none';if(id==='dashboard')e.classList.add('on');}});
+</script>
+</body>
+</html>
