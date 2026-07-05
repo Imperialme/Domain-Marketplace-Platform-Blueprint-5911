@@ -1,0 +1,4 @@
+# Live config contains your watchlist and env references; state is runtime data.
+config.json
+state.json
+state.json.tmp

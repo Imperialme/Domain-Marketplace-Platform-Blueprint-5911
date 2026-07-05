@@ -1,0 +1,47 @@
+{
+  "registrar": "dynadot",
+
+  "dynadot": {
+    "apiKey": "env:DYNADOT_API_KEY",
+    "currency": "USD",
+    "baseUrl": "https://api.dynadot.com/api3.json"
+  },
+
+  "godaddy": {
+    "apiKey": "env:GODADDY_API_KEY",
+    "apiSecret": "env:GODADDY_API_SECRET",
+    "baseUrl": "https://api.godaddy.com"
+  },
+
+  "notify": {
+    "webhookUrl": "",
+    "telegram": {
+      "botToken": "env:TELEGRAM_BOT_TOKEN",
+      "chatId": ""
+    }
+  },
+
+  "monitor": {
+    "intervalMinutes": 60
+  },
+
+  "catch": {
+    "pollMs": 1500,
+    "registerRetries": 8,
+    "maxBurstHours": 12
+  },
+
+  "defaults": {
+    "maxPrice": 50,
+    "registrationYears": 1,
+    "dropWindowUtc": { "start": "10:00", "end": "22:00" }
+  },
+
+  "watchlist": [
+    {
+      "domain": "tell.me",
+      "maxPrice": 100,
+      "dropWindowUtc": { "start": "10:00", "end": "22:00" }
+    }
+  ]
+}

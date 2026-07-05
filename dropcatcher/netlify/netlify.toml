@@ -1,0 +1,10 @@
+# Merge these settings into your site's netlify.toml (repo root) if you want
+# the hourly watchtower function deployed alongside the NetZone frontend.
+[functions]
+  directory = "dropcatcher/netlify/functions"
+
+# Required env vars (set in Netlify UI → Site settings → Environment):
+#   DROPCATCHER_CONFIG_JSON  = full contents of your config.json (one line)
+#   DROPCATCHER_STATE        = /tmp/state.json
+#   DYNADOT_API_KEY          = (optional — enables opportunistic registration)
+#   TELEGRAM_BOT_TOKEN       = (optional — Telegram notifications)
