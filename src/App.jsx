@@ -10,6 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import DomainManager from './pages/DomainManager';
 import InquiryManager from './pages/InquiryManager';
 import Analytics from './pages/Analytics';
+import DropCatcher from './pages/DropCatcher';
 import Profile from './pages/Profile';
 import { DomainProvider } from './context/DomainContext';
 import { InquiryProvider } from './context/InquiryContext';
@@ -68,13 +69,21 @@ function App() {
                           </ProtectedRoute>
                         } 
                       />
-                      <Route 
-                        path="/admin/analytics" 
+                      <Route
+                        path="/admin/analytics"
                         element={
                           <ProtectedRoute requireAdmin>
                             <Analytics />
                           </ProtectedRoute>
-                        } 
+                        }
+                      />
+                      <Route
+                        path="/admin/dropcatcher"
+                        element={
+                          <ProtectedRoute requireAdmin>
+                            <DropCatcher />
+                          </ProtectedRoute>
+                        }
                       />
                     </Routes>
                   </AnimatePresence>

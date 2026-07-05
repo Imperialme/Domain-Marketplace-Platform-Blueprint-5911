@@ -5,7 +5,7 @@ module.exports = {
     {
       name: 'dropcatcher',
       script: 'src/cli.js',
-      args: 'run',
+      args: 'web 8053',
       cwd: __dirname + '/..',
       autorestart: true,
       max_restarts: 50,

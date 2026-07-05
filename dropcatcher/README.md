@@ -18,18 +18,35 @@ The tool has two jobs:
 1. **Monitor** (cheap, hourly): looks up each watched domain via **RDAP** (the free, structured registry data service — no API key needed) and tracks which phase it's in. You get a Telegram/webhook ping on every transition, so you know days in advance when a drop is coming.
 2. **Catch** (intense, minutes–hours): once a domain hits `pendingDelete` and your configured UTC drop window opens, it switches to a tight sequential loop against your registrar's availability API and fires a `register` call the instant the registry releases the name.
 
-## Quick start (VPS)
+## Quick start — no terminal skills needed
+
+One-time setup on your VPS (copy-paste these three lines):
+
+```bash
+git clone <your-repo-url> netzone && cd netzone
+sudo bash dropcatcher/install.sh
+```
+
+The installer prints an address like `http://YOUR-VPS-IP:8053`. Open it in your browser and everything else is point-and-click:
+
+1. **Create a password** (protects your control panel)
+2. **Paste your Dynadot API key** (dynadot.com → Tools → API) and click *Save settings*
+3. **Type a domain** (e.g. `tell.me`, `name.tel`, `name.africa`), set your max price, click *Watch it*
+
+That's it. The engine checks your domains hourly, shows their status (registered → expired → redemption → **DROP SOON** → caught), alerts you on Telegram/Discord at every step, and registers the domain automatically the moment it drops. It restarts itself after reboots and crashes.
+
+**Embed it in your Netzone site:** the marketplace app now has a **Drop Catcher** page in the admin sidebar (`/admin/dropcatcher`). Paste your engine address there once and manage everything from inside your own site.
+
+### Manual/advanced start (optional)
 
 ```bash
 cd dropcatcher
-node src/cli.js init                # creates config.json from the example
-export DYNADOT_API_KEY=your_key    # dynadot.com → Tools → API
-node src/cli.js add tell.me 100     # watch tell.me, max price $100
-node src/cli.js check tell.me       # one-off: RDAP phase + registrar availability
-node src/cli.js run                 # the daemon — leave running under pm2/systemd
+node src/cli.js web 8053            # dashboard + engine (what the installer runs)
+node src/cli.js run                 # headless daemon, no dashboard
+node src/cli.js check tell.me       # one-off status check from the terminal
 ```
 
-Keep it alive across reboots with one of:
+Keep it alive across reboots with the installer's systemd service, or:
 
 - **systemd**: `deploy/dropcatcher.service` (instructions in the file header)
 - **pm2**: `pm2 start deploy/ecosystem.config.cjs && pm2 save`
@@ -113,6 +130,14 @@ Netlify **cannot** do the actual catching — scheduled functions run at most on
 3. Deploy — `dropcatcher/netlify/functions/monitor.mjs` runs `@hourly`. If it finds a watched domain already dropped, it will even attempt an opportunistic registration.
 
 (Netlify's `/tmp` doesn't persist between runs, so phase-change notifications may repeat hourly there. Harmless; the VPS daemon keeps real state.)
+
+## Your TLDs: .me, .tel, .africa
+
+- **.me** (your prime focus) — run by Identity Digital. Short/generic .me names are frequently **premium-priced** by the registry; the engine checks the live price before buying and respects your max. Renewal is standard, aftermarket demand is solid.
+- **.tel** — also Identity Digital infrastructure. Low competition on drops (few services even watch .tel), so a self-hosted catcher does disproportionately well here.
+- **.africa** — run by Registry Africa (ZACR). Same lifecycle rules; drop-catching competition is thin, which again favors you.
+
+All three follow the standard redemption → pendingDelete → drop lifecycle the monitor tracks. Exact daily deletion times vary per registry — while a domain shows **DROP SOON**, the hourly checks plus the drop window (default 10:00–22:00 UTC, adjustable per domain in config) cover it; tighten the window once you've seen when that TLD's drops actually happen.
 
 ## Honest expectations for `tell.me`
 

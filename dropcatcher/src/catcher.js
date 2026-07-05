@@ -58,7 +58,7 @@ export async function attemptRegistration(registrar, cfg, entry) {
  * Sequential by design — Dynadot only processes one request per key at a
  * time, and hammering in parallel just gets your key throttled.
  */
-export async function burstCatch(registrar, cfg, entry, { ignoreWindow = false } = {}) {
+export async function burstCatch(registrar, cfg, entry, { ignoreWindow = false, shouldStop = () => false } = {}) {
   const deadline = Date.now() + cfg.catch.maxBurstHours * 3600_000;
   log.catch(`burst mode for ${entry.domain}: polling every ${cfg.catch.pollMs}ms, up to ${cfg.catch.maxBurstHours}h`);
   await notify(cfg, `burst started: ${entry.domain}`,
@@ -66,6 +66,7 @@ export async function burstCatch(registrar, cfg, entry, { ignoreWindow = false }
 
   let consecutiveErrors = 0;
   while (Date.now() < deadline) {
+    if (shouldStop()) return { success: false, reason: 'stopped' };
     if (!ignoreWindow && !inDropWindow(entry)) {
       log.info(`${entry.domain}: outside drop window ${entry.dropWindowUtc.start}–${entry.dropWindowUtc.end} UTC, pausing burst`);
       return { success: false, reason: 'window-closed' };

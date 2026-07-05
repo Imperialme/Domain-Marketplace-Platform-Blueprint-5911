@@ -21,6 +21,7 @@ Usage:
   node src/cli.js check <domain>       One-off RDAP + availability check
   node src/cli.js monitor-once         Single monitoring sweep (cron/Netlify)
   node src/cli.js run                  Long-running daemon (VPS: pm2/systemd)
+  node src/cli.js web [port]           Daemon + point-and-click dashboard (default port 8053)
   node src/cli.js catch <domain>       Force burst mode NOW, ignore window
 
 Environment:
@@ -118,6 +119,17 @@ async function main() {
       const cfg = loadConfig();
       const registrar = createRegistrar(cfg);
       await runDaemon(cfg, registrar);
+      return;
+    }
+
+    case 'web': {
+      // Config is auto-created on first run; everything else (API key,
+      // watchlist, notifications) is configured in the browser.
+      if (!fs.existsSync(CONFIG_PATH)) {
+        fs.copyFileSync(path.join(ROOT, 'config.example.json'), CONFIG_PATH);
+      }
+      const { startServer } = await import('./server.js');
+      startServer(Number(args[0]) || Number(process.env.PORT) || 8053);
       return;
     }
 

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3 } = FiIcons;
+const { FiGlobe, FiHome, FiSettings, FiMail, FiMenu, FiX, FiBarChart3, FiTarget } = FiIcons;
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
@@ -15,6 +15,7 @@ const AdminLayout = ({ children }) => {
     { name: 'Domains', href: '/admin/domains', icon: FiGlobe },
     { name: 'Inquiries', href: '/admin/inquiries', icon: FiMail },
     { name: 'Analytics', href: '/admin/analytics', icon: FiBarChart3 },
+    { name: 'Drop Catcher', href: '/admin/dropcatcher', icon: FiTarget },
     { name: 'Settings', href: '/admin/settings', icon: FiSettings },
   ];
 

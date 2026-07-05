@@ -11,8 +11,8 @@
     "dropcatcher": "./src/cli.js"
   },
   "scripts": {
-    "start": "node src/cli.js run",
-    "status": "node src/cli.js status",
+    "start": "node src/cli.js web",
+    "daemon": "node src/cli.js run",
     "monitor": "node src/cli.js monitor-once"
   }
 }
