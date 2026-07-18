@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SafeIcon from '../../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
+import { isValidEmail, isStrongPassword, PASSWORD_REQUIREMENTS } from '../../utils/validation';
 
 const { FiX, FiUser, FiLock, FiMail, FiEye, FiEyeOff } = FiIcons;
 
@@ -33,14 +34,20 @@ const RegisterModal = ({ isOpen, onClose, onSwitchToLogin }) => {
     setIsLoading(true);
     setError('');
 
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address');
+      setIsLoading(false);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setIsLoading(false);
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (!isStrongPassword(formData.password)) {
+      setError(PASSWORD_REQUIREMENTS);
       setIsLoading(false);
       return;
     }

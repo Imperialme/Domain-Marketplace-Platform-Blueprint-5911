@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -10,134 +11,106 @@ export const useAuth = () => {
   return context;
 };
 
+const NOT_CONFIGURED =
+  'Authentication is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.';
+
+// Map a Supabase auth user onto the shape the app expects.
+//
+// SECURITY: the privilege level (`role`) is read from `app_metadata`, which is
+// controlled exclusively by the server (Supabase / your admin API) and is signed
+// into the JWT. It can NOT be edited by the client, unlike `user_metadata`.
+// Never grant admin based on anything the browser can write.
+const mapUser = (sessionUser) => {
+  if (!sessionUser) return null;
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email,
+    name: sessionUser.user_metadata?.name || sessionUser.email,
+    role: sessionUser.app_metadata?.role || 'user',
+    avatar: sessionUser.user_metadata?.avatar_url || null,
+    created_at: sessionUser.created_at,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock users for demonstration
-  const mockUsers = [
-    {
-      id: 1,
-      email: 'admin@netzone.me',
-      password: 'admin123',
-      name: 'Admin User',
-      role: 'admin',
-      avatar: null,
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      email: 'user@example.com',
-      password: 'user123',
-      name: 'Regular User',
-      role: 'user',
-      avatar: null,
-      created_at: new Date().toISOString()
-    }
-  ];
-
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('netzone_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('netzone_user');
-      }
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return undefined;
     }
-    setLoading(false);
+
+    let active = true;
+
+    // Restore any existing session (tokens are managed and refreshed by the SDK).
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setUser(mapUser(data.session?.user));
+      setLoading(false);
+    });
+
+    // Keep local state in sync with sign-in / sign-out / token-refresh events.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(mapUser(session?.user));
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-      
-      if (!foundUser) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = foundUser;
-      
-      setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+    if (!isSupabaseConfigured) {
+      return { success: false, error: NOT_CONFIGURED };
     }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
   };
 
-  const register = async (userData) => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if user already exists
-      const existingUser = mockUsers.find(u => u.email === userData.email);
-      if (existingUser) {
-        throw new Error('User with this email already exists');
-      }
-
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        role: 'user',
-        avatar: null,
-        created_at: new Date().toISOString()
-      };
-
-      // Add to mock users (in real app, this would be an API call)
-      mockUsers.push(newUser);
-      
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = newUser;
-      
-      setUser(userWithoutPassword);
-      localStorage.setItem('netzone_user', JSON.stringify(userWithoutPassword));
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+  const register = async ({ name, email, password }) => {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: NOT_CONFIGURED };
     }
+    // Only non-privileged profile data is passed from the client. Roles are never
+    // set here — new accounts are always ordinary users until promoted server-side.
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
-    localStorage.removeItem('netzone_user');
   };
 
   const updateProfile = async (updates) => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('netzone_user', JSON.stringify(updatedUser));
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+    if (!isSupabaseConfigured) {
+      return { success: false, error: NOT_CONFIGURED };
     }
+    // Guard against privilege escalation: never let a profile update carry a role.
+    const { role: _ignoredRole, ...safeUpdates } = updates || {};
+    const { data, error } = await supabase.auth.updateUser({ data: safeUpdates });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    setUser(mapUser(data.user));
+    return { success: true };
   };
 
   const value = {
@@ -148,12 +121,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin'
+    isAdmin: user?.role === 'admin',
+    isConfigured: isSupabaseConfigured,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

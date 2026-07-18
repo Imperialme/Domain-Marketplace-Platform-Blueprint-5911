@@ -42,14 +42,6 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
     setIsLoading(false);
   };
 
-  const demoLogin = (role) => {
-    if (role === 'admin') {
-      setFormData({ email: 'admin@netzone.me', password: 'admin123' });
-    } else {
-      setFormData({ email: 'user@example.com', password: 'user123' });
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -72,25 +64,6 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
           </div>
 
           <div className="p-6">
-            {/* Demo Login Buttons */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 mb-3 font-medium">Demo Accounts:</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => demoLogin('admin')}
-                  className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors"
-                >
-                  Admin Login
-                </button>
-                <button
-                  onClick={() => demoLogin('user')}
-                  className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition-colors"
-                >
-                  User Login
-                </button>
-              </div>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">

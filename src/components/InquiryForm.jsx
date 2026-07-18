@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useInquiries } from '../context/InquiryContext';
+import { isValidEmail, sanitizeText } from '../utils/validation';
 
 const { FiSend, FiCheck } = FiIcons;
 
@@ -15,6 +16,7 @@ const InquiryForm = ({ domain }) => {
     budget: '',
     reseller: false
   });
+  const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,20 +30,32 @@ const InquiryForm = ({ domain }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+
       addInquiry({
         domain_id: domain.id,
         domain_name: domain.domain_name,
-        ...formData
+        name: sanitizeText(formData.name, 120),
+        email: sanitizeText(formData.email, 254),
+        message: sanitizeText(formData.message, 2000),
+        budget: formData.budget,
+        reseller: formData.reseller
       });
 
       setIsSubmitted(true);
     } catch (error) {
       console.error('Error submitting inquiry:', error);
+      setError('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -68,6 +82,11 @@ const InquiryForm = ({ domain }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
