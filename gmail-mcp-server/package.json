@@ -1,0 +1,26 @@
+{
+  "name": "gmail-mcp-multi-account",
+  "version": "1.0.0",
+  "description": "Local-only MCP server exposing Gmail (search, read, draft, send, archive, mark read/unread) across multiple Google accounts, with encrypted token storage and a CLI for account management.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "gmail-mcp": "./bin/gmail-mcp.js",
+    "gmail-mcp-server": "./bin/gmail-mcp-server.js"
+  },
+  "scripts": {
+    "start": "node bin/gmail-mcp-server.js",
+    "cli": "node bin/gmail-mcp.js"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "commander": "^12.1.0",
+    "googleapis": "^144.0.0",
+    "keytar": "^7.9.0",
+    "open": "^10.1.0",
+    "zod": "^3.23.8"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "_comment": "This mirrors the shape of ~/.gmail-mcp/config.json, which the CLI manages for you — you should not normally hand-edit it. Shown here purely as a reference. Real tokens are NEVER stored in this file; they live encrypted in ~/.gmail-mcp/tokens/*.enc.",
+  "oauthClient": {
+    "clientId": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "clientSecret": "YOUR_CLIENT_SECRET"
+  },
+  "accounts": [
+    {
+      "id": "imperial-mea",
+      "email": "you@imperialmea.com",
+      "label": "Imperial MEA (business)",
+      "addedAt": "2026-01-15T09:00:00.000Z"
+    },
+    {
+      "id": "personal",
+      "email": "you@gmail.com",
+      "label": "Personal",
+      "addedAt": "2026-01-15T09:05:00.000Z"
+    }
+  ]
+}
