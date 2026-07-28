@@ -51,17 +51,26 @@ function addDays(date, days) {
 
 function normalizePayload(body) {
   const b = body && typeof body === 'object' ? body : {};
+  // DM Champ's actual payload nests contact/message details rather than sending
+  // flat top-level fields; fall back to flat fields too so manual/curl testing
+  // with the old flat shape still works.
+  const contact = b.contact && typeof b.contact === 'object' ? b.contact : {};
+  const message = b.message && typeof b.message === 'object' ? b.message : {};
+
+  const contactName =
+    [contact.first_name, contact.last_name].filter(Boolean).join(' ') || b.contact_name || '';
+
   return {
-    task_title: b.task_title || '',
-    contact_name: b.contact_name || '',
+    task_title: message.title || b.task_title || '',
+    contact_name: contactName,
     company: b.company || '',
-    email: b.email || '',
-    phone: b.phone || '',
+    email: contact.email || b.email || '',
+    phone: contact.phone_number || b.phone || '',
     brand_vehicle: b.brand_vehicle || '',
-    parts_list: b.parts_list || '',
+    parts_list: message.description || b.parts_list || '',
     destination: b.destination || '',
-    inquiry_type: b.inquiry_type || '',
-    reference: b.reference || '',
+    inquiry_type: message.type || b.inquiry_type || '',
+    reference: message.title || b.reference || '',
   };
 }
 
@@ -351,7 +360,11 @@ async function handleWebhook(request, env) {
   console.log(`[webhook] parsed field names: ${fieldNames.join(', ') || '(none)'}`);
 
   const payload = normalizePayload(rawBody);
-  console.log(`[webhook] received reference="${payload.reference}" email="${payload.email}"`);
+  console.log(
+    `[webhook] mapped payload: reference="${payload.reference}" contact_name="${payload.contact_name}" ` +
+      `email="${payload.email}" phone="${payload.phone}" inquiry_type="${payload.inquiry_type}" ` +
+      `parts_list="${payload.parts_list}"`
+  );
 
   const result = {
     status: 'success',
