@@ -178,6 +178,26 @@ function looksLikeVin(value) {
   return /^[A-Za-z0-9]{8,20}$/.test(value) && !/^\d+$/.test(value);
 }
 
+// Brand/Model/Year from the Brand/Vehicle: line, e.g. "Haval Jolion 2023" ->
+// Brand="Haval" Model="Jolion" Year="2023". Brand is the first whitespace-delimited
+// token (a slash-joined name like "Chevrolet/GMC" is naturally kept as one token
+// since it contains no space); Model is everything after that token, with the year
+// removed first so it doesn't leak into either Brand or Model.
+function extractBrandModelYear(vehicleLine) {
+  const v = (vehicleLine || '').trim();
+  if (!v) return { brand: '', model: '', year: '' };
+
+  const yearMatch = v.match(/\b(19|20)\d{2}\b/);
+  const year = yearMatch ? yearMatch[0] : '';
+  const withoutYear = year ? v.replace(year, ' ').replace(/\s+/g, ' ').trim() : v;
+
+  const firstSpaceIdx = withoutYear.indexOf(' ');
+  const brand = firstSpaceIdx === -1 ? withoutYear : withoutYear.slice(0, firstSpaceIdx);
+  const model = firstSpaceIdx === -1 ? '' : withoutYear.slice(firstSpaceIdx + 1).trim();
+
+  return { brand, model, year };
+}
+
 // Numbered lists ("1. Dezire: MA3..." or "1. Headlight assembly (26060-VK925) Qty: 1")
 // are disambiguated structurally: a VIN entry is "N. Label: Value" where Value
 // actually looks VIN-shaped (alphanumeric, not pure digits, 8-20 chars) -- NOT
@@ -347,6 +367,7 @@ function parseDmChampFields(rawBody) {
   const contactFullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
   const destination = extractDestination(lines);
   const vehicle = findLineValue(lines, 'Brand/Vehicle:') || '';
+  const { brand, model, year } = extractBrandModelYear(vehicle);
   const vinList = extractVins(normalizedDescription);
   const parts = extractParts(normalizedDescription, lines);
   const nameRaw = findLineValue(lines, 'Name:');
@@ -373,6 +394,9 @@ function parseDmChampFields(rawBody) {
     companyName: findLineValue(lines, 'Company:') || '',
     vin: vinList.join(', '),
     vehicle,
+    brand,
+    model,
+    year,
     destination,
     consigneeCountry: mapConsigneeCountry(destination),
     partsText: parts.partsText,
@@ -574,6 +598,10 @@ async function notionCreateInquiry(env, rawBody) {
       maybeSet('Inquiry Type', parsed.inquiryType, (v) => ({ select: { name: v } }));
       maybeSet('Consignee Country', parsed.consigneeCountry, (v) => ({ select: { name: v } }));
       maybeSet('Company Name', parsed.companyName, richText);
+      maybeSet('Brand', parsed.brand, richText);
+      maybeSet('Model', parsed.model, richText);
+      maybeSet('Year', parsed.year, richText);
+      // Source is never changed on update -- it records the inquiry's original origin.
 
       // Updated Notes is cumulative history -- always appended, regardless of
       // whether anything else on this update was non-empty.
@@ -621,6 +649,7 @@ async function notionCreateInquiry(env, rawBody) {
       'Inquiry Date': { date: { start: todayISO } },
       'Response Deadline': { date: { start: toISODate(deadline) } },
       'Date Added': { date: { start: todayISO } },
+      Source: { select: { name: 'DM Champ' } },
       Notes: richText(summaryNotes),
       'Updated Notes': { rich_text: [] },
       'Line Items': { number: parsed.lineItems },
@@ -630,6 +659,16 @@ async function notionCreateInquiry(env, rawBody) {
     if (parsed.companyName) {
       properties['Company Name'] = richText(parsed.companyName);
     }
+    if (parsed.brand) {
+      properties['Brand'] = richText(parsed.brand);
+    }
+    if (parsed.model) {
+      properties['Model'] = richText(parsed.model);
+    }
+    if (parsed.year) {
+      properties['Year'] = richText(parsed.year);
+    }
+    // S/No is a Notion auto_increment_id -- never written by the Worker.
 
     const created = await notionWriteRequest('POST', 'https://api.notion.com/v1/pages', env, {
       parent: { database_id: databaseId },
