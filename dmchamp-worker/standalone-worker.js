@@ -49,6 +49,12 @@ function addDays(date, days) {
   return d;
 }
 
+function extractReference(title) {
+  const t = title || '';
+  const match = t.match(/INQ26-[A-Z]+-[A-Z0-9]+/);
+  return match ? match[0] : t;
+}
+
 function normalizePayload(body) {
   const b = body && typeof body === 'object' ? body : {};
   // DM Champ's actual payload nests contact/message details rather than sending
@@ -70,7 +76,73 @@ function normalizePayload(body) {
     parts_list: message.description || b.parts_list || '',
     destination: b.destination || '',
     inquiry_type: message.type || b.inquiry_type || '',
-    reference: message.title || b.reference || '',
+    reference: extractReference(message.title) || b.reference || '',
+  };
+}
+
+// ---------- DM Champ message.description parsing (for Notion fields) ----------
+
+function findLineValue(lines, prefix) {
+  const lower = prefix.toLowerCase();
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith(lower)) {
+      return line.slice(prefix.length).trim();
+    }
+  }
+  return null;
+}
+
+function findAllLineValues(lines, prefix) {
+  const lower = prefix.toLowerCase();
+  return lines
+    .filter((line) => line.toLowerCase().startsWith(lower))
+    .map((line) => line.slice(prefix.length).trim());
+}
+
+function parseQuantity(text) {
+  const xMatch = text.match(/x\s*(\d+)/i);
+  if (xMatch) return parseInt(xMatch[1], 10);
+  const numMatch = text.match(/(\d+)/);
+  if (numMatch) return parseInt(numMatch[1], 10);
+  return 0;
+}
+
+function mapInquiryType(raw) {
+  const normalized = (raw || '').trim().toLowerCase();
+  if (normalized.startsWith('b2b')) return 'B2B';
+  if (normalized.startsWith('b2c')) return 'B2C';
+  return 'B2C';
+}
+
+function parseDmChampFields(rawBody) {
+  const b = rawBody && typeof rawBody === 'object' ? rawBody : {};
+  const contact = b.contact && typeof b.contact === 'object' ? b.contact : {};
+  const message = b.message && typeof b.message === 'object' ? b.message : {};
+
+  const title = message.title || '';
+  const description = message.description || '';
+  const lines = description
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const contactFullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
+  const partLines = findAllLineValues(lines, 'Part:');
+  const quantities = partLines.map(parseQuantity);
+
+  return {
+    reference: extractReference(title),
+    contactName: findLineValue(lines, 'Name:') || contactFullName || '',
+    companyName: findLineValue(lines, 'Company:') || '',
+    vin: findLineValue(lines, 'VIN:') || '',
+    destination: findLineValue(lines, 'Destination:') || '',
+    partsText: partLines.join('\n'),
+    inquiryType: mapInquiryType(findLineValue(lines, 'Inquiry Type:')),
+    notes: description,
+    lineItems: partLines.length,
+    totalQuantity: quantities.reduce((sum, q) => sum + q, 0),
+    email: contact.email || '',
+    phone: contact.phone_number || '',
   };
 }
 
@@ -127,7 +199,7 @@ async function notionFindByReference(env, databaseId, reference) {
   return data.results.length > 0;
 }
 
-async function notionCreateInquiry(env, payload) {
+async function notionCreateInquiry(env, rawBody) {
   try {
     if (!env.NOTION_TOKEN) {
       console.error('[notion] NOTION_TOKEN is not set — skipping Notion write entirely.');
@@ -139,19 +211,46 @@ async function notionCreateInquiry(env, payload) {
       `[notion] starting createInquiry — database=${databaseId} tokenPrefix=${env.NOTION_TOKEN.slice(0, 8)}...`
     );
 
-    const {
-      contact_name, company, email, phone, brand_vehicle,
-      parts_list, destination, inquiry_type, reference,
-    } = payload;
+    const parsed = parseDmChampFields(rawBody);
+    console.log(
+      `[notion] parsed fields: reference="${parsed.reference}" contactName="${parsed.contactName}" ` +
+        `companyName="${parsed.companyName}" vin="${parsed.vin}" destination="${parsed.destination}" ` +
+        `inquiryType="${parsed.inquiryType}" lineItems=${parsed.lineItems} totalQuantity=${parsed.totalQuantity}`
+    );
 
-    const isDuplicate = await notionFindByReference(env, databaseId, reference);
+    const isDuplicate = await notionFindByReference(env, databaseId, parsed.reference);
     if (isDuplicate) {
-      console.log(`[notion] reference "${reference}" already exists — skipping page create.`);
+      console.log(`[notion] reference "${parsed.reference}" already exists — skipping page create.`);
       return { notion: 'duplicate', duplicate: true };
     }
 
     const today = new Date();
-    const deadline = addDays(today, 2);
+    const deadline = addDays(today, 3);
+
+    const properties = {
+      Reference: { title: [{ text: { content: parsed.reference } }] },
+      'Customer Name': { rich_text: [{ text: { content: parsed.contactName } }] },
+      'Customer Email': { email: parsed.email || null },
+      'Customer Phone': { phone_number: parsed.phone || null },
+      VIN: { rich_text: [{ text: { content: parsed.vin } }] },
+      Destination: { rich_text: [{ text: { content: parsed.destination } }] },
+      'Parts Requested': { rich_text: [{ text: { content: parsed.partsText } }] },
+      'Inquiry Type': { select: { name: parsed.inquiryType } },
+      'Pipeline Stage': { select: { name: 'Pending RFQ' } },
+      Status: { select: { name: 'New' } },
+      'Duplicate Flag': { select: { name: 'Clean' } },
+      'Ack Sent': { checkbox: false },
+      'Supplier Quote Received': { checkbox: false },
+      'Inquiry Date': { date: { start: toISODate(today) } },
+      'Response Deadline': { date: { start: toISODate(deadline) } },
+      Notes: { rich_text: [{ text: { content: parsed.notes } }] },
+      'Line Items': { number: parsed.lineItems },
+      'Total Quantity': { number: parsed.totalQuantity },
+    };
+
+    if (parsed.companyName) {
+      properties['Company Name'] = { rich_text: [{ text: { content: parsed.companyName } }] };
+    }
 
     let res;
     try {
@@ -160,26 +259,7 @@ async function notionCreateInquiry(env, payload) {
         headers: notionHeaders(env),
         body: JSON.stringify({
           parent: { database_id: databaseId },
-          properties: {
-            Reference: { title: [{ text: { content: reference } }] },
-            'Customer Name': { rich_text: [{ text: { content: contact_name } }] },
-            'Company Name': { rich_text: [{ text: { content: company } }] },
-            'Customer Email': { email: email || null },
-            'Customer Phone': { phone_number: phone || null },
-            'Parts Requested': {
-              rich_text: [{ text: { content: `Vehicle: ${brand_vehicle} | Parts: ${parts_list}` } }],
-            },
-            Destination: { rich_text: [{ text: { content: destination } }] },
-            'Inquiry Type': {
-              select: { name: ['B2B', 'B2C'].includes(inquiry_type) ? inquiry_type : 'B2C' },
-            },
-            'Pipeline Stage': { select: { name: 'Pending RFQ' } },
-            Status: { select: { name: 'New' } },
-            'Ack Sent': { checkbox: false },
-            'Duplicate Flag': { select: { name: 'Clean' } },
-            'Inquiry Date': { date: { start: toISODate(today) } },
-            'Response Deadline': { date: { start: toISODate(deadline) } },
-          },
+          properties,
         }),
       });
     } catch (networkErr) {
@@ -374,7 +454,7 @@ async function handleWebhook(request, env) {
   };
 
   const [notionRes, sheetRes] = await Promise.allSettled([
-    notionCreateInquiry(env, payload),
+    notionCreateInquiry(env, rawBody),
     sheetsAppendRow(env, payload),
   ]);
 
