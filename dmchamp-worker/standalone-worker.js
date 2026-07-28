@@ -76,92 +76,135 @@ function notionHeaders(env) {
 async function notionFindByReference(env, databaseId, reference) {
   console.log(`[notion] querying database ${databaseId} for reference "${reference}"`);
 
-  const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
-    method: 'POST',
-    headers: notionHeaders(env),
-    body: JSON.stringify({
-      filter: { property: 'Reference', title: { equals: reference } },
-      page_size: 1,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+      method: 'POST',
+      headers: notionHeaders(env),
+      body: JSON.stringify({
+        filter: { property: 'Reference', title: { equals: reference } },
+        page_size: 1,
+      }),
+    });
+  } catch (networkErr) {
+    console.error(`[notion] query THREW a network/fetch exception: ${networkErr.stack || networkErr.message}`);
+    throw new Error(`Notion query network error: ${networkErr.message}`);
+  }
 
   if (!res.ok) {
-    const bodyText = await res.text();
+    let bodyText;
+    try {
+      bodyText = await res.text();
+    } catch (readErr) {
+      bodyText = `<could not read response body: ${readErr.message}>`;
+    }
     console.error(
       `[notion] query FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
     );
     throw new Error(`Notion query failed: ${res.status} ${bodyText}`);
   }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (parseErr) {
+    console.error(`[notion] query returned ok but body wasn't valid JSON: ${parseErr.message}`);
+    throw new Error(`Notion query response parse error: ${parseErr.message}`);
+  }
+
   console.log(`[notion] query ok — ${data.results.length} existing match(es) for "${reference}"`);
   return data.results.length > 0;
 }
 
 async function notionCreateInquiry(env, payload) {
-  if (!env.NOTION_TOKEN) {
-    console.error('[notion] NOTION_TOKEN is not set — skipping Notion write entirely.');
-    return { notion: 'skipped_no_token', duplicate: false };
-  }
+  try {
+    if (!env.NOTION_TOKEN) {
+      console.error('[notion] NOTION_TOKEN is not set — skipping Notion write entirely.');
+      return { notion: 'skipped_no_token', duplicate: false };
+    }
 
-  const databaseId = env.NOTION_DATABASE_ID || DEFAULT_NOTION_DATABASE_ID;
-  console.log(
-    `[notion] starting createInquiry — database=${databaseId} tokenPrefix=${env.NOTION_TOKEN.slice(0, 8)}...`
-  );
-
-  const {
-    contact_name, company, email, phone, brand_vehicle,
-    parts_list, destination, inquiry_type, reference,
-  } = payload;
-
-  const isDuplicate = await notionFindByReference(env, databaseId, reference);
-  if (isDuplicate) {
-    console.log(`[notion] reference "${reference}" already exists — skipping page create.`);
-    return { notion: 'duplicate', duplicate: true };
-  }
-
-  const today = new Date();
-  const deadline = addDays(today, 2);
-
-  const res = await fetch('https://api.notion.com/v1/pages', {
-    method: 'POST',
-    headers: notionHeaders(env),
-    body: JSON.stringify({
-      parent: { database_id: databaseId },
-      properties: {
-        Reference: { title: [{ text: { content: reference } }] },
-        'Customer Name': { rich_text: [{ text: { content: contact_name } }] },
-        'Company Name': { rich_text: [{ text: { content: company } }] },
-        'Customer Email': { email: email || null },
-        'Customer Phone': { phone_number: phone || null },
-        'Parts Requested': {
-          rich_text: [{ text: { content: `Vehicle: ${brand_vehicle} | Parts: ${parts_list}` } }],
-        },
-        Destination: { rich_text: [{ text: { content: destination } }] },
-        'Inquiry Type': {
-          select: { name: ['B2B', 'B2C'].includes(inquiry_type) ? inquiry_type : 'B2C' },
-        },
-        'Pipeline Stage': { select: { name: 'Pending RFQ' } },
-        Status: { select: { name: 'New' } },
-        'Ack Sent': { checkbox: false },
-        'Duplicate Flag': { select: { name: 'Clean' } },
-        'Inquiry Date': { date: { start: toISODate(today) } },
-        'Response Deadline': { date: { start: toISODate(deadline) } },
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const bodyText = await res.text();
-    console.error(
-      `[notion] page create FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
+    const databaseId = env.NOTION_DATABASE_ID || DEFAULT_NOTION_DATABASE_ID;
+    console.log(
+      `[notion] starting createInquiry — database=${databaseId} tokenPrefix=${env.NOTION_TOKEN.slice(0, 8)}...`
     );
-    throw new Error(`Notion page create failed: ${res.status} ${bodyText}`);
-  }
 
-  const created = await res.json();
-  console.log(`[notion] page created ok — id=${created.id}`);
-  return { notion: 'created', duplicate: false };
+    const {
+      contact_name, company, email, phone, brand_vehicle,
+      parts_list, destination, inquiry_type, reference,
+    } = payload;
+
+    const isDuplicate = await notionFindByReference(env, databaseId, reference);
+    if (isDuplicate) {
+      console.log(`[notion] reference "${reference}" already exists — skipping page create.`);
+      return { notion: 'duplicate', duplicate: true };
+    }
+
+    const today = new Date();
+    const deadline = addDays(today, 2);
+
+    let res;
+    try {
+      res = await fetch('https://api.notion.com/v1/pages', {
+        method: 'POST',
+        headers: notionHeaders(env),
+        body: JSON.stringify({
+          parent: { database_id: databaseId },
+          properties: {
+            Reference: { title: [{ text: { content: reference } }] },
+            'Customer Name': { rich_text: [{ text: { content: contact_name } }] },
+            'Company Name': { rich_text: [{ text: { content: company } }] },
+            'Customer Email': { email: email || null },
+            'Customer Phone': { phone_number: phone || null },
+            'Parts Requested': {
+              rich_text: [{ text: { content: `Vehicle: ${brand_vehicle} | Parts: ${parts_list}` } }],
+            },
+            Destination: { rich_text: [{ text: { content: destination } }] },
+            'Inquiry Type': {
+              select: { name: ['B2B', 'B2C'].includes(inquiry_type) ? inquiry_type : 'B2C' },
+            },
+            'Pipeline Stage': { select: { name: 'Pending RFQ' } },
+            Status: { select: { name: 'New' } },
+            'Ack Sent': { checkbox: false },
+            'Duplicate Flag': { select: { name: 'Clean' } },
+            'Inquiry Date': { date: { start: toISODate(today) } },
+            'Response Deadline': { date: { start: toISODate(deadline) } },
+          },
+        }),
+      });
+    } catch (networkErr) {
+      console.error(
+        `[notion] page create THREW a network/fetch exception: ${networkErr.stack || networkErr.message}`
+      );
+      throw new Error(`Notion page create network error: ${networkErr.message}`);
+    }
+
+    if (!res.ok) {
+      let bodyText;
+      try {
+        bodyText = await res.text();
+      } catch (readErr) {
+        bodyText = `<could not read response body: ${readErr.message}>`;
+      }
+      console.error(
+        `[notion] page create FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
+      );
+      throw new Error(`Notion page create failed: ${res.status} ${bodyText}`);
+    }
+
+    let created;
+    try {
+      created = await res.json();
+    } catch (parseErr) {
+      console.error(`[notion] page create returned ok but body wasn't valid JSON: ${parseErr.message}`);
+      throw new Error(`Notion page create response parse error: ${parseErr.message}`);
+    }
+
+    console.log(`[notion] page created ok — id=${created.id}`);
+    return { notion: 'created', duplicate: false };
+  } catch (err) {
+    console.error(`[notion] createInquiry caught exception: ${err.stack || err.message}`);
+    throw err;
+  }
 }
 
 // ---------- Google OAuth ----------
@@ -342,6 +385,7 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
+      console.log(`[router] ${request.method} ${url.pathname}${url.search}`);
 
       if (url.pathname === '/' && request.method === 'GET') {
         return json({ status: 'ok', service: 'dmchamp-notion' });
@@ -359,6 +403,10 @@ export default {
         return await handleWebhook(request, env);
       }
 
+      console.error(
+        `[router] no route matched ${request.method} ${url.pathname} — falling through to skipped response. ` +
+          `If DM Champ is supposed to be hitting /webhook, check its configured URL/method.`
+      );
       return json({ status: 'success', reference: '', notion: 'skipped', sheet: 'skipped' });
     } catch (err) {
       console.error('Unhandled worker error:', err);
