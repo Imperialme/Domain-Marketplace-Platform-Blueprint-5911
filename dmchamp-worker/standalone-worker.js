@@ -218,40 +218,50 @@ function extractVins(description) {
   return description.match(/\b[A-HJ-NPR-Z0-9]{17}\b/g) || [];
 }
 
-// Lines starting with "- " (dash space) immediately following a bare "Part:" /
-// "Parts:" / "Parts Requested:" header line are parsed as part entries, stopping
-// at the first non-dash line (start of the next section).
-function extractDashPartEntries(lines) {
-  const headerIndex = lines.findIndex((l) => {
-    const lower = l.toLowerCase();
-    return lower === 'part:' || lower === 'parts:' || lower === 'parts requested:';
-  });
-  if (headerIndex === -1) return [];
-
-  const entries = [];
-  for (let i = headerIndex + 1; i < lines.length; i++) {
-    if (!lines[i].startsWith('- ')) break;
-    entries.push({ number: String(entries.length + 1), content: lines[i].slice(2).trim() });
-  }
-  return entries;
+function isPartsHeaderLine(line) {
+  const lower = line.toLowerCase();
+  return lower.endsWith('part:') || lower.endsWith('parts:');
 }
 
-function extractParts(description, lines) {
-  const { partEntries } = classifyNumberedEntries(description);
-  if (partEntries.length > 0) {
-    return {
-      partsText: partEntries.map((e) => `${e.number}. ${e.content}`).join(' | '),
-      lineItems: partEntries.length,
-      entries: partEntries,
-    };
+// Lines starting with "- " (dash space) immediately following a bare parts-header
+// line (anything ending in "Part:"/"Parts:", e.g. "Part:", "Parts:",
+// "Parts Requested:", "Additional Parts:") are parsed as part entries, stopping at
+// the first non-dash line. Every such header occurrence in the description is
+// scanned (not just the first), so multiple dash groups are all collected. Qty
+// defaults to 1 when not specified on the line; the resolved qty is always shown
+// explicitly as " xN" (any embedded "Qty: N" text is stripped first to avoid
+// duplication).
+function extractDashPartEntries(lines) {
+  const contents = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!isPartsHeaderLine(lines[i])) continue;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (!lines[j].startsWith('- ')) break;
+      const rawContent = lines[j].slice(2).trim();
+      const qty = extractQtyFromText(rawContent);
+      const finalQty = qty !== null ? qty : 1;
+      const cleanContent = rawContent.replace(/\s*Qty:\s*\S+\s*$/i, '').trim();
+      contents.push(`${cleanContent} x${finalQty}`);
+    }
   }
+  return contents.map((content, idx) => ({ number: String(idx + 1), content }));
+}
 
+// Combines numbered-list part entries and dash-list part entries when both are
+// present in the same description (renumbered sequentially across the combined
+// set), falling back to the old flat "Part:"-prefix style only when neither the
+// numbered nor the dash format produced any entries at all.
+function extractParts(description, lines) {
+  const { partEntries: numberedEntries } = classifyNumberedEntries(description);
   const dashEntries = extractDashPartEntries(lines);
-  if (dashEntries.length > 0) {
+
+  if (numberedEntries.length > 0 || dashEntries.length > 0) {
+    const combinedContents = [...numberedEntries, ...dashEntries].map((e) => e.content);
+    const entries = combinedContents.map((content, i) => ({ number: String(i + 1), content }));
     return {
-      partsText: dashEntries.map((e) => `${e.number}. ${e.content}`).join(' | '),
-      lineItems: dashEntries.length,
-      entries: dashEntries,
+      partsText: entries.map((e) => `${e.number}. ${e.content}`).join(' | '),
+      lineItems: entries.length,
+      entries,
     };
   }
 
@@ -571,6 +581,7 @@ async function notionCreateInquiry(env, rawBody) {
       'Supplier Quote Received': { checkbox: false },
       'Inquiry Date': { date: { start: todayISO } },
       'Response Deadline': { date: { start: toISODate(deadline) } },
+      'Date Added': { date: { start: todayISO } },
       Notes: richText(summaryNotes),
       'Updated Notes': { rich_text: [] },
       'Line Items': { number: parsed.lineItems },
