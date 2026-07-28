@@ -1,0 +1,20 @@
+name = "dmchamp-notion"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+account_id = "8e251fede5dc88cbbc019ef3dcb04f2b"
+
+[vars]
+NOTION_DATABASE_ID = "85057367-cbd2-4e2c-a6c4-1f1da4939079"
+GOOGLE_SHEET_ID = "1XK_o7ENA7yQ8lCkuv5bLXkWlUFcRUlpGEcpWwLxvcns"
+GOOGLE_SHEET_TAB = "Spare Parts"
+GMAIL_USER = "sales@spareparts.me"
+# Replace <your-subdomain> below with your account's actual workers.dev subdomain
+# (Cloudflare dashboard -> Workers & Pages -> your subdomain), or your custom domain/route
+# for this worker, before running `wrangler deploy`.
+GOOGLE_REDIRECT_URI = "https://dmchamp-notion.<your-subdomain>.workers.dev/oauth/callback"
+
+# Secrets (never stored in this file — set via `wrangler secret put <NAME>`):
+#   NOTION_TOKEN
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
+#   GOOGLE_REFRESH_TOKEN

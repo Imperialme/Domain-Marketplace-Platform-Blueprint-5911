@@ -1,0 +1,14 @@
+{
+  "name": "dmchamp-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DM Champ webhook — Cloudflare Worker (Notion + Google Sheets + Gmail draft)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secrets": "bash setup-secrets.sh"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}
