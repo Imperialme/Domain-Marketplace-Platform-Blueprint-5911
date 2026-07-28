@@ -385,21 +385,23 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
-      console.log(`[router] ${request.method} ${url.pathname}${url.search}`);
+      // Normalize away a trailing slash (e.g. "/webhook/") so it still matches "/webhook".
+      const path = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, '') : url.pathname;
+      console.log(`[router] ${request.method} ${url.pathname}${url.search} (normalized: ${path})`);
 
-      if (url.pathname === '/' && request.method === 'GET') {
+      if (path === '/' && request.method === 'GET') {
         return json({ status: 'ok', service: 'dmchamp-notion' });
       }
 
-      if (url.pathname === '/oauth/start' && request.method === 'GET') {
+      if (path === '/oauth/start' && request.method === 'GET') {
         return oauthStart(env);
       }
 
-      if (url.pathname === '/oauth/callback' && request.method === 'GET') {
+      if (path === '/oauth/callback' && request.method === 'GET') {
         return await oauthCallback(url, env);
       }
 
-      if (url.pathname === '/webhook' && request.method === 'POST') {
+      if (path === '/webhook' && request.method === 'POST') {
         return await handleWebhook(request, env);
       }
 
