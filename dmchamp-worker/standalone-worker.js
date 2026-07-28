@@ -8,8 +8,10 @@
  *
  * Required Variables (Settings -> Variables and Secrets):
  *   NOTION_TOKEN          (Secret)  Notion internal integration token
- *   NOTION_DATABASE_ID    (Text)    Inquiry Library database id
- *                                   -- defaults to 85057367-cbd2-4e2c-a6c4-1f1da4939079 if unset
+ *   NOTION_DATABASE_ID    (Text)    Inquiry Library database id (the DATABASE object id,
+ *                                   not its data source id -- these differ post Notion's
+ *                                   2025 data-source split; this is what "Connections" shares)
+ *                                   -- defaults to bc9fb35f-6c36-4685-a800-b160a9a52eb6 if unset
  *   GOOGLE_CLIENT_ID      (Secret)
  *   GOOGLE_CLIENT_SECRET  (Secret)
  *   GOOGLE_REDIRECT_URI   (Text)    e.g. https://dmchamp-notion.<subdomain>.workers.dev/oauth/callback
@@ -24,7 +26,7 @@
  *   POST /webhook         DM Champ inquiry payload -> Notion + Google Sheets
  */
 
-const DEFAULT_NOTION_DATABASE_ID = '85057367-cbd2-4e2c-a6c4-1f1da4939079';
+const DEFAULT_NOTION_DATABASE_ID = 'bc9fb35f-6c36-4685-a800-b160a9a52eb6';
 const NOTION_VERSION = '2022-06-28';
 const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'].join(' ');
 
