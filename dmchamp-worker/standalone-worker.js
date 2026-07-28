@@ -293,14 +293,48 @@ function computeTotalQuantity(lines, partEntries) {
   }, 0);
 }
 
+// DM Champ sometimes sends the whole description as a single line with no "\n" at
+// all, using the label keywords themselves as the only delimiters (e.g. "Name: Ahmed
+// Email: x@y.com Phone: ... Part: 1. Alternator Qty: 1 2. Engine Qty: 1 Destination: ...").
+// Reconstruct real line breaks so every existing line-based extraction function works
+// identically on this format: insert a newline before each recognized label, then also
+// break before each numbered-list marker ("1. ", "2. ", ...) so items crammed onto the
+// same line (as in an inline VIN or Part section) each become their own line, matching
+// how the native multi-line format already presents them.
+const DM_CHAMP_INLINE_LABELS = [
+  'Name:', 'Email:', 'Phone:', 'Ref:', 'Inquiry Type:', 'Brand/Vehicle:',
+  'VIN:', 'Parts Requested:', 'Parts:', 'Part:', 'Company:', 'Destination:',
+];
+
+function normalizeInlineDescription(raw) {
+  const sortedLabels = [...DM_CHAMP_INLINE_LABELS].sort((a, b) => b.length - a.length);
+  const escaped = sortedLabels.map((l) => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const labelRegex = new RegExp(`(${escaped.join('|')})`, 'gi');
+
+  let withLabelBreaks = raw.replace(labelRegex, (match, _p1, offset) => (offset === 0 ? match : `\n${match}`));
+  withLabelBreaks = withLabelBreaks.replace(/\s(\d+\.\s)/g, '\n$1');
+
+  return withLabelBreaks;
+}
+
 function parseDmChampFields(rawBody) {
   const b = rawBody && typeof rawBody === 'object' ? rawBody : {};
   const contact = b.contact && typeof b.contact === 'object' ? b.contact : {};
   const message = b.message && typeof b.message === 'object' ? b.message : {};
 
   const title = message.title || '';
+  // `description` is the TRUE raw text, preserved untouched for Notes/RAW MESSAGE/Updated
+  // Notes verbatim, regardless of which format DM Champ sent it in.
   const description = message.description || '';
-  const lines = description
+
+  // Detect the two formats DM Champ sends: line-by-line (has real "\n"s) vs a single
+  // inline line delimited only by label keywords. Both must produce identical parsed
+  // output, so the inline format is normalized into the same line-based shape before
+  // any extraction runs.
+  const hasNewlines = /\r?\n/.test(description);
+  const workingText = hasNewlines ? description : normalizeInlineDescription(description);
+
+  const lines = workingText
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
@@ -564,6 +598,11 @@ async function notionCreateInquiry(env, rawBody) {
     const deadline = addDays(today, 3);
     const summaryNotes = buildInquirySummary(parsed, todayISO);
 
+    // Incomplete data should be visibly flagged rather than silently entering the
+    // normal RFQ pipeline: an inquiry with no parts or no customer name needs human
+    // follow-up before it can be quoted.
+    const pipelineStage = !parsed.partsText || !parsed.contactName ? 'Incomplete' : 'Pending RFQ';
+
     const properties = {
       Reference: { title: [{ text: { content: parsed.reference } }] },
       'Customer Name': richText(parsed.contactName),
@@ -574,7 +613,7 @@ async function notionCreateInquiry(env, rawBody) {
       'Consignee Country': { select: { name: parsed.consigneeCountry } },
       'Parts Requested': richText(parsed.partsText),
       'Inquiry Type': { select: { name: parsed.inquiryType } },
-      'Pipeline Stage': { select: { name: 'Pending RFQ' } },
+      'Pipeline Stage': { select: { name: pipelineStage } },
       Status: { select: { name: 'New' } },
       'Duplicate Flag': { select: { name: 'Clean' } },
       'Ack Sent': { checkbox: false },
