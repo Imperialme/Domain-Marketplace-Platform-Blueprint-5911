@@ -218,6 +218,24 @@ function extractVins(description) {
   return description.match(/\b[A-HJ-NPR-Z0-9]{17}\b/g) || [];
 }
 
+// Lines starting with "- " (dash space) immediately following a bare "Part:" /
+// "Parts:" / "Parts Requested:" header line are parsed as part entries, stopping
+// at the first non-dash line (start of the next section).
+function extractDashPartEntries(lines) {
+  const headerIndex = lines.findIndex((l) => {
+    const lower = l.toLowerCase();
+    return lower === 'part:' || lower === 'parts:' || lower === 'parts requested:';
+  });
+  if (headerIndex === -1) return [];
+
+  const entries = [];
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    if (!lines[i].startsWith('- ')) break;
+    entries.push({ number: String(entries.length + 1), content: lines[i].slice(2).trim() });
+  }
+  return entries;
+}
+
 function extractParts(description, lines) {
   const { partEntries } = classifyNumberedEntries(description);
   if (partEntries.length > 0) {
@@ -227,9 +245,19 @@ function extractParts(description, lines) {
       entries: partEntries,
     };
   }
+
+  const dashEntries = extractDashPartEntries(lines);
+  if (dashEntries.length > 0) {
+    return {
+      partsText: dashEntries.map((e) => `${e.number}. ${e.content}`).join(' | '),
+      lineItems: dashEntries.length,
+      entries: dashEntries,
+    };
+  }
+
   // Fallback: old "Part:" line-prefix style, renumbered sequentially to match the same format.
   // A bare "Part:" header line with nothing after it (its items are on separate lines,
-  // handled by the numbered-entry path above) contributes no entry here.
+  // handled by the numbered-entry and dash-entry paths above) contributes no entry here.
   const partLines = findAllLineValues(lines, 'Part:').filter((text) => text.length > 0);
   const entries = partLines.map((text, i) => ({ number: String(i + 1), content: text }));
   return {
