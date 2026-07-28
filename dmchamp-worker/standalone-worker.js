@@ -119,15 +119,6 @@ function mapConsigneeCountry(destination) {
   return 'Other';
 }
 
-function cleanPartName(raw) {
-  let name = (raw || '').trim();
-  name = name.replace(/[-–]?\s*qty:?\s*\d+\s*$/i, '');
-  name = name.replace(/\s*x\s*\d+\s*$/i, '');
-  name = name.replace(/\$\s*[\d,]+(\.\d+)?\s*$/, '');
-  name = name.replace(/[-–,]\s*$/, '');
-  return name.trim();
-}
-
 function parseQtyValue(raw) {
   const trimmed = (raw || '').trim();
   if (/^\$/.test(trimmed)) return 0; // dollar amounts are not quantities -- ignore entirely
@@ -147,27 +138,75 @@ function extractDestination(lines) {
   return '';
 }
 
-function extractVins(description) {
-  const vins = [];
-  const numberedRegex = /\d+\.\s*[^:\n]+:\s*([A-Za-z0-9]{5,})/g;
-  let m;
-  while ((m = numberedRegex.exec(description)) !== null) {
-    vins.push(m[1].trim());
-  }
-  if (vins.length === 0) {
-    const simpleRegex = /VIN:\s*([A-Za-z0-9]+)/gi;
-    while ((m = simpleRegex.exec(description)) !== null) {
-      vins.push(m[1].trim());
-    }
-  }
-  return vins;
+function labelExistsInLines(lines, label) {
+  const lower = label.toLowerCase();
+  return lines.some((l) => l.toLowerCase().startsWith(lower));
 }
 
-function extractNotes(description) {
-  const marker = '--- Additional context ---';
-  const idx = description.indexOf(marker);
-  if (idx === -1) return '';
-  return description.slice(idx + marker.length).trim();
+function checkUnmapped(label, exists, value) {
+  if (exists && !value) {
+    console.warn(`[parser] WARN unmapped field: ${label}`);
+  }
+}
+
+// Numbered lists ("1. Dezire: MA3..." or "1. Headlight assembly (26060-VK925) x1") are
+// disambiguated structurally: a VIN entry is "N. Label: Value" (has a colon), a part
+// entry is everything else numbered that isn't a VIN line.
+function classifyNumberedEntries(description) {
+  const lineRegex = /^(\d+)\.\s*(.+)$/gm;
+  const vinEntries = [];
+  const partEntries = [];
+  let m;
+  while ((m = lineRegex.exec(description)) !== null) {
+    const number = m[1];
+    const content = m[2].trim();
+    const vinMatch = content.match(/^([^:]+):\s*(\S+)$/);
+    if (vinMatch) {
+      vinEntries.push(`${vinMatch[1].trim()}: ${vinMatch[2].trim()}`);
+    } else {
+      partEntries.push({ number, content });
+    }
+  }
+  return { vinEntries, partEntries };
+}
+
+function extractVins(description) {
+  const { vinEntries } = classifyNumberedEntries(description);
+  if (vinEntries.length > 0) return vinEntries;
+
+  const simpleMatches = [];
+  const simpleRegex = /VIN:\s*(\S+)/gi;
+  let m;
+  while ((m = simpleRegex.exec(description)) !== null) {
+    simpleMatches.push(m[1].trim());
+  }
+  if (simpleMatches.length > 0) return simpleMatches;
+
+  // Last resort so we're "never null if any VIN-like token exists": a bare standard-length
+  // (17-char) VIN token anywhere in the text, even with no label at all.
+  return description.match(/\b[A-HJ-NPR-Z0-9]{17}\b/g) || [];
+}
+
+function extractParts(description, lines) {
+  const { partEntries } = classifyNumberedEntries(description);
+  if (partEntries.length > 0) {
+    return {
+      partsText: partEntries.map((e) => `${e.number}. ${e.content}`).join(' | '),
+      lineItems: partEntries.length,
+    };
+  }
+  // Fallback: old "Part:" line-prefix style, renumbered sequentially to match the same format.
+  const partLines = findAllLineValues(lines, 'Part:');
+  return {
+    partsText: partLines.map((text, i) => `${i + 1}. ${text}`).join(' | '),
+    lineItems: partLines.length,
+  };
+}
+
+function buildNotes(description, vehicle) {
+  if (!description) return '';
+  const prefix = vehicle ? `Vehicle: ${vehicle}\n\n` : '';
+  return `${prefix}${description}`;
 }
 
 function parseDmChampFields(rawBody) {
@@ -183,24 +222,43 @@ function parseDmChampFields(rawBody) {
     .filter(Boolean);
 
   const contactFullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
-  const partLines = findAllLineValues(lines, 'Part:');
   const qtyLines = findAllLineValues(lines, 'Qty:');
   const destination = extractDestination(lines);
+  const vehicle = findLineValue(lines, 'Brand/Vehicle:') || '';
+  const vinList = extractVins(description);
+  const parts = extractParts(description, lines);
+  const nameRaw = findLineValue(lines, 'Name:');
+  const emailRawLine = findLineValue(lines, 'Email:');
+  const phoneRawLine = findLineValue(lines, 'Phone:');
+  const refRaw = findLineValue(lines, 'Ref:');
+  const inquiryTypeRaw = findLineValue(lines, 'Inquiry Type:');
+
+  // Validation: flag any labelled line that exists in the raw text but produced no
+  // usable value, so format drift from DM Champ is caught immediately in the logs.
+  checkUnmapped('Name:', labelExistsInLines(lines, 'Name:'), nameRaw);
+  checkUnmapped('Email:', labelExistsInLines(lines, 'Email:'), emailRawLine);
+  checkUnmapped('Phone:', labelExistsInLines(lines, 'Phone:'), phoneRawLine);
+  checkUnmapped('Ref:', labelExistsInLines(lines, 'Ref:'), refRaw);
+  checkUnmapped('VIN:', description.toLowerCase().includes('vin'), vinList.length > 0 ? 'found' : '');
+  checkUnmapped('Part:', description.toLowerCase().includes('part'), parts.lineItems > 0 ? 'found' : '');
+  checkUnmapped('Destination:', labelExistsInLines(lines, 'Destination:'), destination);
+  checkUnmapped('Brand/Vehicle:', labelExistsInLines(lines, 'Brand/Vehicle:'), vehicle);
+  checkUnmapped('Inquiry Type:', labelExistsInLines(lines, 'Inquiry Type:'), inquiryTypeRaw);
 
   return {
     reference: extractReference(title),
-    contactName: findLineValue(lines, 'Name:') || contactFullName || '',
+    contactName: nameRaw || contactFullName || '',
     companyName: findLineValue(lines, 'Company:') || '',
-    vin: extractVins(description).join(', '),
+    vin: vinList.join(', '),
     destination,
     consigneeCountry: mapConsigneeCountry(destination),
-    partsText: partLines.map(cleanPartName).filter(Boolean).join(', '),
-    inquiryType: mapInquiryType(findLineValue(lines, 'Inquiry Type:')),
-    notes: extractNotes(description),
-    lineItems: partLines.length,
+    partsText: parts.partsText,
+    inquiryType: mapInquiryType(inquiryTypeRaw),
+    notes: buildNotes(description, vehicle),
+    lineItems: parts.lineItems,
     totalQuantity: qtyLines.map(parseQtyValue).reduce((sum, q) => sum + q, 0),
-    email: contact.email || '',
-    phone: contact.phone_number || '',
+    email: contact.email || emailRawLine || '',
+    phone: contact.phone_number || phoneRawLine || '',
   };
 }
 
