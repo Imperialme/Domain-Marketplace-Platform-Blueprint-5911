@@ -99,19 +99,75 @@ function findAllLineValues(lines, prefix) {
     .map((line) => line.slice(prefix.length).trim());
 }
 
-function parseQuantity(text) {
-  const xMatch = text.match(/x\s*(\d+)/i);
-  if (xMatch) return parseInt(xMatch[1], 10);
-  const numMatch = text.match(/(\d+)/);
-  if (numMatch) return parseInt(numMatch[1], 10);
-  return 0;
-}
-
 function mapInquiryType(raw) {
   const normalized = (raw || '').trim().toLowerCase();
+  if (normalized.includes('wholesale')) return 'B2B';
   if (normalized.startsWith('b2b')) return 'B2B';
   if (normalized.startsWith('b2c')) return 'B2C';
   return 'B2C';
+}
+
+function mapConsigneeCountry(destination) {
+  const d = (destination || '').toLowerCase();
+  if (d.includes('uae') || d.includes('united arab emirates')) return 'UAE';
+  if (d.includes('saudi')) return 'Saudi Arabia';
+  if (d.includes('kenya')) return 'Kenya';
+  if (d.includes('nigeria')) return 'Nigeria';
+  if (d.includes('egypt')) return 'Egypt';
+  if (d.includes('angola')) return 'Angola';
+  // Iraq, India, and anything else unmapped all fall here.
+  return 'Other';
+}
+
+function cleanPartName(raw) {
+  let name = (raw || '').trim();
+  name = name.replace(/[-–]?\s*qty:?\s*\d+\s*$/i, '');
+  name = name.replace(/\s*x\s*\d+\s*$/i, '');
+  name = name.replace(/\$\s*[\d,]+(\.\d+)?\s*$/, '');
+  name = name.replace(/[-–,]\s*$/, '');
+  return name.trim();
+}
+
+function parseQtyValue(raw) {
+  const trimmed = (raw || '').trim();
+  if (/^\$/.test(trimmed)) return 0; // dollar amounts are not quantities -- ignore entirely
+  const numMatch = trimmed.match(/^-?\d+/);
+  if (numMatch) return parseInt(numMatch[0], 10);
+  return 1; // non-numeric ("Bulk order", etc.) counts as 1
+}
+
+function extractDestination(lines) {
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].toLowerCase().startsWith('destination:')) {
+      const sameLine = lines[i].slice('destination:'.length).trim();
+      if (sameLine) return sameLine;
+      return (lines[i + 1] || '').trim();
+    }
+  }
+  return '';
+}
+
+function extractVins(description) {
+  const vins = [];
+  const numberedRegex = /\d+\.\s*[^:\n]+:\s*([A-Za-z0-9]{5,})/g;
+  let m;
+  while ((m = numberedRegex.exec(description)) !== null) {
+    vins.push(m[1].trim());
+  }
+  if (vins.length === 0) {
+    const simpleRegex = /VIN:\s*([A-Za-z0-9]+)/gi;
+    while ((m = simpleRegex.exec(description)) !== null) {
+      vins.push(m[1].trim());
+    }
+  }
+  return vins;
+}
+
+function extractNotes(description) {
+  const marker = '--- Additional context ---';
+  const idx = description.indexOf(marker);
+  if (idx === -1) return '';
+  return description.slice(idx + marker.length).trim();
 }
 
 function parseDmChampFields(rawBody) {
@@ -128,19 +184,21 @@ function parseDmChampFields(rawBody) {
 
   const contactFullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
   const partLines = findAllLineValues(lines, 'Part:');
-  const quantities = partLines.map(parseQuantity);
+  const qtyLines = findAllLineValues(lines, 'Qty:');
+  const destination = extractDestination(lines);
 
   return {
     reference: extractReference(title),
     contactName: findLineValue(lines, 'Name:') || contactFullName || '',
     companyName: findLineValue(lines, 'Company:') || '',
-    vin: findLineValue(lines, 'VIN:') || '',
-    destination: findLineValue(lines, 'Destination:') || '',
-    partsText: partLines.join('\n'),
+    vin: extractVins(description).join(', '),
+    destination,
+    consigneeCountry: mapConsigneeCountry(destination),
+    partsText: partLines.map(cleanPartName).filter(Boolean).join(', '),
     inquiryType: mapInquiryType(findLineValue(lines, 'Inquiry Type:')),
-    notes: description,
+    notes: extractNotes(description),
     lineItems: partLines.length,
-    totalQuantity: quantities.reduce((sum, q) => sum + q, 0),
+    totalQuantity: qtyLines.map(parseQtyValue).reduce((sum, q) => sum + q, 0),
     email: contact.email || '',
     phone: contact.phone_number || '',
   };
@@ -215,7 +273,9 @@ async function notionCreateInquiry(env, rawBody) {
     console.log(
       `[notion] parsed fields: reference="${parsed.reference}" contactName="${parsed.contactName}" ` +
         `companyName="${parsed.companyName}" vin="${parsed.vin}" destination="${parsed.destination}" ` +
-        `inquiryType="${parsed.inquiryType}" lineItems=${parsed.lineItems} totalQuantity=${parsed.totalQuantity}`
+        `consigneeCountry="${parsed.consigneeCountry}" inquiryType="${parsed.inquiryType}" ` +
+        `partsText="${parsed.partsText}" lineItems=${parsed.lineItems} totalQuantity=${parsed.totalQuantity} ` +
+        `notes="${parsed.notes}"`
     );
 
     const isDuplicate = await notionFindByReference(env, databaseId, parsed.reference);
@@ -234,6 +294,7 @@ async function notionCreateInquiry(env, rawBody) {
       'Customer Phone': { phone_number: parsed.phone || null },
       VIN: { rich_text: [{ text: { content: parsed.vin } }] },
       Destination: { rich_text: [{ text: { content: parsed.destination } }] },
+      'Consignee Country': { select: { name: parsed.consigneeCountry } },
       'Parts Requested': { rich_text: [{ text: { content: parsed.partsText } }] },
       'Inquiry Type': { select: { name: parsed.inquiryType } },
       'Pipeline Stage': { select: { name: 'Pending RFQ' } },
