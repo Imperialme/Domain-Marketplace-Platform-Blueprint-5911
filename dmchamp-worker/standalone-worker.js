@@ -336,12 +336,20 @@ async function sheetsAppendRow(env, payload) {
 // ---------- webhook ----------
 
 async function handleWebhook(request, env) {
+  const rawText = await request.text();
+  console.log(`[webhook] raw request body: ${rawText}`);
+
   let rawBody = {};
   try {
-    rawBody = await request.json();
+    rawBody = JSON.parse(rawText);
   } catch (err) {
+    console.error(`[webhook] raw body is not valid JSON: ${err.message}`);
     rawBody = {};
   }
+
+  const fieldNames = rawBody && typeof rawBody === 'object' ? Object.keys(rawBody) : [];
+  console.log(`[webhook] parsed field names: ${fieldNames.join(', ') || '(none)'}`);
+
   const payload = normalizePayload(rawBody);
   console.log(`[webhook] received reference="${payload.reference}" email="${payload.email}"`);
 
