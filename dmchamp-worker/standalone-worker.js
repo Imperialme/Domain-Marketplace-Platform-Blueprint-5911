@@ -74,6 +74,8 @@ function notionHeaders(env) {
 }
 
 async function notionFindByReference(env, databaseId, reference) {
+  console.log(`[notion] querying database ${databaseId} for reference "${reference}"`);
+
   const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
     method: 'POST',
     headers: notionHeaders(env),
@@ -84,19 +86,29 @@ async function notionFindByReference(env, databaseId, reference) {
   });
 
   if (!res.ok) {
-    throw new Error(`Notion query failed: ${res.status} ${await res.text()}`);
+    const bodyText = await res.text();
+    console.error(
+      `[notion] query FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
+    );
+    throw new Error(`Notion query failed: ${res.status} ${bodyText}`);
   }
 
   const data = await res.json();
+  console.log(`[notion] query ok — ${data.results.length} existing match(es) for "${reference}"`);
   return data.results.length > 0;
 }
 
 async function notionCreateInquiry(env, payload) {
   if (!env.NOTION_TOKEN) {
+    console.error('[notion] NOTION_TOKEN is not set — skipping Notion write entirely.');
     return { notion: 'skipped_no_token', duplicate: false };
   }
 
   const databaseId = env.NOTION_DATABASE_ID || DEFAULT_NOTION_DATABASE_ID;
+  console.log(
+    `[notion] starting createInquiry — database=${databaseId} tokenPrefix=${env.NOTION_TOKEN.slice(0, 8)}...`
+  );
+
   const {
     contact_name, company, email, phone, brand_vehicle,
     parts_list, destination, inquiry_type, reference,
@@ -104,6 +116,7 @@ async function notionCreateInquiry(env, payload) {
 
   const isDuplicate = await notionFindByReference(env, databaseId, reference);
   if (isDuplicate) {
+    console.log(`[notion] reference "${reference}" already exists — skipping page create.`);
     return { notion: 'duplicate', duplicate: true };
   }
 
@@ -139,9 +152,15 @@ async function notionCreateInquiry(env, payload) {
   });
 
   if (!res.ok) {
-    throw new Error(`Notion page create failed: ${res.status} ${await res.text()}`);
+    const bodyText = await res.text();
+    console.error(
+      `[notion] page create FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
+    );
+    throw new Error(`Notion page create failed: ${res.status} ${bodyText}`);
   }
 
+  const created = await res.json();
+  console.log(`[notion] page created ok — id=${created.id}`);
   return { notion: 'created', duplicate: false };
 }
 
@@ -279,6 +298,7 @@ async function handleWebhook(request, env) {
     rawBody = {};
   }
   const payload = normalizePayload(rawBody);
+  console.log(`[webhook] received reference="${payload.reference}" email="${payload.email}"`);
 
   const result = {
     status: 'success',
@@ -298,14 +318,18 @@ async function handleWebhook(request, env) {
       result.status = 'duplicate';
     }
   } else {
-    console.error('Notion step failed:', notionRes.reason);
+    console.error(
+      `[webhook] Notion step threw for reference="${payload.reference}": ${notionRes.reason && notionRes.reason.message}`
+    );
     result.notion = 'error';
   }
 
   if (sheetRes.status === 'fulfilled') {
     result.sheet = sheetRes.value.sheet;
   } else {
-    console.error('Sheets step failed:', sheetRes.reason);
+    console.error(
+      `[webhook] Sheets step threw for reference="${payload.reference}": ${sheetRes.reason && sheetRes.reason.message}`
+    );
     result.sheet = 'error';
   }
 
