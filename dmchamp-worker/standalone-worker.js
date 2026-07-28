@@ -1,5 +1,5 @@
 /**
- * DM Champ -> Notion + Google Sheets Webhook (no Gmail)
+ * DM Champ -> Notion + Google Sheets Webhook
  * Imperial MEA / SpareParts.me
  *
  * Single-file Cloudflare Worker — paste this whole file into the
@@ -8,10 +8,12 @@
  *
  * Required Variables (Settings -> Variables and Secrets):
  *   NOTION_TOKEN          (Secret)  Notion internal integration token
- *   NOTION_DATABASE_ID    (Text)    Inquiry Library database id (the DATABASE object id,
- *                                   not its data source id -- these differ post Notion's
- *                                   2025 data-source split; this is what "Connections" shares)
+ *   NOTION_DATABASE_ID    (Text)    Inquiry Library DATABASE (container) id --
+ *                                   NOT the data source id (these differ post
+ *                                   Notion's 2025 data-source split; this is
+ *                                   the id "Connections" sharing is attached to)
  *                                   -- defaults to bc9fb35f-6c36-4685-a800-b160a9a52eb6 if unset
+ *                                   (data source/collection id, for reference: 85057367-cbd2-4e2c-a6c4-1f1da4939079)
  *   GOOGLE_CLIENT_ID      (Secret)
  *   GOOGLE_CLIENT_SECRET  (Secret)
  *   GOOGLE_REDIRECT_URI   (Text)    e.g. https://dmchamp-notion.<subdomain>.workers.dev/oauth/callback
@@ -20,17 +22,17 @@
  *   GOOGLE_SHEET_TAB      (Text)    defaults to "Spare Parts" if unset
  *
  * Routes:
- *   GET  /              health check
+ *   GET  /               health check
  *   GET  /oauth/start    redirects to Google consent screen
- *   GET  /oauth/callback  exchanges the auth code, shows the refresh token to copy
- *   POST /webhook         DM Champ inquiry payload -> Notion + Google Sheets
+ *   GET  /oauth/callback exchanges the auth code, shows the refresh token to copy
+ *   POST /webhook        (or /webhook/) DM Champ inquiry payload -> Notion + Google Sheets
  */
 
 const DEFAULT_NOTION_DATABASE_ID = 'bc9fb35f-6c36-4685-a800-b160a9a52eb6';
 const NOTION_VERSION = '2022-06-28';
 const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'].join(' ');
 
-// ---------- helpers ----------
+// ---------- generic helpers ----------
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -51,8 +53,19 @@ function addDays(date, days) {
 
 function extractReference(title) {
   const t = title || '';
-  const match = t.match(/INQ26-[A-Z]+-[A-Z0-9]+/);
+  const match = t.match(/INQ26-[A-Z0-9]+-[A-Z0-9]+/);
   return match ? match[0] : t;
+}
+
+// Reference is primarily the code embedded in message.title; if the title
+// doesn't contain a proper INQ26 code, also look for one anywhere in the
+// description (e.g. a "Ref:" line) before falling back to the raw title.
+function deriveReference(title, description) {
+  const fromTitle = extractReference(title);
+  if (/INQ26-[A-Z0-9]+-[A-Z0-9]+/.test(fromTitle)) return fromTitle;
+  const descMatch = (description || '').match(/INQ26-[A-Z0-9]+-[A-Z0-9]+/);
+  if (descMatch) return descMatch[0];
+  return fromTitle;
 }
 
 function normalizePayload(body) {
@@ -76,7 +89,7 @@ function normalizePayload(body) {
     parts_list: message.description || b.parts_list || '',
     destination: b.destination || '',
     inquiry_type: message.type || b.inquiry_type || '',
-    reference: extractReference(message.title) || b.reference || '',
+    reference: deriveReference(message.title, message.description) || b.reference || '',
   };
 }
 
@@ -99,6 +112,17 @@ function findAllLineValues(lines, prefix) {
     .map((line) => line.slice(prefix.length).trim());
 }
 
+function labelExistsInLines(lines, label) {
+  const lower = label.toLowerCase();
+  return lines.some((l) => l.toLowerCase().startsWith(lower));
+}
+
+function checkUnmapped(label, exists, value) {
+  if (exists && !value) {
+    console.warn(`[parser] WARN unmapped field: ${label}`);
+  }
+}
+
 function mapInquiryType(raw) {
   const normalized = (raw || '').trim().toLowerCase();
   if (normalized.includes('wholesale')) return 'B2B';
@@ -109,12 +133,13 @@ function mapInquiryType(raw) {
 
 function mapConsigneeCountry(destination) {
   const d = (destination || '').toLowerCase();
-  if (d.includes('uae') || d.includes('united arab emirates')) return 'UAE';
-  if (d.includes('saudi')) return 'Saudi Arabia';
-  if (d.includes('kenya')) return 'Kenya';
-  if (d.includes('nigeria')) return 'Nigeria';
-  if (d.includes('egypt')) return 'Egypt';
-  if (d.includes('angola')) return 'Angola';
+  const uaeCities = ['abu dhabi', 'dubai', 'sharjah', 'ajman', 'fujairah', 'ras al khaimah', 'umm al quwain', 'al ain'];
+  if (d.includes('uae') || d.includes('united arab emirates') || uaeCities.some((c) => d.includes(c))) return 'UAE';
+  if (d.includes('saudi') || d.includes('riyadh') || d.includes('jeddah') || d.includes('dammam')) return 'Saudi Arabia';
+  if (d.includes('kenya') || d.includes('nairobi') || d.includes('mombasa')) return 'Kenya';
+  if (d.includes('nigeria') || d.includes('lagos') || d.includes('abuja')) return 'Nigeria';
+  if (d.includes('egypt') || d.includes('cairo') || d.includes('alexandria')) return 'Egypt';
+  if (d.includes('angola') || d.includes('luanda')) return 'Angola';
   // Iraq, India, and anything else unmapped all fall here.
   return 'Other';
 }
@@ -125,6 +150,17 @@ function parseQtyValue(raw) {
   const numMatch = trimmed.match(/^-?\d+/);
   if (numMatch) return parseInt(numMatch[0], 10);
   return 1; // non-numeric ("Bulk order", etc.) counts as 1
+}
+
+// Extracts a quantity embedded directly within a part entry's own text, e.g.
+// "... (26060-VK925) Qty: 1" or "... Air Filter x2". Returns null if no
+// quantity marker is present in this particular entry's text at all.
+function extractQtyFromText(text) {
+  const qtyLabelMatch = text.match(/Qty:\s*(\S+)/i);
+  if (qtyLabelMatch) return parseQtyValue(qtyLabelMatch[1]);
+  const xMatch = text.match(/x\s*(\d+)\s*$/i);
+  if (xMatch) return parseInt(xMatch[1], 10);
+  return null;
 }
 
 function extractDestination(lines) {
@@ -138,20 +174,15 @@ function extractDestination(lines) {
   return '';
 }
 
-function labelExistsInLines(lines, label) {
-  const lower = label.toLowerCase();
-  return lines.some((l) => l.toLowerCase().startsWith(lower));
+function looksLikeVin(value) {
+  return /^[A-Za-z0-9]{8,20}$/.test(value) && !/^\d+$/.test(value);
 }
 
-function checkUnmapped(label, exists, value) {
-  if (exists && !value) {
-    console.warn(`[parser] WARN unmapped field: ${label}`);
-  }
-}
-
-// Numbered lists ("1. Dezire: MA3..." or "1. Headlight assembly (26060-VK925) x1") are
-// disambiguated structurally: a VIN entry is "N. Label: Value" (has a colon), a part
-// entry is everything else numbered that isn't a VIN line.
+// Numbered lists ("1. Dezire: MA3..." or "1. Headlight assembly (26060-VK925) Qty: 1")
+// are disambiguated structurally: a VIN entry is "N. Label: Value" where Value
+// actually looks VIN-shaped (alphanumeric, not pure digits, 8-20 chars) -- NOT
+// just "has a colon", since part lines can also contain a colon (e.g. "Qty: 1").
+// Everything numbered that isn't a VIN match is treated as a part entry.
 function classifyNumberedEntries(description) {
   const lineRegex = /^(\d+)\.\s*(.+)$/gm;
   const vinEntries = [];
@@ -160,8 +191,8 @@ function classifyNumberedEntries(description) {
   while ((m = lineRegex.exec(description)) !== null) {
     const number = m[1];
     const content = m[2].trim();
-    const vinMatch = content.match(/^([^:]+):\s*(\S+)$/);
-    if (vinMatch) {
+    const vinMatch = content.match(/^(.+):\s*(\S+)$/);
+    if (vinMatch && looksLikeVin(vinMatch[2])) {
       vinEntries.push(`${vinMatch[1].trim()}: ${vinMatch[2].trim()}`);
     } else {
       partEntries.push({ number, content });
@@ -193,20 +224,35 @@ function extractParts(description, lines) {
     return {
       partsText: partEntries.map((e) => `${e.number}. ${e.content}`).join(' | '),
       lineItems: partEntries.length,
+      entries: partEntries,
     };
   }
   // Fallback: old "Part:" line-prefix style, renumbered sequentially to match the same format.
-  const partLines = findAllLineValues(lines, 'Part:');
+  // A bare "Part:" header line with nothing after it (its items are on separate lines,
+  // handled by the numbered-entry path above) contributes no entry here.
+  const partLines = findAllLineValues(lines, 'Part:').filter((text) => text.length > 0);
+  const entries = partLines.map((text, i) => ({ number: String(i + 1), content: text }));
   return {
-    partsText: partLines.map((text, i) => `${i + 1}. ${text}`).join(' | '),
-    lineItems: partLines.length,
+    partsText: entries.map((e) => `${e.number}. ${e.content}`).join(' | '),
+    lineItems: entries.length,
+    entries,
   };
 }
 
-function buildNotes(description, vehicle) {
-  if (!description) return '';
-  const prefix = vehicle ? `Vehicle: ${vehicle}\n\n` : '';
-  return `${prefix}${description}`;
+// Total Quantity: if standalone "Qty:" lines exist anywhere (older DM Champ
+// format where quantity is a fully separate line from the part description),
+// use those exclusively. Otherwise derive quantity per part entry from an
+// embedded "Qty: N" or trailing "xN" marker, defaulting missing entries to 1
+// ("Bulk orders with no numeric qty = 1 per line").
+function computeTotalQuantity(lines, partEntries) {
+  const standaloneQtyLines = findAllLineValues(lines, 'Qty:');
+  if (standaloneQtyLines.length > 0) {
+    return standaloneQtyLines.map(parseQtyValue).reduce((sum, q) => sum + q, 0);
+  }
+  return partEntries.reduce((sum, e) => {
+    const embedded = extractQtyFromText(e.content);
+    return sum + (embedded !== null ? embedded : 1);
+  }, 0);
 }
 
 function parseDmChampFields(rawBody) {
@@ -220,13 +266,17 @@ function parseDmChampFields(rawBody) {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
+  // Regex-based extraction (numbered-list VIN/part disambiguation) relies on "^" matching
+  // the start of each line; indented sub-items in the raw text (e.g. "  1. Headlight...")
+  // would otherwise fail to match. Use the already-trimmed lines rejoined for extraction,
+  // while `description` (the true raw text) is preserved untouched for Notes/Updated Notes.
+  const normalizedDescription = lines.join('\n');
 
   const contactFullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
-  const qtyLines = findAllLineValues(lines, 'Qty:');
   const destination = extractDestination(lines);
   const vehicle = findLineValue(lines, 'Brand/Vehicle:') || '';
-  const vinList = extractVins(description);
-  const parts = extractParts(description, lines);
+  const vinList = extractVins(normalizedDescription);
+  const parts = extractParts(normalizedDescription, lines);
   const nameRaw = findLineValue(lines, 'Name:');
   const emailRawLine = findLineValue(lines, 'Email:');
   const phoneRawLine = findLineValue(lines, 'Phone:');
@@ -246,20 +296,62 @@ function parseDmChampFields(rawBody) {
   checkUnmapped('Inquiry Type:', labelExistsInLines(lines, 'Inquiry Type:'), inquiryTypeRaw);
 
   return {
-    reference: extractReference(title),
+    reference: deriveReference(title, description),
     contactName: nameRaw || contactFullName || '',
     companyName: findLineValue(lines, 'Company:') || '',
     vin: vinList.join(', '),
+    vehicle,
     destination,
     consigneeCountry: mapConsigneeCountry(destination),
     partsText: parts.partsText,
+    partEntries: parts.entries,
     inquiryType: mapInquiryType(inquiryTypeRaw),
-    notes: buildNotes(description, vehicle),
+    description,
     lineItems: parts.lineItems,
-    totalQuantity: qtyLines.map(parseQtyValue).reduce((sum, q) => sum + q, 0),
+    totalQuantity: computeTotalQuantity(lines, parts.entries),
     email: contact.email || emailRawLine || '',
     phone: contact.phone_number || phoneRawLine || '',
   };
+}
+
+// Builds the permanent, create-time-only Notes summary block. Never touched again.
+function buildInquirySummary(parsed, todayISO) {
+  const partsListText =
+    parsed.partEntries.length > 0
+      ? parsed.partEntries.map((e) => `${e.number}. ${e.content}`).join('\n')
+      : '(none)';
+
+  return [
+    'INQUIRY SUMMARY',
+    '===============',
+    `Reference     : ${parsed.reference}`,
+    `Date          : ${todayISO}`,
+    `Customer Name : ${parsed.contactName}`,
+    `Email         : ${parsed.email}`,
+    `Phone         : ${parsed.phone}`,
+    `Country       : ${parsed.consigneeCountry}`,
+    `Vehicle       : ${parsed.vehicle}`,
+    `VIN           : ${parsed.vin}`,
+    `Inquiry Type  : ${parsed.inquiryType}`,
+    '',
+    'PARTS REQUIRED',
+    '==============',
+    partsListText,
+    '',
+    'RAW MESSAGE',
+    '===========',
+    parsed.description,
+  ].join('\n');
+}
+
+function plainTextFromRichText(richTextArray) {
+  if (!Array.isArray(richTextArray)) return '';
+  return richTextArray.map((t) => t.plain_text || (t.text && t.text.content) || '').join('');
+}
+
+function nextUpdateNumber(existingUpdatedNotesText) {
+  const matches = existingUpdatedNotesText.match(/^\[\d+\]\s\[\d{4}-\d{2}-\d{2}\]\s\[.+\]$/gm) || [];
+  return matches.length + 1;
 }
 
 // ---------- Notion ----------
@@ -312,14 +404,46 @@ async function notionFindByReference(env, databaseId, reference) {
   }
 
   console.log(`[notion] query ok — ${data.results.length} existing match(es) for "${reference}"`);
-  return data.results.length > 0;
+  return data.results.length > 0 ? data.results[0] : null;
+}
+
+async function notionWriteRequest(method, url, env, body) {
+  let res;
+  try {
+    res = await fetch(url, { method, headers: notionHeaders(env), body: JSON.stringify(body) });
+  } catch (networkErr) {
+    console.error(`[notion] ${method} ${url} THREW a network/fetch exception: ${networkErr.stack || networkErr.message}`);
+    throw new Error(`Notion ${method} network error: ${networkErr.message}`);
+  }
+
+  if (!res.ok) {
+    let bodyText;
+    try {
+      bodyText = await res.text();
+    } catch (readErr) {
+      bodyText = `<could not read response body: ${readErr.message}>`;
+    }
+    console.error(`[notion] ${method} ${url} FAILED — status ${res.status}. Response body: ${bodyText}`);
+    throw new Error(`Notion ${method} failed: ${res.status} ${bodyText}`);
+  }
+
+  try {
+    return await res.json();
+  } catch (parseErr) {
+    console.error(`[notion] ${method} ${url} returned ok but body wasn't valid JSON: ${parseErr.message}`);
+    throw new Error(`Notion ${method} response parse error: ${parseErr.message}`);
+  }
+}
+
+function richText(content) {
+  return { rich_text: [{ text: { content } }] };
 }
 
 async function notionCreateInquiry(env, rawBody) {
   try {
     if (!env.NOTION_TOKEN) {
       console.error('[notion] NOTION_TOKEN is not set — skipping Notion write entirely.');
-      return { notion: 'skipped_no_token', duplicate: false };
+      return { notion: 'skipped_no_token' };
     }
 
     const databaseId = env.NOTION_DATABASE_ID || DEFAULT_NOTION_DATABASE_ID;
@@ -332,85 +456,110 @@ async function notionCreateInquiry(env, rawBody) {
       `[notion] parsed fields: reference="${parsed.reference}" contactName="${parsed.contactName}" ` +
         `companyName="${parsed.companyName}" vin="${parsed.vin}" destination="${parsed.destination}" ` +
         `consigneeCountry="${parsed.consigneeCountry}" inquiryType="${parsed.inquiryType}" ` +
-        `partsText="${parsed.partsText}" lineItems=${parsed.lineItems} totalQuantity=${parsed.totalQuantity} ` +
-        `notes="${parsed.notes}"`
+        `partsText="${parsed.partsText}" lineItems=${parsed.lineItems} totalQuantity=${parsed.totalQuantity}`
     );
 
-    const isDuplicate = await notionFindByReference(env, databaseId, parsed.reference);
-    if (isDuplicate) {
-      console.log(`[notion] reference "${parsed.reference}" already exists — skipping page create.`);
-      return { notion: 'duplicate', duplicate: true };
+    const today = new Date();
+    const todayISO = toISODate(today);
+    const existingPage = await notionFindByReference(env, databaseId, parsed.reference);
+
+    if (existingPage) {
+      console.log(`[notion] reference "${parsed.reference}" exists — updating existing page ${existingPage.id}`);
+
+      const existingPipelineStage =
+        (existingPage.properties['Pipeline Stage'] && existingPage.properties['Pipeline Stage'].select
+          ? existingPage.properties['Pipeline Stage'].select.name
+          : '') || '';
+      const existingUpdatedNotesText = plainTextFromRichText(
+        existingPage.properties['Updated Notes'] && existingPage.properties['Updated Notes'].rich_text
+      );
+
+      const updateNumber = nextUpdateNumber(existingUpdatedNotesText);
+      const newBlock = `[${updateNumber}] [${todayISO}] [${parsed.reference}]\n---\n${parsed.description}`;
+      const updatedNotesValue = existingUpdatedNotesText
+        ? `${existingUpdatedNotesText}\n\n${newBlock}`
+        : newBlock;
+
+      const updateProps = {};
+      const updatedFieldNames = [];
+
+      function maybeSet(name, value, propBuilder) {
+        const nonEmpty = typeof value === 'number' ? value > 0 : !!value;
+        if (nonEmpty) {
+          updateProps[name] = propBuilder(value);
+          updatedFieldNames.push(name);
+        }
+      }
+
+      maybeSet('Customer Name', parsed.contactName, richText);
+      maybeSet('Customer Email', parsed.email, (v) => ({ email: v }));
+      maybeSet('Customer Phone', parsed.phone, (v) => ({ phone_number: v }));
+      maybeSet('Parts Requested', parsed.partsText, richText);
+      maybeSet('VIN', parsed.vin, richText);
+      maybeSet('Destination', parsed.destination, richText);
+      maybeSet('Line Items', parsed.lineItems, (v) => ({ number: v }));
+      maybeSet('Total Quantity', parsed.totalQuantity, (v) => ({ number: v }));
+      maybeSet('Inquiry Type', parsed.inquiryType, (v) => ({ select: { name: v } }));
+      maybeSet('Consignee Country', parsed.consigneeCountry, (v) => ({ select: { name: v } }));
+      maybeSet('Company Name', parsed.companyName, richText);
+
+      // Updated Notes is cumulative history -- always appended, regardless of
+      // whether anything else on this update was non-empty.
+      updateProps['Updated Notes'] = richText(updatedNotesValue);
+
+      if (existingPipelineStage === 'Pending RFQ' || existingPipelineStage === 'Incomplete') {
+        updateProps['Response Deadline'] = { date: { start: toISODate(addDays(today, 3)) } };
+        updatedFieldNames.push('Response Deadline');
+      }
+
+      await notionWriteRequest('PATCH', `https://api.notion.com/v1/pages/${existingPage.id}`, env, {
+        properties: updateProps,
+      });
+
+      console.log(`[notion] updated fields: ${updatedFieldNames.join(', ') || '(none -- only Updated Notes appended)'}`);
+      console.log('[notion] preserved workflow fields on update');
+
+      return { notion: 'updated' };
     }
 
-    const today = new Date();
+    console.log(`[notion] creating new page for reference "${parsed.reference}"`);
     const deadline = addDays(today, 3);
+    const summaryNotes = buildInquirySummary(parsed, todayISO);
 
     const properties = {
       Reference: { title: [{ text: { content: parsed.reference } }] },
-      'Customer Name': { rich_text: [{ text: { content: parsed.contactName } }] },
+      'Customer Name': richText(parsed.contactName),
       'Customer Email': { email: parsed.email || null },
       'Customer Phone': { phone_number: parsed.phone || null },
-      VIN: { rich_text: [{ text: { content: parsed.vin } }] },
-      Destination: { rich_text: [{ text: { content: parsed.destination } }] },
+      VIN: richText(parsed.vin),
+      Destination: richText(parsed.destination),
       'Consignee Country': { select: { name: parsed.consigneeCountry } },
-      'Parts Requested': { rich_text: [{ text: { content: parsed.partsText } }] },
+      'Parts Requested': richText(parsed.partsText),
       'Inquiry Type': { select: { name: parsed.inquiryType } },
       'Pipeline Stage': { select: { name: 'Pending RFQ' } },
       Status: { select: { name: 'New' } },
       'Duplicate Flag': { select: { name: 'Clean' } },
       'Ack Sent': { checkbox: false },
       'Supplier Quote Received': { checkbox: false },
-      'Inquiry Date': { date: { start: toISODate(today) } },
+      'Inquiry Date': { date: { start: todayISO } },
       'Response Deadline': { date: { start: toISODate(deadline) } },
-      Notes: { rich_text: [{ text: { content: parsed.notes } }] },
+      Notes: richText(summaryNotes),
+      'Updated Notes': { rich_text: [] },
       'Line Items': { number: parsed.lineItems },
       'Total Quantity': { number: parsed.totalQuantity },
     };
 
     if (parsed.companyName) {
-      properties['Company Name'] = { rich_text: [{ text: { content: parsed.companyName } }] };
+      properties['Company Name'] = richText(parsed.companyName);
     }
 
-    let res;
-    try {
-      res = await fetch('https://api.notion.com/v1/pages', {
-        method: 'POST',
-        headers: notionHeaders(env),
-        body: JSON.stringify({
-          parent: { database_id: databaseId },
-          properties,
-        }),
-      });
-    } catch (networkErr) {
-      console.error(
-        `[notion] page create THREW a network/fetch exception: ${networkErr.stack || networkErr.message}`
-      );
-      throw new Error(`Notion page create network error: ${networkErr.message}`);
-    }
-
-    if (!res.ok) {
-      let bodyText;
-      try {
-        bodyText = await res.text();
-      } catch (readErr) {
-        bodyText = `<could not read response body: ${readErr.message}>`;
-      }
-      console.error(
-        `[notion] page create FAILED — status ${res.status} on database ${databaseId}. Response body: ${bodyText}`
-      );
-      throw new Error(`Notion page create failed: ${res.status} ${bodyText}`);
-    }
-
-    let created;
-    try {
-      created = await res.json();
-    } catch (parseErr) {
-      console.error(`[notion] page create returned ok but body wasn't valid JSON: ${parseErr.message}`);
-      throw new Error(`Notion page create response parse error: ${parseErr.message}`);
-    }
+    const created = await notionWriteRequest('POST', 'https://api.notion.com/v1/pages', env, {
+      parent: { database_id: databaseId },
+      properties,
+    });
 
     console.log(`[notion] page created ok — id=${created.id}`);
-    return { notion: 'created', duplicate: false };
+    return { notion: 'created' };
   } catch (err) {
     console.error(`[notion] createInquiry caught exception: ${err.stack || err.message}`);
     throw err;
@@ -510,7 +659,7 @@ async function sheetsAppendRow(env, payload) {
   } = payload;
 
   const today = new Date();
-  const deadline = addDays(today, 2);
+  const deadline = addDays(today, 3);
 
   const row = [
     '', toISODate(today), toISODate(deadline), reference, inquiry_type,
@@ -559,10 +708,11 @@ async function handleWebhook(request, env) {
   console.log(`[webhook] parsed field names: ${fieldNames.join(', ') || '(none)'}`);
 
   const payload = normalizePayload(rawBody);
+  const parsedForLog = parseDmChampFields(rawBody);
   console.log(
-    `[webhook] mapped payload: reference="${payload.reference}" contact_name="${payload.contact_name}" ` +
-      `email="${payload.email}" phone="${payload.phone}" inquiry_type="${payload.inquiry_type}" ` +
-      `parts_list="${payload.parts_list}"`
+    `[webhook] mapped payload: reference=${parsedForLog.reference} email=${parsedForLog.email} ` +
+      `name=${parsedForLog.contactName} parts=${parsedForLog.partsText} qty=${parsedForLog.totalQuantity} ` +
+      `lineitems=${parsedForLog.lineItems}`
   );
 
   const result = {
@@ -579,9 +729,6 @@ async function handleWebhook(request, env) {
 
   if (notionRes.status === 'fulfilled') {
     result.notion = notionRes.value.notion;
-    if (notionRes.value.duplicate) {
-      result.status = 'duplicate';
-    }
   } else {
     console.error(
       `[webhook] Notion step threw for reference="${payload.reference}": ${notionRes.reason && notionRes.reason.message}`
@@ -609,7 +756,7 @@ export default {
       const url = new URL(request.url);
       // Normalize away a trailing slash (e.g. "/webhook/") so it still matches "/webhook".
       const path = url.pathname.length > 1 ? url.pathname.replace(/\/+$/, '') : url.pathname;
-      console.log(`[router] ${request.method} ${url.pathname}${url.search} (normalized: ${path})`);
+      console.log(`[router] ${request.method} ${path}${url.search}`);
 
       if (path === '/' && request.method === 'GET') {
         return json({ status: 'ok', service: 'dmchamp-notion' });
