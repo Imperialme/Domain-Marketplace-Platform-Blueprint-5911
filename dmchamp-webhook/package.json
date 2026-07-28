@@ -1,0 +1,20 @@
+{
+  "name": "dmchamp-webhook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DM Champ webhook server: Notion + Google Sheets + Gmail draft integration",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "googleapis": "^140.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
